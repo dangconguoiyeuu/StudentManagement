@@ -75,3 +75,19 @@ Dựng hoàn thiện cấu trúc quan hệ lồng nhau giữa 8 thực thể lõ
 ### Giai đoạn 7: Đóng gói và Triển khai hệ thống (Docker)
 * Viết file cấu hình `Dockerfile` đóng gói mã nguồn ứng dụng.
 * Viết file liên kết đồng bộ `docker-compose.yml` để vận hành cùng lúc Container Spring Boot và Container Database MySQL độc lập.
+
+## 🔗 5. Quy trình quản lý mã nguồn (Git Workflow)
+* **`main`**: Nhánh Production (chứa code ổn định).
+* **`develop`**: Nhánh tích hợp (nơi gom tính năng).
+* **`feature/<tên-tính-năng>`**: Nhánh phát triển tính năng riêng lẻ.
+
+---
+
+### 📜 6. Nhật ký hành trình (Project Changelog)
+| Thời gian | Nhánh | Thao tác | Mô tả chi tiết |
+| :--- | :--- | :--- | :--- |
+| 06/06/2026 | `feature/setup-entities` | **Khởi tạo** | Tạo dự án, cấu hình Spring Boot, MySQL. |
+| 06/06/2026 | `feature/setup-entities` | **Hoàn thành** | Xây dựng 8 Entities, Repo, DTO, Mapper, Exception Handler. |
+| 06/06/2026 | `main` | **Merge** | Gộp code từ `feature/setup-entities` vào `main`. |
+| 06/06/2026 | `develop` | **Tạo mới** | Tạo nhánh `develop` từ `main`. |
+| 06/06/2026 | `feature/setup-entities` | **Xóa** | Xóa nhánh tính năng sau khi đã gộp thành công. |
