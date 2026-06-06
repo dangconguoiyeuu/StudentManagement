@@ -46,13 +46,455 @@ The content is organized as follows:
 mvnw
 mvnw.cmd
 pom.xml
+src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentCreationRequest.java
+src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/UserCreationRequest.java
+src/main/java/com/dangdepzaivaio/StudentManagement/entity/BaseEntity.java
+src/main/java/com/dangdepzaivaio/StudentManagement/entity/Class.java
+src/main/java/com/dangdepzaivaio/StudentManagement/entity/CourseClass.java
+src/main/java/com/dangdepzaivaio/StudentManagement/entity/Department.java
+src/main/java/com/dangdepzaivaio/StudentManagement/entity/Grade.java
+src/main/java/com/dangdepzaivaio/StudentManagement/entity/Role.java
+src/main/java/com/dangdepzaivaio/StudentManagement/entity/Student.java
+src/main/java/com/dangdepzaivaio/StudentManagement/entity/Subject.java
+src/main/java/com/dangdepzaivaio/StudentManagement/entity/User.java
+src/main/java/com/dangdepzaivaio/StudentManagement/mapper/StudentMapper.java
+src/main/java/com/dangdepzaivaio/StudentManagement/repository/GradeRepository.java
+src/main/java/com/dangdepzaivaio/StudentManagement/repository/UserRepository.java
 src/main/java/com/dangdepzaivaio/StudentManagement/StudentManagementApplication.java
 src/main/resources/application.yaml
 src/test/java/com/dangdepzaivaio/StudentManagement/StudentManagementApplicationTests.java
+StudentManagement.docx
 </directory_structure>
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentCreationRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
+
+public record StudentCreationRequest(
+        @NotBlank(message = "Mã sinh viên không được để trống")
+        @Size(max = 20, message = "Mã sinh viên không vượt quá 20 ký tự")
+        String studentCode,
+
+        @NotBlank(message = "Tên sinh viên không được để trống")
+        String firstName,
+
+        @NotBlank(message = "Họ và tên đệm không được để trống")
+        String lastName,
+
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+
+        @NotNull(message = "ID lớp hành chính không được để trống")
+        Long classId,
+
+        @Valid // Quan trọng: Để kích hoạt validation cho đối tượng bên trong
+        @NotNull(message = "Thông tin tài khoản không được để trống")
+        UserCreationRequest user
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/UserCreationRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record UserCreationRequest(
+        @NotBlank(message = "Tên đăng nhập không được để trống")
+        @Size(min = 4, max = 50, message = "Tên đăng nhập phải từ 4 đến 50 ký tự")
+        String username,
+
+        @NotBlank(message = "Mật khẩu không được để trống")
+        @Size(min = 6, message = "Mật khẩu phải có ít nhất 6 ký tự")
+        String password,
+
+        @NotBlank(message = "Email không được để trống")
+        @Email(message = "Định dạng email không hợp lệ")
+        String email
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/BaseEntity.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.MappedSuperclass;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@MappedSuperclass // Quan trọng: Đánh dấu đây là class cha để các thực thể khác kế thừa
+@EntityListeners(AuditingEntityListener.class) // Tự động cập nhật thời gian
+public abstract class BaseEntity {
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Class.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "classes")
+public class Class extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "name", nullable = false, unique = true, length = 50)
+    private String name; // Ví dụ: D21CNPM1, D22HTTT2
+
+    // Mối quan hệ: Nhiều lớp thuộc về một Khoa
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id", nullable = false)
+    private Department department;
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/CourseClass.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "course_classes")
+public class CourseClass extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "code", nullable = false, unique = true, length = 30)
+    private String code; // Mã lớp học phần (Ví dụ: INT3110_01)
+
+    @Column(name = "semester", nullable = false, length = 20)
+    private String semester; // Học kỳ (Ví dụ: HK1-2026)
+
+    // Nhiều lớp học phần thuộc về một Môn học gốc
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "subject_id", nullable = false)
+    private Subject subject;
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Department.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "departments")
+public class Department extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "code", nullable = false, unique = true, length = 20)
+    private String code; // Ví dụ: CNTT, ĐTVT, kttc
+
+    @Column(name = "name", nullable = false, unique = true)
+    private String name; // Ví dụ: Công nghệ thông tin
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Grade.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "grades", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"student_id", "course_class_id"}) // Một SV chỉ có 1 dòng điểm trong 1 lớp học phần
+})
+public class Grade extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // Nhiều dòng điểm thuộc về một Sinh viên
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "student_id", nullable = false)
+    private Student student;
+
+    // Nhiều dòng điểm thuộc về một Lớp học phần
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_class_id", nullable = false)
+    private CourseClass courseClass;
+
+    @Column(name = "attendance_grade")
+    private Double attendanceGrade; // Điểm chuyên cần
+
+    @Column(name = "midterm_grade")
+    private Double midtermGrade; // Điểm giữa kỳ
+
+    @Column(name = "final_grade")
+    private Double finalGrade; // Điểm cuối kỳ
+
+    @Column(name = "overall_grade")
+    private Double overallGrade; // Điểm tổng kết hệ 10
+
+    @Column(name = "letter_grade", length = 5)
+    private String letterGrade; // Điểm chữ (A, B+, B, C...)
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Role.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "roles")
+public class Role extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "name", nullable = false, unique = true)
+    private String name; // Ví dụ: ADMIN, TEACHER, STUDENT
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Student.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDate;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "students")
+public class Student extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "student_code", nullable = false, unique = true, length = 20)
+    private String studentCode; // Mã sinh viên (Ví dụ: B21DCCN001)
+
+    @Column(name = "first_name", nullable = false, length = 50)
+    private String firstName; // Tên (Ví dụ: Anh)
+
+    @Column(name = "last_name", nullable = false, length = 100)
+    private String lastName; // Họ và đệm (Ví dụ: Nguyễn Đình)
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(name = "gender", length = 10)
+    private String gender;
+
+    @Column(name = "phone_number", length = 15)
+    private String phoneNumber;
+
+    // Mỗi sinh viên sở hữu duy nhất 1 tài khoản hệ thống
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    private User user;
+
+    // Nhiều sinh viên học chung 1 lớp hành chính
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "class_id", nullable = false)
+    private Class studentClass;
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Subject.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "subjects")
+public class Subject extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "code", nullable = false, unique = true, length = 20)
+    private String code; // Ví dụ: THVP01, INT3110
+
+    @Column(name = "name", nullable = false, length = 150)
+    private String name; // Ví dụ: Lập trình Spring Boot
+
+    @Column(name = "credits", nullable = false)
+    private Integer credits; // Số tín chỉ (Ví dụ: 3)
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/User.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.Set;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "users")
+public class User extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "username", nullable = false, unique = true)
+    private String username;
+
+    @Column(name = "password", nullable = false)
+    private String password;
+
+    @Column(name = "email", nullable = false, unique = true)
+    private String email;
+
+    // Quan hệ nhiều-nhiều: Một user có thể có nhiều role, một role có nhiều user
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles;
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/StudentMapper.java">
+package com.dangdepzaivaio.StudentManagement.mapper;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
+import com.dangdepzaivaio.StudentManagement.entity.Student;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.factory.Mappers;
+
+@Mapper(componentModel = "spring")
+public interface StudentMapper {
+    StudentMapper INSTANCE = Mappers.getMapper(StudentMapper.class);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "studentClass", ignore = true)
+    @Mapping(target = "user", source = "user")
+    Student toEntity(StudentCreationRequest request);
+
+    // BỔ SUNG THÊM HÀM NÀY: Để MapStruct tự xử lý chuyển đổi thực thể User lồng bên trong
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "roles", ignore = true)
+    User toUserEntity(UserCreationRequest request);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/GradeRepository.java">
+package com.dangdepzaivaio.StudentManagement.repository;
+
+import com.dangdepzaivaio.StudentManagement.entity.Grade;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+
+@Repository
+public interface GradeRepository extends JpaRepository<Grade, Long> {
+    // Tìm kiếm toàn bộ điểm số của một sinh viên dựa vào ID
+    List<Grade> findByStudentId(Long studentId);
+
+    // Tìm kiếm điểm số của một lớp học phần
+    List<Grade> findByCourseClassId(Long courseClassId);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/UserRepository.java">
+package com.dangdepzaivaio.StudentManagement.repository;
+
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.Optional;
+
+@Repository
+public interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByUsername(String username);
+    boolean existsByUsername(String username);
+    boolean existsByEmail(String email);
+}
+</file>
 
 <file path=".gitattributes">
 /mvnw text eol=lf
@@ -638,8 +1080,10 @@ Write-Output "MVN_CMD=$MAVEN_HOME/bin/$MVN_CMD"
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-webmvc</artifactId>
-		</dependency>
+			<artifactId>spring-boot-starter-web</artifactId> </dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId> </dependency>
 		<dependency>
 			<groupId>org.thymeleaf.extras</groupId>
 			<artifactId>thymeleaf-extras-springsecurity6</artifactId>
@@ -655,24 +1099,26 @@ Write-Output "MVN_CMD=$MAVEN_HOME/bin/$MVN_CMD"
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
 		</dependency>
+
+		<dependency>
+			<groupId>org.mapstruct</groupId>
+			<artifactId>mapstruct</artifactId>
+			<version>1.6.3</version> </dependency>
+		<dependency>
+			<groupId>org.mapstruct</groupId>
+			<artifactId>mapstruct-processor</artifactId>
+			<version>1.6.3</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-jpa-test</artifactId>
+			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-thymeleaf-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -738,8 +1184,11 @@ package com.dangdepzaivaio.StudentManagement;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 @SpringBootApplication
+@EnableJpaAuditing
+
 public class StudentManagementApplication {
 
 	public static void main(String[] args) {
@@ -753,6 +1202,19 @@ public class StudentManagementApplication {
 spring:
   application:
     name: StudentManagement
+  datasource:
+    url: jdbc:mysql://localhost:3306/student_management?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: dcnyuu
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
 </file>
 
 <file path="src/test/java/com/dangdepzaivaio/StudentManagement/StudentManagementApplicationTests.java">
