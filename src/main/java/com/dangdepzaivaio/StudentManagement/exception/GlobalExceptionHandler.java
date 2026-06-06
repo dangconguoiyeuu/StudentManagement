@@ -10,11 +10,16 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 public class GlobalExceptionHandler {
 
     // 1. Bắt toàn bộ các lỗi Runtime không xác định (Tránh làm lộ log hệ thống ra ngoài)
+    // 1. Bắt toàn bộ các lỗi Runtime không xác định và trả thẳng tên lỗi ra Postman
     @ExceptionHandler(value = Exception.class)
     public ResponseEntity<ApiResponse<Object>> handlingRuntimeException(Exception exception) {
+
+        // Tạo câu thông báo chi tiết: Lấy tên Class của lỗi + Tin nhắn lỗi gốc
+        String detailedMessage = exception.getClass().getSimpleName() + " -> " + exception.getMessage();
+
         ApiResponse<Object> apiResponse = new ApiResponse<>(
                 ErrorCode.UNCATEGORIZED_EXCEPTION.getCode(),
-                ErrorCode.UNCATEGORIZED_EXCEPTION.getMessage(),
+                detailedMessage, // Trả thẳng câu này ra ngoài Postman thay vì câu "Lỗi hệ thống không xác định"
                 null
         );
         return ResponseEntity.status(ErrorCode.UNCATEGORIZED_EXCEPTION.getStatusCode()).body(apiResponse);
