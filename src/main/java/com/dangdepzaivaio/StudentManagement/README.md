@@ -54,25 +54,28 @@ Dựng hoàn thiện cấu trúc quan hệ lồng nhau giữa 8 thực thể lõ
 * Thiết lập Enum `ErrorCode` quản lý tập trung mã lỗi nội bộ kèm HTTP Status chuẩn doanh nghiệp.
 * Hoàn thiện bộ lọc `@RestControllerAdvice` bắt trọn vẹn lỗi Runtime hệ thống, lỗi logic nghiệp vụ (`AppException`), và tự động bóc tách chuỗi thông báo lỗi của Jakarta Validation trả ra ngoài Client.
 
-### Giai đoạn 5 (Mới cập nhật): Xây dựng và Kiểm thử Toàn diện CRUD User API
-* **Hoàn thiện Logic Tầng Service & Controller:** Thiết lập thành công trọn bộ 4 Endpoints cốt lõi cho `User`:
-    * `POST /users`: Tạo mới tài khoản (kiểm tra trùng lặp tài khoản qua `existsByUsername`).
-    * `GET /users`: Lấy danh sách toàn bộ người dùng trong hệ thống.
-    * `GET /users/{userId}`: Lấy chi tiết thông tin một người dùng cụ thể.
-    * `PUT /users/{userId}`: Cập nhật linh hoạt mật khẩu/email (bảo vệ trường `username` và `createdAt` không bị chỉnh sửa sai lệch).
-* **Cô lập & Sửa lỗi Xung đột Bảo mật (401 Unauthorized):** Phát hiện và xử lý triệt để tiến trình chạy ngầm (zombie process) bằng cách tạm thời vô hiệu hóa bộ lọc tự động của Spring Security trong file `pom.xml`, giải phóng hoàn toàn cổng `8081` cho việc test logic thuần thục.
-* **Nâng cấp Bộ bắt lỗi Chẩn đoán Nhanh trên Postman:** Tối ưu hóa hàm xử lý lỗi tổng quát `handlingRuntimeException` trong `GlobalExceptionHandler`. Thay vì ẩn lỗi dưới mã `9999` với câu chữ chung chung, hệ thống hiện tại tự động bóc tách và trả thẳng chuỗi định danh lỗi (`ExceptionClass -> Message`) trực tiếp về Postman. Giúp lập trình viên nhận diện ngay lập tức lỗi thiếu Body (`HttpMessageNotReadableException`) hoặc lỗi cú pháp mà không cần lội qua hàng chục dòng log Terminal rối mắt.
-* **Kết quả Kiểm thử:** Toàn bộ 4 API vượt qua các kịch bản test trên Postman và lệnh `curl` môi trường Windows MINGW64, ghi nhận trạng thái thành công mã `1000` (`200 OK`) đồng hành cùng cơ chế tự động điền mốc thời gian `createdAt`/`updatedAt` từ JPA Auditing.
+### Giai đoạn 5: Xây dựng và Kiểm thử Toàn diện CRUD User API
+* **Hoàn thiện Logic Tầng Service & Controller:** Thiết lập thành công trọn bộ 4 Endpoints cốt lõi cho `User`.
+* **Cô lập & Sửa lỗi Xung đột Bảo mật (401 Unauthorized):** Phát hiện và xử lý triệt để tiến trình chạy ngầm, giải phóng cổng `8081` cho việc test logic thuần thục.
+* **Nâng cấp Bộ bắt lỗi Chẩn đoán Nhanh trên Postman:** Tối ưu hóa hàm xử lý lỗi tổng quát trong `GlobalExceptionHandler` để bóc tách và trả thẳng chuỗi định danh lỗi (`ExceptionClass -> Message`) trực tiếp về Postman.
+* **Kết quả Kiểm thử:** Toàn bộ 4 API vượt qua các kịch bản test trên Postman, ghi nhận trạng thái thành công mã `1000` (`200 OK`).
+
+### Giai đoạn 6 (Mới cập nhật): Hoàn thiện Nghiệp vụ & Toàn bộ CRUD Student API
+* **Thiết lập chuỗi API lồng nhau dữ liệu phức tạp (Nested JSON):** Xây dựng thành công bộ hàm tạo mới sinh viên đi kèm tài khoản hệ thống cùng lúc, tự động map cấu trúc DTO qua MapStruct.
+* **Bảo vệ tính thực thi toàn vẹn bằng `@Transactional`:** Ràng buộc chặt chẽ quá trình lưu dữ liệu xuống bảng `users` và `students`. Đảm bảo hệ thống tự động Rollback (hủy bỏ) toàn luồng nếu xảy ra lỗi xung đột, không sinh dữ liệu rác.
+* **Hoàn thành trọn vẹn các Endpoints cho Student:**
+  * `POST /students`: Tạo mới sinh viên, tự động gán cứng Role `STUDENT` và xác thực logic tồn tại của Lớp hành chính (`classId`).
+  * `GET /students`: Lấy danh sách toàn bộ hồ sơ sinh viên kèm theo dữ liệu "gia phả" đa tầng lồng nhau (User, Role, Class, Department).
+  * `GET /students/{studentId}`: Xem thông tin chi tiết một sinh viên theo ID.
+  * `PUT /students/{studentId}`: Cập nhật lý lịch cá nhân linh hoạt (Họ tên, ngày sinh, giới tính, số điện thoại) và hỗ trợ bốc dỡ điều chuyển lớp hành chính an toàn.
+* **Kiểm thử Toàn diện:** Vượt qua toàn bộ kịch bản lỗi ràng buộc dữ liệu đầu vào (Trùng mã sinh viên, trùng Email, sai định dạng hoặc không tồn tại Lớp hành chính) trên môi trường Postman cục bộ.
 
 ---
 
 ## 🚀 4. Lộ trình Triển khai: CẦN LÀM TIẾP
 
-### Giai đoạn 6: Triển khai Logic Nghiệp vụ Sinh viên (Student Service & CRUD)
-* Viết toàn bộ các xử lý CRUD cho Sinh viên (`Student`), liên kết logic tạo sinh viên đồng thời với tài khoản hệ thống (`User`) thông qua `StudentMapper` và MapStruct.
-* Tiếp tục mở rộng sang quản lý Lớp học hành chính, Khoa, Môn học.
-
 ### Giai đoạn 7: Nghiệp vụ Tính toán Điểm số & GPA Lõi
+* Xây dựng tầng Service và Controller cho các thực thể Môn học (`Subject`), Lớp học phần (`CourseClass`) và Điểm số (`Grade`).
 * Lập trình thuật toán tự động tính điểm tổng kết môn học hệ 10 từ các điểm thành phần (Chuyên cần, Giữa kỳ, Cuối kỳ).
 * Tự động quy đổi điểm số sang hệ điểm chữ (A, B+, B, C, D, F...) theo quy chế đào tạo tín chỉ.
 * Xây dựng hàm tính điểm trung bình học kỳ (GPA) và điểm tích lũy hệ 4 của sinh viên phục vụ xét học bổng, cảnh báo học vụ.
@@ -103,4 +106,5 @@ Dựng hoàn thiện cấu trúc quan hệ lồng nhau giữa 8 thực thể lõ
 | 06/06/2026 | `feature/setup-entities` | **Hoàn thành** | Xây dựng 8 Entities, Repo, DTO, Mapper, Exception Handler. |
 | 06/06/2026 | `main` | **Merge** | Gộp code từ `feature/setup-entities` vào `main`. |
 | 06/06/2026 | `develop` | **Tạo mới** | Tạo nhánh `develop` từ `main`. |
-| 06/06/2026 | `develop` | **Cập nhật** | **Hoàn thành bộ API CRUD User & Nâng cấp bộ chẩn đoán lỗi chi tiết trực tiếp trên Postman (Loại bỏ thành công lỗi kẹt cổng 401).** |
+| 06/06/2026 | `develop` | **Cập nhật** | Hoàn thành bộ API CRUD User & Nâng cấp bộ chẩn đoán lỗi chi tiết trực tiếp trên Postman (Loại bỏ thành công lỗi kẹt cổng 401). |
+| 07/06/2026 | `develop` | **Cập nhật** | **Hoàn thành toàn diện bộ API CRUD Student, xử lý giao dịch cô lập tài khoản @Transactional và gán tự động phân quyền hệ thống.** |
