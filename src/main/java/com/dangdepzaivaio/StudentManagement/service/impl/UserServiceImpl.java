@@ -8,6 +8,7 @@ import com.dangdepzaivaio.StudentManagement.exception.AppException;
 import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
 import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
 import com.dangdepzaivaio.StudentManagement.service.UserService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -59,5 +60,13 @@ public class UserServiceImpl implements UserService {
         }
 
         return userRepository.save(user); // Lưu lại bản cập nhật
+    }
+
+    @Override
+    @Transactional
+    public void disableUser(Long id) {
+        User user = getUserById(id);
+        user.setActive(false); // Chuyển trạng thái hoạt động thành false (coi như đã xóa)
+        userRepository.save(user);
     }
 }

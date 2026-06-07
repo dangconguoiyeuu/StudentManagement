@@ -35,6 +35,10 @@ public class Student extends BaseEntity {
     @Column(name = "phone_number", length = 15)
     private String phoneNumber;
 
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true;
+
     // Mỗi sinh viên sở hữu duy nhất 1 tài khoản hệ thống
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)

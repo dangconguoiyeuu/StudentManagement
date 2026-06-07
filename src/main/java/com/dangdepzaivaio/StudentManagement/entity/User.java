@@ -27,6 +27,10 @@ public class User extends BaseEntity {
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true;
+
     // Quan hệ nhiều-nhiều: Một user có thể có nhiều role, một role có nhiều user
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

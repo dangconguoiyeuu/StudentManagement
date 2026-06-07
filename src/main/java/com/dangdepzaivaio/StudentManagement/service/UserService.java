@@ -12,4 +12,5 @@ public interface UserService {
     List<User> getAllUsers(); // Đã xóa chữ "java" thừa ở đây
     User getUserById(Long id);
     User updateUser(Long id, UserUpdateRequest request);
+    void disableUser(Long id);
 }

@@ -40,4 +40,10 @@ public class UserController {
     public ApiResponse<User> updateUser(@PathVariable Long userId, @RequestBody @Valid UserUpdateRequest request) {
         return new ApiResponse<>(1000, "Cập nhật thông tin thành công", userService.updateUser(userId, request));
     }
+    @DeleteMapping("/{userId}")
+    public ApiResponse<String> deleteUser(@PathVariable Long userId) {
+        userService.disableUser(userId); // Gọi hàm chuyển trạng thái xuống tầng Service
+        return new ApiResponse<>(1000, "Xóa tài khoản người dùng thành công!", "Tài khoản có ID " + userId + " đã bị vô hiệu hóa.");
+    }
+
 }

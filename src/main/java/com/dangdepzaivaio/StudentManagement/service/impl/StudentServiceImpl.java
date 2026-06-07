@@ -104,4 +104,23 @@ public class StudentServiceImpl implements StudentService {
         return studentRepository.save(student);
     }
 
+    @Override
+    @Transactional // Đảm bảo đồng bộ tính toàn vẹn dữ liệu
+    public void disableStudent(Long id) {
+        // 1. Kiểm tra xem sinh viên có tồn tại không
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
+
+        // 2. Chuyển trạng thái hoạt động của Sinh viên thành false
+        student.setActive(false);
+        studentRepository.save(student);
+
+        // 3. Đồng bộ khóa luôn cả tài khoản User đăng nhập đi kèm
+        User user = student.getUser();
+        if (user != null) {
+            user.setActive(false);
+            userRepository.save(user);
+        }
+    }
+
 }

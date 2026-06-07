@@ -60,7 +60,7 @@ Dựng hoàn thiện cấu trúc quan hệ lồng nhau giữa 8 thực thể lõ
 * **Nâng cấp Bộ bắt lỗi Chẩn đoán Nhanh trên Postman:** Tối ưu hóa hàm xử lý lỗi tổng quát trong `GlobalExceptionHandler` để bóc tách và trả thẳng chuỗi định danh lỗi (`ExceptionClass -> Message`) trực tiếp về Postman.
 * **Kết quả Kiểm thử:** Toàn bộ 4 API vượt qua các kịch bản test trên Postman, ghi nhận trạng thái thành công mã `1000` (`200 OK`).
 
-### Giai đoạn 6 (Mới cập nhật): Hoàn thiện Nghiệp vụ & Toàn bộ CRUD Student API
+### Giai đoạn 6: Hoàn thiện Nghiệp vụ & Toàn bộ CRUD Student API
 * **Thiết lập chuỗi API lồng nhau dữ liệu phức tạp (Nested JSON):** Xây dựng thành công bộ hàm tạo mới sinh viên đi kèm tài khoản hệ thống cùng lúc, tự động map cấu trúc DTO qua MapStruct.
 * **Bảo vệ tính thực thi toàn vẹn bằng `@Transactional`:** Ràng buộc chặt chẽ quá trình lưu dữ liệu xuống bảng `users` và `students`. Đảm bảo hệ thống tự động Rollback (hủy bỏ) toàn luồng nếu xảy ra lỗi xung đột, không sinh dữ liệu rác.
 * **Hoàn thành trọn vẹn các Endpoints cho Student:**
@@ -74,11 +74,30 @@ Dựng hoàn thiện cấu trúc quan hệ lồng nhau giữa 8 thực thể lõ
 
 ## 🚀 4. Lộ trình Triển khai: CẦN LÀM TIẾP
 
-### Giai đoạn 7: Nghiệp vụ Tính toán Điểm số & GPA Lõi
-* Xây dựng tầng Service và Controller cho các thực thể Môn học (`Subject`), Lớp học phần (`CourseClass`) và Điểm số (`Grade`).
-* Lập trình thuật toán tự động tính điểm tổng kết môn học hệ 10 từ các điểm thành phần (Chuyên cần, Giữa kỳ, Cuối kỳ).
-* Tự động quy đổi điểm số sang hệ điểm chữ (A, B+, B, C, D, F...) theo quy chế đào tạo tín chỉ.
-* Xây dựng hàm tính điểm trung bình học kỳ (GPA) và điểm tích lũy hệ 4 của sinh viên phục vụ xét học bổng, cảnh báo học vụ.
+### Giai đoạn 7: Nghiệp vụ Tính toán Điểm số & GPA Lõi (Chi tiết triển khai)
+Để chuẩn bị cho việc lập trình bài toán cốt lõi của hệ thống, Giai đoạn 7 được chia nhỏ thành các bước thực thi nghiêm ngặt sau:
+
+* **Mục 7.1: Hoàn thiện CRUD Môn học (`Subject`)**
+  * Xây dựng `SubjectRequest` DTO kiểm tra điều kiện mã môn và số tín chỉ (>0).
+  * Viết Service xử lý logic kiểm tra trùng `code` môn học trước khi lưu.
+  * Mở các Endpoint: `POST`, `GET`, `PUT`, `DELETE` cho `/subjects`.
+* **Mục 7.2: Quản lý Lớp học phần (`CourseClass`)**
+  * Viết API mở lớp học phần theo học kỳ, liên kết chặt chẽ với một ID môn học gốc (`Subject`).
+* **Mục 7.3: Xây dựng Tầng xử lý Điểm số (`Grade`) và Thuật toán quy đổi**
+  * Thiết lập API nhập điểm thành phần cho sinh viên theo lớp học phần (`attendanceGrade`, `midtermGrade`, `finalGrade`).
+  * Xây dựng logic tự động tính toán Điểm tổng kết hệ 10: `overallGrade = (Điểm_CC * 0.1) + (Điểm_GK * 0.3) + (Điểm_CK * 0.6)` *(Tỷ lệ cấu hình linh hoạt)*.
+  * Thiết lập thuật toán quy đổi tự động từ Điểm hệ 10 sang Điểm chữ (`letter Grade`) và Điểm hệ 4 dựa theo quy chế đào tạo tín chỉ:
+    * Từ 8.5 - 10.0: **A** (Điểm hệ 4: 4.0)
+    * Từ 8.0 - 8.4: **B+** (Điểm hệ 4: 3.5)
+    * Từ 7.0 - 7.9: **B** (Điểm hệ 4: 3.0)
+    * Từ 6.5 - 6.9: **C+** (Điểm hệ 4: 2.5)
+    * Từ 5.5 - 6.4: **C** (Điểm hệ 4: 2.0)
+    * Từ 5.0 - 5.4: **D+** (Điểm hệ 4: 1.5)
+    * Từ 4.0 - 4.9: **D** (Điểm hệ 4: 1.0)
+    * Dưới 4.0: **F** (Điểm hệ 4: 0.0 - Học lại)
+* **Mục 7.4: API Truy vấn học tập và Tính GPA tổng hợp**
+  * Viết API lấy bảng điểm chi tiết của một sinh viên cụ thể.
+  * Xây dựng hàm tính toán Điểm trung bình học kỳ (GPA) và Điểm trung bình tích lũy (CPA) theo công thức bình quân gia quyền của số tín chỉ môn học.
 
 ### Giai đoạn 8: Tích hợp Hệ thống Bảo mật Chuyên sâu (Spring Security & JWT)
 * Kích hoạt lại Spring Security trên file `pom.xml`.
@@ -107,4 +126,5 @@ Dựng hoàn thiện cấu trúc quan hệ lồng nhau giữa 8 thực thể lõ
 | 06/06/2026 | `main` | **Merge** | Gộp code từ `feature/setup-entities` vào `main`. |
 | 06/06/2026 | `develop` | **Tạo mới** | Tạo nhánh `develop` từ `main`. |
 | 06/06/2026 | `develop` | **Cập nhật** | Hoàn thành bộ API CRUD User & Nâng cấp bộ chẩn đoán lỗi chi tiết trực tiếp trên Postman (Loại bỏ thành công lỗi kẹt cổng 401). |
-| 07/06/2026 | `develop` | **Cập nhật** | **Hoàn thành toàn diện bộ API CRUD Student, xử lý giao dịch cô lập tài khoản @Transactional và gán tự động phân quyền hệ thống.** |
+| 07/06/2026 | `develop` | **Cập nhật** | Hoàn thành toàn diện bộ API CRUD Student, xử lý giao dịch cô lập tài khoản @Transactional và gán tự động phân quyền hệ thống. |
+| 07/06/2026 | `develop` | **Tài liệu** | Đẩy mã nguồn an toàn lên GitHub bảo mật hai nhánh độc lập; bổ sung chi tiết cấu trúc thuật toán quy đổi điểm cốt lõi cho Giai đoạn 7. |
