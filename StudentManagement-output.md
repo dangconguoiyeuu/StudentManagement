@@ -47,15 +47,25 @@ mvnw
 mvnw.cmd
 pom.xml
 src/main/java/com/dangdepzaivaio/StudentManagement/configuration/DatabaseInitializer.java
+src/main/java/com/dangdepzaivaio/StudentManagement/controller/CourseClassController.java
+src/main/java/com/dangdepzaivaio/StudentManagement/controller/GradeController.java
 src/main/java/com/dangdepzaivaio/StudentManagement/controller/StudentController.java
 src/main/java/com/dangdepzaivaio/StudentManagement/controller/SubjectController.java
 src/main/java/com/dangdepzaivaio/StudentManagement/controller/UserController.java
+src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/CourseClassRequest.java
+src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/GradeRequest.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentCreationRequest.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentUpdateRequest.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/SubjectRequest.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/UserCreationRequest.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/UserUpdateRequest.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/ApiResponse.java
+src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/CourseClassResponse.java
+src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/GradeResponse.java
+src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentAcademicSummaryResponse.java
+src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentResponse.java
+src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/SubjectResponse.java
+src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/UserResponse.java
 src/main/java/com/dangdepzaivaio/StudentManagement/entity/BaseEntity.java
 src/main/java/com/dangdepzaivaio/StudentManagement/entity/Class.java
 src/main/java/com/dangdepzaivaio/StudentManagement/entity/CourseClass.java
@@ -68,8 +78,11 @@ src/main/java/com/dangdepzaivaio/StudentManagement/entity/User.java
 src/main/java/com/dangdepzaivaio/StudentManagement/exception/AppException.java
 src/main/java/com/dangdepzaivaio/StudentManagement/exception/ErrorCode.java
 src/main/java/com/dangdepzaivaio/StudentManagement/exception/GlobalExceptionHandler.java
+src/main/java/com/dangdepzaivaio/StudentManagement/mapper/CourseClassMapper.java
+src/main/java/com/dangdepzaivaio/StudentManagement/mapper/GradeMapper.java
 src/main/java/com/dangdepzaivaio/StudentManagement/mapper/StudentMapper.java
 src/main/java/com/dangdepzaivaio/StudentManagement/mapper/SubjectMapper.java
+src/main/java/com/dangdepzaivaio/StudentManagement/mapper/UserMapper.java
 src/main/java/com/dangdepzaivaio/StudentManagement/README.md
 src/main/java/com/dangdepzaivaio/StudentManagement/repository/ClassRepository.java
 src/main/java/com/dangdepzaivaio/StudentManagement/repository/CourseClassRepository.java
@@ -79,6 +92,10 @@ src/main/java/com/dangdepzaivaio/StudentManagement/repository/RoleRepository.jav
 src/main/java/com/dangdepzaivaio/StudentManagement/repository/StudentRepository.java
 src/main/java/com/dangdepzaivaio/StudentManagement/repository/SubjectRepository.java
 src/main/java/com/dangdepzaivaio/StudentManagement/repository/UserRepository.java
+src/main/java/com/dangdepzaivaio/StudentManagement/service/CourseClassService.java
+src/main/java/com/dangdepzaivaio/StudentManagement/service/GradeService.java
+src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/CourseClassServiceImpl.java
+src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/GradeServiceImpl.java
 src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/StudentServiceImpl.java
 src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/SubjectServiceImpl.java
 src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/UserServiceImpl.java
@@ -88,19 +105,20 @@ src/main/java/com/dangdepzaivaio/StudentManagement/service/UserService.java
 src/main/java/com/dangdepzaivaio/StudentManagement/StudentManagementApplication.java
 src/main/resources/application.yaml
 src/test/java/com/dangdepzaivaio/StudentManagement/StudentManagementApplicationTests.java
+student_management.sql
 StudentManagement.docx
 </directory_structure>
 
 <files>
 This section contains the contents of the repository's files.
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/SubjectController.java">
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/CourseClassController.java">
 package com.dangdepzaivaio.StudentManagement.controller;
 
-import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.CourseClassRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.entity.Subject;
-import com.dangdepzaivaio.StudentManagement.service.SubjectService;
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
+import com.dangdepzaivaio.StudentManagement.service.CourseClassService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -108,90 +126,385 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/subjects")
+@RequestMapping("/course-classes")
 @RequiredArgsConstructor
-public class SubjectController {
+public class CourseClassController {
 
-    private final SubjectService subjectService;
+    private final CourseClassService courseClassService;
 
     @PostMapping
-    public ApiResponse<Subject> createSubject(@RequestBody @Valid SubjectRequest request) {
-        return new ApiResponse<>(1000, "Tạo môn học thành công!", subjectService.createSubject(request));
+    public ApiResponse<CourseClassResponse> createCourseClass(@RequestBody @Valid CourseClassRequest request) {
+        return new ApiResponse<>(1000, "Mở lớp học phần mới thành công!", courseClassService.createCourseClass(request));
     }
 
     @GetMapping
-    public ApiResponse<List<Subject>> getAllSubjects() {
-        return new ApiResponse<>(1000, "Lấy danh sách môn học thành công!", subjectService.getAllSubjects());
+    public ApiResponse<List<CourseClassResponse>> getAllCourseClasses() {
+        return new ApiResponse<>(1000, "Lấy danh sách lớp học phần thành công!", courseClassService.getAllCourseClasses());
     }
 
-    @GetMapping("/{subjectId}")
-    public ApiResponse<Subject> getSubject(@PathVariable Long subjectId) {
-        return new ApiResponse<>(1000, "Lấy chi tiết môn học thành công!", subjectService.getSubjectById(subjectId));
+    @GetMapping("/{id}")
+    public ApiResponse<CourseClassResponse> getCourseClassById(@PathVariable Long id) {
+        return new ApiResponse<>(1000, "Lấy thông tin chi tiết lớp học phần thành công!", courseClassService.getCourseClassById(id));
     }
 
-    @PutMapping("/{subjectId}")
-    public ApiResponse<Subject> updateSubject(@PathVariable Long subjectId, @RequestBody @Valid SubjectRequest request) {
-        return new ApiResponse<>(1000, "Cập nhật môn học thành công!", subjectService.updateSubject(subjectId, request));
+    @PutMapping("/{id}")
+    public ApiResponse<CourseClassResponse> updateCourseClass(@PathVariable Long id, @RequestBody @Valid CourseClassRequest request) {
+        return new ApiResponse<>(1000, "Cập nhật lớp học phần thành công!", courseClassService.updateCourseClass(id, request));
     }
 
-    @DeleteMapping("/{subjectId}")
-    public ApiResponse<String> deleteSubject(@PathVariable Long subjectId) {
-        subjectService.deleteSubject(subjectId);
-        return new ApiResponse<>(1000, "Xóa môn học thành công!", "Môn học có ID " + subjectId + " đã bị xóa hoàn toàn.");
+    @DeleteMapping("/{id}")
+    public ApiResponse<String> deleteCourseClass(@PathVariable Long id) {
+        courseClassService.deleteCourseClass(id);
+        return new ApiResponse<>(1000, "Xóa lớp học phần thành công!", "Lớp học phần có ID " + id + " đã bị loại bỏ hoàn toàn.");
     }
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/SubjectRequest.java">
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/GradeController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.service.GradeService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/grades")
+@RequiredArgsConstructor
+public class GradeController {
+
+    private final GradeService gradeService;
+
+    @PostMapping
+    public ApiResponse<GradeResponse> inputGrade(@RequestBody @Valid GradeRequest request) {
+        return new ApiResponse<>(1000, "Nhập và quy đổi điểm số thành công!", gradeService.inputGrade(request));
+    }
+
+    @GetMapping("/student/{studentId}")
+    public ApiResponse<List<GradeResponse>> getGradesByStudent(@PathVariable Long studentId) {
+        return new ApiResponse<>(1000, "Lấy bảng điểm chi tiết của sinh viên thành công!", gradeService.getGradesByStudent(studentId));
+    }
+
+    @PutMapping("/{id}")
+    public ApiResponse<GradeResponse> updateGrade(@PathVariable Long id, @RequestBody @Valid GradeRequest request) {
+        return new ApiResponse<>(1000, "Sửa đổi và cập nhật lại điểm số thành công!", gradeService.updateGrade(id, request));
+    }
+
+    @GetMapping
+    public ApiResponse<List<GradeResponse>> getAll() {
+        return new ApiResponse<>(1000, "Lấy toàn bộ danh sách điểm thành công!", gradeService.getAllGrades());
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<String> deleteGrade(@PathVariable Long id) {
+        gradeService.deleteGrade(id);
+        return new ApiResponse<>(1000, "Xóa đầu điểm thành công!", "Đầu điểm có ID " + id + " đã bị loại bỏ hoàn toàn.");
+    }
+    // ==================== ENDPOINT TỔNG HỢP HỌC TẬP & TÍNH GPA ====================
+    @GetMapping("/student/{studentId}/summary")
+    public ApiResponse<com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse> getAcademicSummary(@PathVariable Long studentId) {
+        return new ApiResponse<>(1000, "Tổng hợp kết quả học tập và tính GPA thành công!", gradeService.getAcademicSummary(studentId));
+    }
+    @GetMapping("/{id}")
+    public ApiResponse<GradeResponse> getGradeById(@PathVariable Long id) {
+        return new ApiResponse<>(1000, "Lấy chi tiết thông tin điểm số thành công!", gradeService.getGradeById(id));
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/CourseClassRequest.java">
 package com.dangdepzaivaio.StudentManagement.dto.request;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public record SubjectRequest(
-        @NotBlank(message = "Mã môn học không được để trống")
+public record CourseClassRequest(
+        @NotBlank(message = "Mã lớp học phần không được để trống")
         String code,
 
-        @NotBlank(message = "Tên môn học không được để trống")
-        String name,
+        @NotBlank(message = "Học kỳ không được để trống")
+        String semester,
 
-        @NotNull(message = "Số tín chỉ không được để trống")
-        @Min(value = 1, message = "Số tín chỉ phải lớn hơn hoặc bằng 1")
+        @NotNull(message = "ID môn học gốc không được để trống")
+        Long subjectId
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/GradeRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+
+public record GradeRequest(
+        @NotNull(message = "ID sinh viên không được để trống")
+        Long studentId,
+
+        @NotNull(message = "ID lớp học phần không được để trống")
+        Long courseClassId,
+
+        @Min(value = 0, message = "Điểm chuyên cần không được nhỏ hơn 0")
+        @Max(value = 10, message = "Điểm chuyên cần không được lớn hơn 10")
+        Double attendanceGrade,
+
+        @Min(value = 0, message = "Điểm giữa kỳ không được nhỏ hơn 0")
+        @Max(value = 10, message = "Điểm giữa kỳ không được lớn hơn 10")
+        Double midtermGrade,
+
+        @Min(value = 0, message = "Điểm cuốii kỳ không được nhỏ hơn 0")
+        @Max(value = 10, message = "Điểm cuối kỳ không được lớn hơn 10")
+        Double finalGrade
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/CourseClassResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+public record CourseClassResponse(
+        Long id,
+        String code,
+        String semester,
+        String subjectCode,
+        String subjectName,
         Integer credits
 ) {}
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/SubjectMapper.java">
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/GradeResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+public record GradeResponse(
+        Long id,
+        Long studentId,
+        String studentCode,
+        String studentName,
+        Long courseClassId,
+        String courseClassCode,
+        String subjectName,
+        Double attendanceGrade,
+        Double midtermGrade,
+        Double finalGrade,
+        Double overallGrade,
+        String letterGrade,
+        Double grade4
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentAcademicSummaryResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+import java.util.List;
+
+public record StudentAcademicSummaryResponse(
+        Long studentId,
+        String studentCode,
+        String studentName,
+        String className,
+        List<GradeResponse> details, // Danh sách chi tiết điểm từng môn của sinh viên
+        Integer totalCredits,        // Tổng số tín chỉ tích lũy
+        Double gpaSystem10,          // GPA tích lũy hệ 10
+        Double gpaSystem4            // GPA tích lũy hệ 4
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+import java.time.LocalDate;
+
+public record StudentResponse(
+        Long id,
+        String studentCode,
+        String firstName,
+        String lastName,
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+        boolean isActive,
+
+        // Bóc tách dữ liệu từ User sang phẳng luôn
+        String username,
+        String email,
+
+        // Bóc tách dữ liệu từ lớp hành chính Class sang
+        String className
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/SubjectResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+public record SubjectResponse(
+        Long id,
+        String code,
+        String name,
+        Integer credits
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/UserResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+import java.util.Set;
+
+public record UserResponse(
+        Long id,
+        String username,
+        String email,
+        boolean isActive,
+        Set<String> roles // Chỉ trả ra chuỗi tên Role (ADMIN, STUDENT) thay vì cả Object thực thể
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/CourseClassMapper.java">
 package com.dangdepzaivaio.StudentManagement.mapper;
 
-import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
-import com.dangdepzaivaio.StudentManagement.entity.Subject;
+import com.dangdepzaivaio.StudentManagement.dto.request.CourseClassRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
+import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
 @Mapper(componentModel = "spring")
-public interface SubjectMapper {
+public interface CourseClassMapper {
 
     @Mapping(target = "id", ignore = true)
-    Subject toEntity(SubjectRequest request);
+    @Mapping(target = "subject", ignore = true)
+    CourseClass toEntity(CourseClassRequest request);
 
     @Mapping(target = "id", ignore = true)
-    void updateEntityFromRequest(SubjectRequest request, @MappingTarget Subject subject);
+    @Mapping(target = "subject", ignore = true)
+    void updateEntityFromRequest(CourseClassRequest request, @MappingTarget CourseClass courseClass);
+
+    // Phẳng hóa dữ liệu từ Object Subject lồng nhau
+    @Mapping(target = "subjectCode", source = "subject.code")
+    @Mapping(target = "subjectName", source = "subject.name")
+    @Mapping(target = "credits", source = "subject.credits")
+    CourseClassResponse toResponse(CourseClass courseClass);
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/SubjectServiceImpl.java">
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/GradeMapper.java">
+package com.dangdepzaivaio.StudentManagement.mapper;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Grade;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
+@Mapper(componentModel = "spring")
+public interface GradeMapper {
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "student", ignore = true)
+    @Mapping(target = "courseClass", ignore = true)
+    Grade toEntity(GradeRequest request);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "student", ignore = true)
+    @Mapping(target = "courseClass", ignore = true)
+    void updateEntityFromRequest(GradeRequest request, @MappingTarget Grade grade);
+
+    @Mapping(target = "studentId", source = "student.id")
+    @Mapping(target = "studentCode", source = "student.studentCode")
+    @Mapping(target = "studentName", expression = "java(grade.getStudent().getFirstName() + \" \" + grade.getStudent().getLastName())")
+    @Mapping(target = "courseClassId", source = "courseClass.id")
+    @Mapping(target = "courseClassCode", source = "courseClass.code")
+    @Mapping(target = "subjectName", source = "courseClass.subject.name")
+    GradeResponse toResponse(Grade grade);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/UserMapper.java">
+package com.dangdepzaivaio.StudentManagement.mapper;
+
+import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.entity.Role;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Mapper(componentModel = "spring")
+public interface UserMapper {
+
+    @Mapping(target = "roles", source = "roles")
+    @Mapping(target = "isActive", source = "active")
+    UserResponse toResponse(User user);
+
+    // Hàm chuyển đổi custom: Ép danh sách thực thể Role thành bộ tên chuỗi gọn gàng
+    default Set<String> mapRoles(Set<Role> roles) {
+        if (roles == null) return null;
+        return roles.stream()
+                .map(Role::getName)
+                .collect(Collectors.toSet());
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/CourseClassService.java">
+package com.dangdepzaivaio.StudentManagement.service;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.CourseClassRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
+import java.util.List;
+
+public interface CourseClassService {
+    CourseClassResponse createCourseClass(CourseClassRequest request);
+    List<CourseClassResponse> getAllCourseClasses();
+    CourseClassResponse getCourseClassById(Long id);
+    CourseClassResponse updateCourseClass(Long id, CourseClassRequest request);
+    void deleteCourseClass(Long id);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/GradeService.java">
+package com.dangdepzaivaio.StudentManagement.service;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse; // QUAN TRỌNG: Phải import cái này
+import java.util.List;
+
+public interface GradeService {
+    GradeResponse inputGrade(GradeRequest request);
+    List<GradeResponse> getGradesByStudent(Long studentId);
+    GradeResponse updateGrade(Long id, GradeRequest request);
+
+    // Khai báo cho bộ CRUD bổ sung
+    List<GradeResponse> getAllGrades();
+    GradeResponse getGradeById(Long id);
+    void deleteGrade(Long id);
+
+    // 🔥 CHÍNH LÀ DÒNG NÀY: Khai báo hàm tổng hợp học tập để Impl có thể @Override thành công
+    StudentAcademicSummaryResponse getAcademicSummary(Long studentId);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/CourseClassServiceImpl.java">
 package com.dangdepzaivaio.StudentManagement.service.impl;
 
-import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.CourseClassRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
+import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
 import com.dangdepzaivaio.StudentManagement.entity.Subject;
 import com.dangdepzaivaio.StudentManagement.exception.AppException;
 import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.mapper.SubjectMapper;
+import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
+import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
 import com.dangdepzaivaio.StudentManagement.repository.SubjectRepository;
-import com.dangdepzaivaio.StudentManagement.service.SubjectService;
+import com.dangdepzaivaio.StudentManagement.service.CourseClassService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -200,73 +513,562 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class SubjectServiceImpl implements SubjectService {
+public class CourseClassServiceImpl implements CourseClassService {
 
+    private final CourseClassRepository courseClassRepository;
     private final SubjectRepository subjectRepository;
-    private final SubjectMapper subjectMapper;
+    private final CourseClassMapper courseClassMapper;
 
     @Override
     @Transactional
-    public Subject createSubject(SubjectRequest request) {
-        if (subjectRepository.existsByCode(request.code())) {
-            throw new AppException(ErrorCode.SUBJECT_EXISTED);
-        }
-        Subject subject = subjectMapper.toEntity(request);
-        return subjectRepository.save(subject);
-    }
-
-    @Override
-    public List<Subject> getAllSubjects() {
-        return subjectRepository.findAll();
-    }
-
-    @Override
-    public Subject getSubjectById(Long id) {
-        return subjectRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
-    }
-
-    @Override
-    @Transactional
-    public Subject updateSubject(Long id, SubjectRequest request) {
-        Subject subject = getSubjectById(id);
-
-        // Kiểm tra nếu đổi sang mã môn mới, mã đó có bị trùng với môn khác không
-        if (!subject.getCode().equals(request.code()) && subjectRepository.existsByCode(request.code())) {
-            throw new AppException(ErrorCode.SUBJECT_EXISTED);
+    public CourseClassResponse createCourseClass(CourseClassRequest request) {
+        if (courseClassRepository.existsByCode(request.code())) {
+            throw new AppException(ErrorCode.COURSE_CLASS_EXISTED);
         }
 
-        subjectMapper.updateEntityFromRequest(request, subject);
-        return subjectRepository.save(subject);
+        Subject subject = subjectRepository.findById(request.subjectId())
+                .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
+
+        CourseClass courseClass = courseClassMapper.toEntity(request);
+        courseClass.setSubject(subject);
+
+        return courseClassMapper.toResponse(courseClassRepository.save(courseClass));
+    }
+
+    @Override
+    public List<CourseClassResponse> getAllCourseClasses() {
+        return courseClassRepository.findAll().stream()
+                .map(courseClassMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    public CourseClassResponse getCourseClassById(Long id) {
+        CourseClass courseClass = courseClassRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
+        return courseClassMapper.toResponse(courseClass);
     }
 
     @Override
     @Transactional
-    public void deleteSubject(Long id) {
-        // 1. Kiểm tra xem môn học có tồn tại trong hệ thống không
-        Subject subject = subjectRepository.findById(id)
+    public CourseClassResponse updateCourseClass(Long id, CourseClassRequest request) {
+        CourseClass courseClass = courseClassRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
+
+        if (!courseClass.getCode().equals(request.code()) && courseClassRepository.existsByCode(request.code())) {
+            throw new AppException(ErrorCode.COURSE_CLASS_EXISTED);
+        }
+
+        Subject subject = subjectRepository.findById(request.subjectId())
                 .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
 
-        // 2. Thực hiện xóa vĩnh viễn môn học khỏi Database
-        subjectRepository.delete(subject);
+        courseClassMapper.updateEntityFromRequest(request, courseClass);
+        courseClass.setSubject(subject);
+
+        return courseClassMapper.toResponse(courseClassRepository.save(courseClass));
+    }
+
+    @Override
+    @Transactional
+    public void deleteCourseClass(Long id) {
+        CourseClass courseClass = courseClassRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
+
+        // Hiện tại chưa xây dựng bảng điểm (Grade) ràng buộc nên chúng ta tiến hành xóa cứng để dễ dọn rác Dev
+        courseClassRepository.delete(courseClass);
     }
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/SubjectService.java">
-package com.dangdepzaivaio.StudentManagement.service;
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/GradeServiceImpl.java">
+package com.dangdepzaivaio.StudentManagement.service.impl;
 
-import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
-import com.dangdepzaivaio.StudentManagement.entity.Subject;
+import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse;
+import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
+import com.dangdepzaivaio.StudentManagement.entity.Grade;
+import com.dangdepzaivaio.StudentManagement.entity.Student;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.GradeMapper;
+import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
+import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
+import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
+import com.dangdepzaivaio.StudentManagement.service.GradeService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
-public interface SubjectService {
-    Subject createSubject(SubjectRequest request);
-    List<Subject> getAllSubjects();
-    Subject getSubjectById(Long id);
-    Subject updateSubject(Long id, SubjectRequest request);
-    void deleteSubject(Long id);
+@Service
+@RequiredArgsConstructor
+public class GradeServiceImpl implements GradeService {
+
+    private final GradeRepository gradeRepository;
+    private final StudentRepository studentRepository;
+    private final CourseClassRepository courseClassRepository;
+    private final GradeMapper gradeMapper;
+
+    @Override
+    @Transactional
+    public GradeResponse inputGrade(GradeRequest request) {
+        if (gradeRepository.existsByStudentIdAndCourseClassId(request.studentId(), request.courseClassId())) {
+            throw new AppException(ErrorCode.GRADE_EXISTED);
+        }
+
+        Student student = studentRepository.findById(request.studentId())
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
+
+        CourseClass courseClass = courseClassRepository.findById(request.courseClassId())
+                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
+
+        Grade grade = gradeMapper.toEntity(request);
+        grade.setStudent(student);
+        grade.setCourseClass(courseClass);
+
+        calculateAndConvertGrade(grade);
+
+        return gradeMapper.toResponse(gradeRepository.save(grade));
+    }
+
+    @Override
+    public List<GradeResponse> getGradesByStudent(Long studentId) {
+        if (!studentRepository.existsById(studentId)) {
+            throw new AppException(ErrorCode.STUDENT_NOT_FOUND);
+        }
+        return gradeRepository.findByStudentId(studentId).stream()
+                .map(gradeMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public GradeResponse updateGrade(Long id, GradeRequest request) {
+        Grade grade = gradeRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.GRADE_NOT_FOUND));
+
+        gradeMapper.updateEntityFromRequest(request, grade);
+        calculateAndConvertGrade(grade);
+
+        return gradeMapper.toResponse(gradeRepository.save(grade));
+    }
+
+    @Override
+    public StudentAcademicSummaryResponse getAcademicSummary(Long studentId) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
+
+        List<Grade> grades = gradeRepository.findByStudentId(studentId);
+
+        int totalCredits = 0;
+        double totalWeightedGrade10 = 0.0;
+        double totalWeightedGrade4 = 0.0;
+
+        for (Grade grade : grades) {
+            int credits = grade.getCourseClass().getSubject().getCredits();
+            totalCredits += credits;
+            totalWeightedGrade10 += (grade.getOverallGrade() * credits);
+            totalWeightedGrade4 += (grade.getGrade4() * credits);
+        }
+
+        double gpa10 = 0.0;
+        double gpa4 = 0.0;
+        if (totalCredits > 0) {
+            gpa10 = totalWeightedGrade10 / totalCredits;
+            gpa4 = totalWeightedGrade4 / totalCredits;
+            gpa10 = Math.round(gpa10 * 100.0) / 100.0;
+            gpa4 = Math.round(gpa4 * 100.0) / 100.0;
+        }
+
+        List<GradeResponse> details = grades.stream()
+                .map(gradeMapper::toResponse)
+                .toList();
+
+        return new StudentAcademicSummaryResponse(
+                student.getId(),
+                student.getStudentCode(),
+                student.getFirstName() + " " + student.getLastName(),
+                student.getStudentClass() != null ? student.getStudentClass().getName() : "Chưa xếp lớp",
+                details,
+                totalCredits,
+                gpa10,
+                gpa4
+        );
+    }
+
+    // ==================== LẤY TOÀN BỘ ĐIỂM HỆ THỐNG (GET ALL) ====================
+    @Override
+    public List<GradeResponse> getAllGrades() {
+        return gradeRepository.findAll().stream()
+                .map(gradeMapper::toResponse)
+                .toList();
+    }
+
+    // ==================== LẤY CHI TIẾT 1 ĐẦU ĐIỂM (GET BY ID) ====================
+    @Override
+    public GradeResponse getGradeById(Long id) {
+        Grade grade = gradeRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.GRADE_NOT_FOUND));
+        return gradeMapper.toResponse(grade);
+    }
+
+    // ==================== XÓA ĐẦU ĐIỂM (DELETE) ====================
+    @Override
+    @Transactional
+    public void deleteGrade(Long id) {
+        Grade grade = gradeRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.GRADE_NOT_FOUND));
+        gradeRepository.delete(grade);
+    }
+
+    // Thuật toán tính điểm ngầm
+    private void calculateAndConvertGrade(Grade grade) {
+        double overall = (grade.getAttendanceGrade() * 0.1)
+                + (grade.getMidtermGrade() * 0.3)
+                + (grade.getFinalGrade() * 0.6);
+
+        overall = Math.round(overall * 100.0) / 100.0;
+        grade.setOverallGrade(overall);
+
+        if (overall >= 8.5) {
+            grade.setLetterGrade("A");
+            grade.setGrade4(4.0);
+        } else if (overall >= 8.0) {
+            grade.setLetterGrade("B+");
+            grade.setGrade4(3.5);
+        } else if (overall >= 7.0) {
+            grade.setLetterGrade("B");
+            grade.setGrade4(3.0);
+        } else if (overall >= 6.5) {
+            grade.setLetterGrade("C+");
+            grade.setGrade4(2.5);
+        } else if (overall >= 5.5) {
+            grade.setLetterGrade("C");
+            grade.setGrade4(2.0);
+        } else if (overall >= 5.0) {
+            grade.setLetterGrade("D+");
+            grade.setGrade4(1.5);
+        } else if (overall >= 4.0) {
+            grade.setLetterGrade("D");
+            grade.setGrade4(1.0);
+        } else {
+            grade.setLetterGrade("F");
+            grade.setGrade4(0.0);
+        }
+    }
 }
+</file>
+
+<file path="student_management.sql">
+-- MySQL dump 10.13  Distrib 8.0.46, for Win64 (x86_64)
+--
+-- Host: 127.0.0.1    Database: student_management
+-- ------------------------------------------------------
+-- Server version	8.0.46
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Table structure for table `classes`
+--
+
+DROP TABLE IF EXISTS `classes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `classes` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `department_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UKpgs3gcxax70h9jugbt24ugwcg` (`name`),
+  KEY `FKeerjjltjmtwpjo3jlr7037vxt` (`department_id`),
+  CONSTRAINT `FKeerjjltjmtwpjo3jlr7037vxt` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `classes`
+--
+
+LOCK TABLES `classes` WRITE;
+/*!40000 ALTER TABLE `classes` DISABLE KEYS */;
+INSERT INTO `classes` VALUES (1,'2026-06-07 05:23:21.000000','2026-06-07 05:23:21.000000','D21CNPM1',1);
+/*!40000 ALTER TABLE `classes` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `course_classes`
+--
+
+DROP TABLE IF EXISTS `course_classes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `course_classes` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `code` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `semester` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UKmdeewqfqfih9ft75b0gbp9nrc` (`code`),
+  KEY `FKpxijwa2w0cvst789igk5x2fpu` (`subject_id`),
+  CONSTRAINT `FKpxijwa2w0cvst789igk5x2fpu` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `course_classes`
+--
+
+LOCK TABLES `course_classes` WRITE;
+/*!40000 ALTER TABLE `course_classes` DISABLE KEYS */;
+INSERT INTO `course_classes` VALUES (2,'2026-06-07 07:39:44.047946','2026-06-07 07:39:44.047946','CPP_BASE_01','HK1-2026',3);
+/*!40000 ALTER TABLE `course_classes` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `departments`
+--
+
+DROP TABLE IF EXISTS `departments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `departments` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UKl7tivi5261wxdnvo6cct9gg6t` (`code`),
+  UNIQUE KEY `UKj6cwks7xecs5jov19ro8ge3qk` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `departments`
+--
+
+LOCK TABLES `departments` WRITE;
+/*!40000 ALTER TABLE `departments` DISABLE KEYS */;
+INSERT INTO `departments` VALUES (1,'2026-06-07 05:23:21.000000','2026-06-07 05:23:21.000000','CNTT','Công nghệ thông tin');
+/*!40000 ALTER TABLE `departments` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `grades`
+--
+
+DROP TABLE IF EXISTS `grades`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `grades` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `attendance_grade` double DEFAULT NULL,
+  `final_grade` double DEFAULT NULL,
+  `letter_grade` varchar(5) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `midterm_grade` double DEFAULT NULL,
+  `overall_grade` double DEFAULT NULL,
+  `course_class_id` bigint NOT NULL,
+  `student_id` bigint NOT NULL,
+  `grade_4` double DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UKko1u7sub9pfixo5kagdclh8sj` (`student_id`,`course_class_id`),
+  KEY `FK5c6jpjp7bty7q1flkpcc6pi4a` (`course_class_id`),
+  CONSTRAINT `FK13a16545m7vvrcspc999r15s9` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
+  CONSTRAINT `FK5c6jpjp7bty7q1flkpcc6pi4a` FOREIGN KEY (`course_class_id`) REFERENCES `course_classes` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `grades`
+--
+
+LOCK TABLES `grades` WRITE;
+/*!40000 ALTER TABLE `grades` DISABLE KEYS */;
+INSERT INTO `grades` VALUES (1,'2026-06-07 07:39:51.514111','2026-06-07 07:39:51.514111',9,8.5,'B+',8,8.4,2,2,3.5);
+/*!40000 ALTER TABLE `grades` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `roles`
+--
+
+DROP TABLE IF EXISTS `roles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `roles` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UKofx66keruapi6vyqpv6f2or37` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `roles`
+--
+
+LOCK TABLES `roles` WRITE;
+/*!40000 ALTER TABLE `roles` DISABLE KEYS */;
+INSERT INTO `roles` VALUES (1,'2026-06-06 15:42:59.479477','2026-06-06 15:42:59.479477','ADMIN'),(2,'2026-06-06 15:42:59.522480','2026-06-06 15:42:59.522480','STUDENT');
+/*!40000 ALTER TABLE `roles` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `students`
+--
+
+DROP TABLE IF EXISTS `students`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `students` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `date_of_birth` date DEFAULT NULL,
+  `first_name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `gender` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `phone_number` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `student_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `class_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `is_active` bit(1) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UKcgcf3r5xk73o0etbduc1qxnol` (`student_code`),
+  UNIQUE KEY `UKg4fwvutq09fjdlb4bb0byp7t` (`user_id`),
+  KEY `FKhnslh0rm5bthlble8vjunbnwe` (`class_id`),
+  CONSTRAINT `FKdt1cjx5ve5bdabmuuf3ibrwaq` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `FKhnslh0rm5bthlble8vjunbnwe` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `students`
+--
+
+LOCK TABLES `students` WRITE;
+/*!40000 ALTER TABLE `students` DISABLE KEYS */;
+INSERT INTO `students` VALUES (1,'2026-06-07 05:23:56.212382','2026-06-07 06:37:33.669294','2005-02-02','Anh','Nam','Nguyễn Đình','0987654323','B21DCCN001',1,3,_binary '\0'),(2,'2026-06-07 05:27:11.178181','2026-06-07 05:27:11.178181','2005-05-23','Đăng','Nam','Trần Minh','0123456789','K25TMD002',1,5,_binary ''),(3,'2026-06-07 05:28:07.320240','2026-06-07 05:28:07.320820','2005-01-01','Anh','Nam','Nguyễn Đình','0987654322','K25TMD001',1,6,_binary '');
+/*!40000 ALTER TABLE `students` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `subjects`
+--
+
+DROP TABLE IF EXISTS `subjects`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `subjects` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `credits` int NOT NULL,
+  `name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UKrg7x1lyii7kdyycw98d45vep5` (`code`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `subjects`
+--
+
+LOCK TABLES `subjects` WRITE;
+/*!40000 ALTER TABLE `subjects` DISABLE KEYS */;
+INSERT INTO `subjects` VALUES (3,'2026-06-07 06:35:32.807481','2026-06-07 06:35:32.807481','C++_Base',3,'Lập trình C++ cơ bản');
+/*!40000 ALTER TABLE `subjects` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `user_roles`
+--
+
+DROP TABLE IF EXISTS `user_roles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `user_roles` (
+  `user_id` bigint NOT NULL,
+  `role_id` bigint NOT NULL,
+  PRIMARY KEY (`user_id`,`role_id`),
+  KEY `FKh8ciramu9cc9q3qcqiv4ue8a6` (`role_id`),
+  CONSTRAINT `FKh8ciramu9cc9q3qcqiv4ue8a6` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`),
+  CONSTRAINT `FKhfh9dx7w3ubf1co1vdev94g3f` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `user_roles`
+--
+
+LOCK TABLES `user_roles` WRITE;
+/*!40000 ALTER TABLE `user_roles` DISABLE KEYS */;
+INSERT INTO `user_roles` VALUES (3,2),(5,2),(6,2);
+/*!40000 ALTER TABLE `user_roles` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `users`
+--
+
+DROP TABLE IF EXISTS `users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `users` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `username` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_active` bit(1) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK6dotkott2kjsp8vw4d0m25fb7` (`email`),
+  UNIQUE KEY `UKr43af9ap4edm43mmtq01oddj6` (`username`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `users`
+--
+
+LOCK TABLES `users` WRITE;
+/*!40000 ALTER TABLE `users` DISABLE KEYS */;
+INSERT INTO `users` VALUES (1,'2026-06-06 16:20:40.847736','2026-06-06 16:20:40.847736','minhdang@open.edu.vn','password123','minhdangtran',_binary ''),(2,'2026-06-06 16:21:57.950655','2026-06-06 16:37:24.756683','anhnd.updated@open.edu.vn','newpassword123456','nguyendinhanh',_binary ''),(3,'2026-06-07 05:23:56.176308','2026-06-07 06:37:33.674291','anh.nguyen@open.edu.vn','password123','nguyendinhanh2003',_binary '\0'),(5,'2026-06-07 05:27:11.172961','2026-06-07 05:27:11.172961','minhdangdask@open.edu.vn','password123','dangdepzaivaio',_binary ''),(6,'2026-06-07 05:28:07.315346','2026-06-07 05:28:07.315346','dinhanhboyhot2@open.edu.vn','password123','dinhanhboyhot2',_binary '');
+/*!40000 ALTER TABLE `users` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2026-06-07 15:03:04
 </file>
 
 <file path=".gitattributes">
@@ -840,14 +1642,13 @@ public class DatabaseInitializer {
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/StudentController.java">
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/SubjectController.java">
 package com.dangdepzaivaio.StudentManagement.controller;
 
-import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.StudentUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.entity.Student;
-import com.dangdepzaivaio.StudentManagement.service.StudentService;
+import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse; // Đổi import sang DTO Response
+import com.dangdepzaivaio.StudentManagement.service.SubjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -855,93 +1656,37 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/students")
+@RequestMapping("/subjects")
 @RequiredArgsConstructor
-public class StudentController {
+public class SubjectController {
 
-    private final StudentService studentService;
+    private final SubjectService subjectService;
 
     @PostMapping
-    public ApiResponse<Student> createStudent(@RequestBody @Valid StudentCreationRequest request) {
-        Student student = studentService.createStudent(request);
-        return new ApiResponse<>(1000, "Tạo hồ sơ sinh viên thành công!", student);
+    public ApiResponse<SubjectResponse> createSubject(@RequestBody @Valid SubjectRequest request) {
+        return new ApiResponse<>(1000, "Tạo môn học thành công!", subjectService.createSubject(request));
     }
 
-    // 1. API GET: Lấy toàn bộ danh sách sinh viên
     @GetMapping
-    public ApiResponse<List<Student>> getAllStudents() {
-        return new ApiResponse<>(1000, "Lấy danh sách sinh viên thành công!", studentService.getAllStudents());
+    public ApiResponse<List<SubjectResponse>> getAllSubjects() {
+        return new ApiResponse<>(1000, "Lấy danh sách môn học thành công!", subjectService.getAllSubjects());
     }
 
-    // 2. API GET: Lấy chi tiết 1 sinh viên theo ID
-    @GetMapping("/{studentId}")
-    public ApiResponse<Student> getStudent(@PathVariable Long studentId) {
-        return new ApiResponse<>(1000, "Lấy chi tiết sinh viên thành công!", studentService.getStudentById(studentId));
+    @GetMapping("/{subjectId}")
+    public ApiResponse<SubjectResponse> getSubject(@PathVariable Long subjectId) {
+        return new ApiResponse<>(1000, "Lấy chi tiết môn học thành công!", subjectService.getSubjectById(subjectId));
     }
 
-    // 3. API PUT: Cập nhật thông tin lý lịch sinh viên
-    @PutMapping("/{studentId}")
-    public ApiResponse<Student> updateStudent(@PathVariable Long studentId, @RequestBody @Valid StudentUpdateRequest request) {
-        return new ApiResponse<>(1000, "Cập nhật thông tin sinh viên thành công!", studentService.updateStudent(studentId, request));
-    }
-    @DeleteMapping("/{studentId}")
-    public ApiResponse<String> deleteStudent(@PathVariable Long studentId) {
-        studentService.disableStudent(studentId); // Gọi đúng hàm disableStudent
-        return new ApiResponse<>(1000, "Xóa hồ sơ sinh viên thành công!", "Hồ sơ sinh viên có ID " + studentId + " và tài khoản liên kết đã bị vô hiệu hóa.");
+    @PutMapping("/{subjectId}")
+    public ApiResponse<SubjectResponse> updateSubject(@PathVariable Long subjectId, @RequestBody @Valid SubjectRequest request) {
+        return new ApiResponse<>(1000, "Cập nhật môn học thành công!", subjectService.updateSubject(subjectId, request));
     }
 
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/UserController.java">
-package com.dangdepzaivaio.StudentManagement.controller;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest; // Thêm import này
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.entity.User;
-import com.dangdepzaivaio.StudentManagement.service.UserService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List; // Thêm import này
-
-@RestController
-@RequestMapping("/users")
-@RequiredArgsConstructor
-public class UserController {
-    private final UserService userService;
-
-    @PostMapping
-    public ApiResponse<User> createUser(@RequestBody @Valid UserCreationRequest request) {
-        User user = userService.createUser(request);
-        return new ApiResponse<>(1000, "Tạo người dùng thành công", user);
+    @DeleteMapping("/{subjectId}")
+    public ApiResponse<String> deleteSubject(@PathVariable Long subjectId) {
+        subjectService.deleteSubject(subjectId);
+        return new ApiResponse<>(1000, "Xóa môn học thành công!", "Môn học có ID " + subjectId + " đã bị xóa hoàn toàn.");
     }
-
-    // 1. API GET: Lấy danh sách toàn bộ người dùng
-    @GetMapping
-    public ApiResponse<List<User>> getAllUsers() {
-        return new ApiResponse<>(1000, "Lấy danh sách thành công", userService.getAllUsers());
-    }
-
-    // 2. API GET: Lấy thông tin chi tiết 1 người dùng theo ID
-    @GetMapping("/{userId}")
-    public ApiResponse<User> getUser(@PathVariable Long userId) {
-        return new ApiResponse<>(1000, "Lấy chi tiết người dùng thành công", userService.getUserById(userId));
-    }
-
-    // 3. API PUT: Cập nhật thông tin người dùng theo ID
-    @PutMapping("/{userId}")
-    public ApiResponse<User> updateUser(@PathVariable Long userId, @RequestBody @Valid UserUpdateRequest request) {
-        return new ApiResponse<>(1000, "Cập nhật thông tin thành công", userService.updateUser(userId, request));
-    }
-    @DeleteMapping("/{userId}")
-    public ApiResponse<String> deleteUser(@PathVariable Long userId) {
-        userService.disableUser(userId); // Gọi hàm chuyển trạng thái xuống tầng Service
-        return new ApiResponse<>(1000, "Xóa tài khoản người dùng thành công!", "Tài khoản có ID " + userId + " đã bị vô hiệu hóa.");
-    }
-
 }
 </file>
 
@@ -995,6 +1740,26 @@ public record StudentUpdateRequest(
         String gender,
         String phoneNumber,
         Long classId
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/SubjectRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+public record SubjectRequest(
+        @NotBlank(message = "Mã môn học không được để trống")
+        String code,
+
+        @NotBlank(message = "Tên môn học không được để trống")
+        String name,
+
+        @NotNull(message = "Số tín chỉ không được để trống")
+        @Min(value = 1, message = "Số tín chỉ phải lớn hơn hoặc bằng 1")
+        Integer credits
 ) {}
 </file>
 
@@ -1211,6 +1976,10 @@ public class Grade extends BaseEntity {
 
     @Column(name = "letter_grade", length = 5)
     private String letterGrade; // Điểm chữ (A, B+, B, C...)
+
+    // BỔ SUNG THÊM DÒNG NÀY
+    @Column(name = "grade_4")
+    private Double grade4; // Điểm số hệ 4 (Ví dụ: 3.5, 4.0)
 }
 </file>
 
@@ -1235,60 +2004,6 @@ public class Role extends BaseEntity {
 
     @Column(name = "name", nullable = false, unique = true)
     private String name; // Ví dụ: ADMIN, TEACHER, STUDENT
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Student.java">
-package com.dangdepzaivaio.StudentManagement.entity;
-
-import jakarta.persistence.*;
-import lombok.*;
-import java.time.LocalDate;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Entity
-@Table(name = "students")
-public class Student extends BaseEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "student_code", nullable = false, unique = true, length = 20)
-    private String studentCode; // Mã sinh viên (Ví dụ: B21DCCN001)
-
-    @Column(name = "first_name", nullable = false, length = 50)
-    private String firstName; // Tên (Ví dụ: Anh)
-
-    @Column(name = "last_name", nullable = false, length = 100)
-    private String lastName; // Họ và đệm (Ví dụ: Nguyễn Đình)
-
-    @Column(name = "date_of_birth")
-    private LocalDate dateOfBirth;
-
-    @Column(name = "gender", length = 10)
-    private String gender;
-
-    @Column(name = "phone_number", length = 15)
-    private String phoneNumber;
-
-    @Builder.Default
-    @Column(name = "is_active", nullable = false)
-    private boolean isActive = true;
-
-    // Mỗi sinh viên sở hữu duy nhất 1 tài khoản hệ thống
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
-    private User user;
-
-    // Nhiều sinh viên học chung 1 lớp hành chính
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "class_id", nullable = false)
-    private Class studentClass;
 }
 </file>
 
@@ -1322,51 +2037,6 @@ public class Subject extends BaseEntity {
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/User.java">
-package com.dangdepzaivaio.StudentManagement.entity;
-
-import jakarta.persistence.*;
-import lombok.*;
-
-import java.util.Set;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Entity
-@Table(name = "users")
-public class User extends BaseEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "username", nullable = false, unique = true)
-    private String username;
-
-    @Column(name = "password", nullable = false)
-    private String password;
-
-    @Column(name = "email", nullable = false, unique = true)
-    private String email;
-
-    @Builder.Default
-    @Column(name = "is_active", nullable = false)
-    private boolean isActive = true;
-
-    // Quan hệ nhiều-nhiều: Một user có thể có nhiều role, một role có nhiều user
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
-    private Set<Role> roles;
-}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/exception/AppException.java">
 package com.dangdepzaivaio.StudentManagement.exception;
 
@@ -1388,6 +2058,7 @@ package com.dangdepzaivaio.StudentManagement.mapper;
 
 import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
 import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
 import com.dangdepzaivaio.StudentManagement.entity.Student;
 import com.dangdepzaivaio.StudentManagement.entity.User;
 import org.mapstruct.Mapper;
@@ -1407,6 +2078,36 @@ public interface StudentMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "roles", ignore = true)
     User toUserEntity(UserCreationRequest request);
+
+    @Mapping(target = "username", source = "user.username")
+    @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "className", source = "studentClass.name")
+    @Mapping(target = "isActive", source = "active")
+    StudentResponse toResponse(Student student);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/SubjectMapper.java">
+package com.dangdepzaivaio.StudentManagement.mapper;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse; // Thêm import này
+import com.dangdepzaivaio.StudentManagement.entity.Subject;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
+@Mapper(componentModel = "spring")
+public interface SubjectMapper {
+
+    @Mapping(target = "id", ignore = true)
+    Subject toEntity(SubjectRequest request);
+
+    @Mapping(target = "id", ignore = true)
+    void updateEntityFromRequest(SubjectRequest request, @MappingTarget Subject subject);
+
+    // BỔ SUNG HÀM NÀY: Chuyển đổi thực thể sang DTO phẳng sạch sẽ
+    SubjectResponse toResponse(Subject subject);
 }
 </file>
 
@@ -1458,16 +2159,23 @@ package com.dangdepzaivaio.StudentManagement.repository;
 
 import com.dangdepzaivaio.StudentManagement.entity.Grade;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
 public interface GradeRepository extends JpaRepository<Grade, Long> {
-    // Tìm kiếm toàn bộ điểm số của một sinh viên dựa vào ID
-    List<Grade> findByStudentId(Long studentId);
 
-    // Tìm kiếm điểm số của một lớp học phần
+    // Sử dụng JOIN FETCH để lôi toàn bộ dữ liệu Lớp học phần và Môn học lên cùng 1 lúc trong 1 câu SQL duy nhất
+    @Query("SELECT g FROM Grade g " +
+            "JOIN FETCH g.courseClass cc " +
+            "JOIN FETCH cc.subject s " +
+            "WHERE g.student.id = :studentId")
+    List<Grade> findByStudentId(@Param("studentId") Long studentId);
+
     List<Grade> findByCourseClassId(Long courseClassId);
+    boolean existsByStudentIdAndCourseClassId(Long studentId, Long courseClassId);
 }
 </file>
 
@@ -1529,243 +2237,93 @@ public interface UserRepository extends JpaRepository<User, Long> {
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/StudentServiceImpl.java">
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/SubjectServiceImpl.java">
 package com.dangdepzaivaio.StudentManagement.service.impl;
 
-import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.StudentUpdateRequest;
-import com.dangdepzaivaio.StudentManagement.entity.Class;
-import com.dangdepzaivaio.StudentManagement.entity.Role;
-import com.dangdepzaivaio.StudentManagement.entity.Student;
-import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Subject;
 import com.dangdepzaivaio.StudentManagement.exception.AppException;
 import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.mapper.StudentMapper;
-import com.dangdepzaivaio.StudentManagement.repository.ClassRepository;
-import com.dangdepzaivaio.StudentManagement.repository.RoleRepository;
-import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
-import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
-import com.dangdepzaivaio.StudentManagement.service.StudentService;
+import com.dangdepzaivaio.StudentManagement.mapper.SubjectMapper;
+import com.dangdepzaivaio.StudentManagement.repository.SubjectRepository;
+import com.dangdepzaivaio.StudentManagement.service.SubjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
-public class StudentServiceImpl implements StudentService {
+public class SubjectServiceImpl implements SubjectService {
 
-    private final StudentRepository studentRepository;
-    private final UserRepository userRepository;
-    private final ClassRepository classRepository;
-    private final RoleRepository roleRepository;
-    private final StudentMapper studentMapper;
+    private final SubjectRepository subjectRepository;
+    private final SubjectMapper subjectMapper;
 
     @Override
-    @Transactional // Đảm bảo đồng bộ dữ liệu giữa bảng Users và Students
-    public Student createStudent(StudentCreationRequest request) {
-
-        // 1. Kiểm tra Mã sinh viên đã tồn tại chưa
-        if (studentRepository.existsByStudentCode(request.studentCode())) {
-            throw new RuntimeException("Mã sinh viên này đã tồn tại trên hệ thống!");
+    @Transactional
+    public SubjectResponse createSubject(SubjectRequest request) {
+        if (subjectRepository.existsByCode(request.code())) {
+            throw new AppException(ErrorCode.SUBJECT_EXISTED);
         }
-
-        // 2. Kiểm tra Tài khoản đăng nhập đã tồn tại chưa
-        if (userRepository.existsByUsername(request.user().username())) {
-            throw new AppException(ErrorCode.USER_EXISTED);
-        }
-
-        if (userRepository.existsByEmail(request.user().email())) {
-            throw new AppException(ErrorCode.EMAIL_EXISTED);
-        }
-
-        // 3. Kiểm tra Lớp hành chính có tồn tại không
-        Class studentClass = classRepository.findById(request.classId())
-                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
-
-        // 4. Khởi tạo tài khoản User hệ thống đi kèm hồ sơ sinh viên
-        User user = studentMapper.toUserEntity(request.user());
-
-        // Lấy vai trò STUDENT mặc định đã được khởi tạo từ DatabaseInitializer
-        Role studentRole = roleRepository.findByName("STUDENT")
-                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
-        user.setRoles(Set.of(studentRole));
-        userRepository.save(user);
-
-        // 5. Khởi tạo thực thể Student và liên kết mối quan hệ
-        Student student = studentMapper.toEntity(request);
-        student.setUser(user); // Gán quan hệ @OneToOne
-        student.setStudentClass(studentClass); // Gán quan hệ @ManyToOne
-
-        // 6. Lưu hồ sơ sinh viên hoàn chỉnh vào Database
-        return studentRepository.save(student);
+        Subject subject = subjectMapper.toEntity(request);
+        return subjectMapper.toResponse(subjectRepository.save(subject)); // Đã bọc Response
     }
 
     @Override
-    public List<Student> getAllStudents() {
-        return studentRepository.findAll();
+    public List<SubjectResponse> getAllSubjects() {
+        return subjectRepository.findAll().stream()
+                .map(subjectMapper::toResponse) // Map toàn bộ danh sách sang DTO
+                .toList();
     }
 
     @Override
-    public Student getStudentById(Long id) {
-        return studentRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND)); // Đã có sẵn mã lỗi 1003
+    public SubjectResponse getSubjectById(Long id) {
+        Subject subject = subjectRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
+        return subjectMapper.toResponse(subject); // Đã bọc Response
     }
 
     @Override
     @Transactional
-    public Student updateStudent(Long id, StudentUpdateRequest request) {
-        Student student = getStudentById(id); // Lấy hồ sơ cũ ra
+    public SubjectResponse updateSubject(Long id, SubjectRequest request) {
+        // Tận dụng hàm tìm kiếm thực thể gốc để xử lý
+        Subject subject = subjectRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
 
-        // Nếu thay đổi lớp hành chính, cần kiểm tra lớp mới có tồn tại không
-        if (request.classId() != null) {
-            Class studentClass = classRepository.findById(request.classId())
-                    .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
-            student.setStudentClass(studentClass);
+        // Kiểm tra nếu đổi sang mã môn mới, mã đó có bị trùng với môn khác không
+        if (!subject.getCode().equals(request.code()) && subjectRepository.existsByCode(request.code())) {
+            throw new AppException(ErrorCode.SUBJECT_EXISTED);
         }
 
-        // Cập nhật các thông tin lý lịch sinh viên
-        student.setFirstName(request.firstName());
-        student.setLastName(request.lastName());
-        student.setDateOfBirth(request.dateOfBirth());
-        student.setGender(request.gender());
-        student.setPhoneNumber(request.phoneNumber());
-
-        return studentRepository.save(student);
-    }
-
-    @Override
-    @Transactional // Đảm bảo đồng bộ tính toàn vẹn dữ liệu
-    public void disableStudent(Long id) {
-        // 1. Kiểm tra xem sinh viên có tồn tại không
-        Student student = studentRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
-
-        // 2. Chuyển trạng thái hoạt động của Sinh viên thành false
-        student.setActive(false);
-        studentRepository.save(student);
-
-        // 3. Đồng bộ khóa luôn cả tài khoản User đăng nhập đi kèm
-        User user = student.getUser();
-        if (user != null) {
-            user.setActive(false);
-            userRepository.save(user);
-        }
-    }
-
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/UserServiceImpl.java">
-package com.dangdepzaivaio.StudentManagement.service.impl;
-
-import java.util.List;
-import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest;
-import com.dangdepzaivaio.StudentManagement.entity.User;
-import com.dangdepzaivaio.StudentManagement.exception.AppException;
-import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
-import com.dangdepzaivaio.StudentManagement.service.UserService;
-import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
-@Service
-@RequiredArgsConstructor // Tự động inject các repository qua Constructor
-public class UserServiceImpl implements UserService {
-
-    private final UserRepository userRepository;
-
-    @Override
-    public User createUser(UserCreationRequest request) {
-        // 1. Kiểm tra username đã tồn tại chưa
-        if (userRepository.existsByUsername(request.username())) {
-            throw new AppException(ErrorCode.USER_EXISTED);
-        }
-
-        // 2. Map từ DTO sang Entity (Tạm thời thủ công, sau này dùng Mapper)
-        User user = User.builder()
-                .username(request.username())
-                .password(request.password()) // Sẽ mã hóa sau khi làm Security
-                .email(request.email())
-                .build();
-
-        // 3. Lưu vào database
-        return userRepository.save(user);
-    }
-    @Override
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
-    }
-
-    @Override
-    public User getUserById(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng này"));
-        // Sau này bạn có thể thêm mã lỗi USER_NOT_FOUND vào ErrorCode nhé!
-    }
-
-    @Override
-    public User updateUser(Long id, UserUpdateRequest request) {
-        User user = getUserById(id); // Lấy user cũ ra trước
-
-        // Cập nhật thông tin nếu có truyền vào
-        if (request.password() != null && !request.password().isBlank()) {
-            user.setPassword(request.password());
-        }
-        if (request.email() != null && !request.email().isBlank()) {
-            user.setEmail(request.email());
-        }
-
-        return userRepository.save(user); // Lưu lại bản cập nhật
+        subjectMapper.updateEntityFromRequest(request, subject);
+        return subjectMapper.toResponse(subjectRepository.save(subject)); // Đã bọc Response
     }
 
     @Override
     @Transactional
-    public void disableUser(Long id) {
-        User user = getUserById(id);
-        user.setActive(false); // Chuyển trạng thái hoạt động thành false (coi như đã xóa)
-        userRepository.save(user);
+    public void deleteSubject(Long id) {
+        Subject subject = subjectRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
+        subjectRepository.delete(subject);
     }
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/StudentService.java">
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/SubjectService.java">
 package com.dangdepzaivaio.StudentManagement.service;
 
-import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.StudentUpdateRequest;
-import com.dangdepzaivaio.StudentManagement.entity.Student;
+import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse; // Sửa import này
 import java.util.List;
 
-public interface StudentService {
-    Student createStudent(StudentCreationRequest request);
-    List<Student> getAllStudents();
-    Student getStudentById(Long id);
-    Student updateStudent(Long id, StudentUpdateRequest request);
-    void disableStudent(Long id);
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/UserService.java">
-package com.dangdepzaivaio.StudentManagement.service;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest;
-import com.dangdepzaivaio.StudentManagement.entity.User;
-
-import java.util.List;
-
-public interface UserService {
-    User createUser(UserCreationRequest request);
-
-    List<User> getAllUsers(); // Đã xóa chữ "java" thừa ở đây
-    User getUserById(Long id);
-    User updateUser(Long id, UserUpdateRequest request);
-    void disableUser(Long id);
+public interface SubjectService {
+    SubjectResponse createSubject(SubjectRequest request);
+    List<SubjectResponse> getAllSubjects();
+    SubjectResponse getSubjectById(Long id);
+    SubjectResponse updateSubject(Long id, SubjectRequest request);
+    void deleteSubject(Long id);
 }
 </file>
 
@@ -1785,35 +2343,201 @@ class StudentManagementApplicationTests {
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/exception/ErrorCode.java">
-package com.dangdepzaivaio.StudentManagement.exception;
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/StudentController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
-import lombok.Getter;
+import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.StudentUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Student;
+import com.dangdepzaivaio.StudentManagement.service.StudentService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/students")
+@RequiredArgsConstructor
+public class StudentController {
+
+    private final StudentService studentService;
+
+    @PostMapping
+    public ApiResponse<StudentResponse> createStudent(@RequestBody @Valid StudentCreationRequest request) {
+        return new ApiResponse<>(1000, "Tạo hồ sơ sinh viên thành công!", studentService.createStudent(request));
+    }
+
+    @GetMapping
+    public ApiResponse<List<StudentResponse>> getAllStudents() {
+        return new ApiResponse<>(1000, "Lấy danh sách sinh viên thành công!", studentService.getAllStudents());
+    }
+
+    @GetMapping("/{studentId}")
+    public ApiResponse<StudentResponse> getStudent(@PathVariable Long studentId) {
+        return new ApiResponse<>(1000, "Lấy chi tiết sinh viên thành công!", studentService.getStudentById(studentId));
+    }
+
+    @PutMapping("/{studentId}")
+    public ApiResponse<StudentResponse> updateStudent(@PathVariable Long studentId, @RequestBody @Valid StudentUpdateRequest request) {
+        return new ApiResponse<>(1000, "Cập nhật thông tin sinh viên thành công!", studentService.updateStudent(studentId, request));
+    }
+    @DeleteMapping("/{studentId}")
+    public ApiResponse<String> deleteStudent(@PathVariable Long studentId) {
+        studentService.disableStudent(studentId); // Gọi đúng hàm disableStudent
+        return new ApiResponse<>(1000, "Xóa hồ sơ sinh viên thành công!", "Hồ sơ sinh viên có ID " + studentId + " và tài khoản liên kết đã bị vô hiệu hóa.");
+    }
+
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/UserController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest; // Thêm import này
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.service.UserService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List; // Thêm import này
+
+@RestController
+@RequestMapping("/users")
+@RequiredArgsConstructor
+public class UserController {
+    private final UserService userService;
+
+    @PostMapping
+    public ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request) {
+        return new ApiResponse<>(1000, "Tạo người dùng thành công", userService.createUser(request));
+    }
+
+    @GetMapping
+    public ApiResponse<List<UserResponse>> getAllUsers() {
+        return new ApiResponse<>(1000, "Lấy danh sách thành công", userService.getAllUsers());
+    }
+
+    @GetMapping("/{userId}")
+    public ApiResponse<UserResponse> getUser(@PathVariable Long userId) {
+        return new ApiResponse<>(1000, "Lấy chi tiết người dùng thành công", userService.getUserById(userId));
+    }
+
+    @PutMapping("/{userId}")
+    public ApiResponse<UserResponse> updateUser(@PathVariable Long userId, @RequestBody @Valid UserUpdateRequest request) {
+        return new ApiResponse<>(1000, "Cập nhật thông tin thành công", userService.updateUser(userId, request));
+    }
+    @DeleteMapping("/{userId}")
+    public ApiResponse<String> deleteUser(@PathVariable Long userId) {
+        userService.disableUser(userId); // Gọi hàm chuyển trạng thái xuống tầng Service
+        return new ApiResponse<>(1000, "Xóa tài khoản người dùng thành công!", "Tài khoản có ID " + userId + " đã bị vô hiệu hóa.");
+    }
+
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Student.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDate;
 
 @Getter
-public enum ErrorCode {
-    UNCATEGORIZED_EXCEPTION(9999, "Lỗi hệ thống không xác định", HttpStatus.INTERNAL_SERVER_ERROR),
-    USER_EXISTED(1001, "Tài khoản đăng nhập đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
-    ROLE_NOT_FOUND(1002, "Vai trò người dùng (Role) không tồn tại", HttpStatus.NOT_FOUND),
-    STUDENT_NOT_FOUND(1003, "Không tìm thấy thông tin sinh viên yêu cầu", HttpStatus.NOT_FOUND),
-    CLASS_NOT_FOUND(1004, "Lớp hành chính không tồn tại trên hệ thống", HttpStatus.NOT_FOUND),
-    VALIDATION_ERROR(4000, "Dữ liệu đầu vào không hợp lệ", HttpStatus.BAD_REQUEST),
-    EMAIL_EXISTED(1005, "Email này đã được sử dụng trên hệ thống", HttpStatus.BAD_REQUEST),
-    SUBJECT_EXISTED(1006, "Môn học này đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
-    SUBJECT_NOT_FOUND(1007, "Không tìm thấy thông tin môn học yêu cầu", HttpStatus.NOT_FOUND)
-    ;
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "students")
+public class Student extends BaseEntity {
 
-    private final int code;
-    private final String message;
-    private final HttpStatusCode statusCode; // Lưu mã HTTP Status chuẩn (200, 400, 404, 500)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    ErrorCode(int code, String message, HttpStatusCode statusCode) {
-        this.code = code;
-        this.message = message;
-        this.statusCode = statusCode;
-    }
+    @Column(name = "student_code", nullable = false, unique = true, length = 20)
+    private String studentCode; // Mã sinh viên (Ví dụ: B21DCCN001)
+
+    @Column(name = "first_name", nullable = false, length = 50)
+    private String firstName; // Tên (Ví dụ: Anh)
+
+    @Column(name = "last_name", nullable = false, length = 100)
+    private String lastName; // Họ và đệm (Ví dụ: Nguyễn Đình)
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(name = "gender", length = 10)
+    private String gender;
+
+    @Column(name = "phone_number", length = 15)
+    private String phoneNumber;
+
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true;
+
+    // Mỗi sinh viên sở hữu duy nhất 1 tài khoản hệ thống
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    private User user;
+
+    // Nhiều sinh viên học chung 1 lớp hành chính
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "class_id", nullable = false)
+    private Class studentClass;
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/User.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.Set;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "users")
+public class User extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "username", nullable = false, unique = true)
+    private String username;
+
+    @Column(name = "password", nullable = false)
+    private String password;
+
+    @Column(name = "email", nullable = false, unique = true)
+    private String email;
+
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true;
+
+    // Quan hệ nhiều-nhiều: Một user có thể có nhiều role, một role có nhiều user
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles;
 }
 </file>
 
@@ -1869,6 +2593,254 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.status(ErrorCode.VALIDATION_ERROR.getStatusCode()).body(apiResponse);
     }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/StudentServiceImpl.java">
+package com.dangdepzaivaio.StudentManagement.service.impl;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.StudentUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Class;
+import com.dangdepzaivaio.StudentManagement.entity.Role;
+import com.dangdepzaivaio.StudentManagement.entity.Student;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.StudentMapper;
+import com.dangdepzaivaio.StudentManagement.repository.ClassRepository;
+import com.dangdepzaivaio.StudentManagement.repository.RoleRepository;
+import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import com.dangdepzaivaio.StudentManagement.service.StudentService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Set;
+
+@Service
+@RequiredArgsConstructor
+public class StudentServiceImpl implements StudentService {
+
+    private final StudentRepository studentRepository;
+    private final UserRepository userRepository;
+    private final ClassRepository classRepository;
+    private final RoleRepository roleRepository;
+    private final StudentMapper studentMapper;
+
+    @Override
+    @Transactional // Đảm bảo đồng bộ dữ liệu giữa bảng Users và Students
+    public StudentResponse createStudent(StudentCreationRequest request) { // ĐỔI KIỂU TRẢ VỀ THÀNH StudentResponse Ở ĐÂY
+
+        // 1. Kiểm tra Mã sinh viên đã tồn tại chưa
+        if (studentRepository.existsByStudentCode(request.studentCode())) {
+            throw new RuntimeException("Mã sinh viên này đã tồn tại trên hệ thống!");
+        }
+
+        // 2. Kiểm tra Tài khoản đăng nhập đã tồn tại chưa
+        if (userRepository.existsByUsername(request.user().username())) {
+            throw new AppException(ErrorCode.USER_EXISTED);
+        }
+
+        if (userRepository.existsByEmail(request.user().email())) {
+            throw new AppException(ErrorCode.EMAIL_EXISTED);
+        }
+
+        // 3. Kiểm tra Lớp hành chính có tồn tại không
+        Class studentClass = classRepository.findById(request.classId())
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+
+        // 4. Khởi tạo tài khoản User hệ thống đi kèm hồ sơ sinh viên
+        User user = studentMapper.toUserEntity(request.user());
+
+        // Lấy vai trò STUDENT mặc định đã được khởi tạo từ DatabaseInitializer
+        Role studentRole = roleRepository.findByName("STUDENT")
+                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
+        user.setRoles(Set.of(studentRole));
+        userRepository.save(user);
+
+        // 5. Khởi tạo thực thể Student và liên kết mối quan hệ
+        Student student = studentMapper.toEntity(request);
+        student.setUser(user); // Gán quan hệ @OneToOne
+        student.setStudentClass(studentClass); // Gán quan hệ @ManyToOne
+
+        // 6. Lưu hồ sơ sinh viên hoàn chỉnh vào Database và trả về dạng DTO phẳng sạch sẽ
+        return studentMapper.toResponse(studentRepository.save(student));
+    }
+
+    @Override
+    public List<StudentResponse> getAllStudents() {
+        return studentRepository.findAll().stream()
+                .map(studentMapper::toResponse) // SỬA ĐOẠN NÀY
+                .toList();
+    }
+
+    @Override
+    public StudentResponse getStudentById(Long id) {
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
+        return studentMapper.toResponse(student); // SỬA ĐOẠN NÀY
+    }
+
+    @Override
+    @Transactional
+    public StudentResponse updateStudent(Long id, StudentUpdateRequest request) {
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
+
+        if (request.classId() != null) {
+            Class studentClass = classRepository.findById(request.classId())
+                    .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+            student.setStudentClass(studentClass);
+        }
+
+        // Cập nhật các thông tin lý lịch sinh viên
+        student.setFirstName(request.firstName());
+        student.setLastName(request.lastName());
+        student.setDateOfBirth(request.dateOfBirth());
+        student.setGender(request.gender());
+        student.setPhoneNumber(request.phoneNumber());
+
+        return studentMapper.toResponse(studentRepository.save(student));
+    }
+
+    @Override
+    @Transactional // Đảm bảo đồng bộ tính toàn vẹn dữ liệu
+    public void disableStudent(Long id) {
+        // 1. Kiểm tra xem sinh viên có tồn tại không
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
+
+        // 2. Chuyển trạng thái hoạt động của Sinh viên thành false
+        student.setActive(false);
+        studentRepository.save(student);
+
+        // 3. Đồng bộ khóa luôn cả tài khoản User đăng nhập đi kèm
+        User user = student.getUser();
+        if (user != null) {
+            user.setActive(false);
+            userRepository.save(user);
+        }
+    }
+
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/UserServiceImpl.java">
+package com.dangdepzaivaio.StudentManagement.service.impl;
+
+import java.util.List;
+import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.UserMapper;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import com.dangdepzaivaio.StudentManagement.service.UserService;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class UserServiceImpl implements UserService {
+
+    private final UserRepository userRepository;
+    private final UserMapper userMapper; // Inject mapper thành công
+
+    @Override
+    public UserResponse createUser(UserCreationRequest request) {
+        if (userRepository.existsByUsername(request.username())) {
+            throw new AppException(ErrorCode.USER_EXISTED);
+        }
+
+        User user = User.builder()
+                .username(request.username())
+                .password(request.password())
+                .email(request.email())
+                .build();
+
+        return userMapper.toResponse(userRepository.save(user));
+    }
+
+    @Override
+    public List<UserResponse> getAllUsers() {
+        // Lấy danh sách entity lên và map toàn bộ sang DTO trước khi trả về
+        return userRepository.findAll().stream()
+                .map(userMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    public UserResponse getUserById(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng này"));
+        return userMapper.toResponse(user);
+    }
+
+    @Override
+    public UserResponse updateUser(Long id, UserUpdateRequest request) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng này"));
+
+        if (request.password() != null && !request.password().isBlank()) {
+            user.setPassword(request.password());
+        }
+        if (request.email() != null && !request.email().isBlank()) {
+            user.setEmail(request.email());
+        }
+
+        return userMapper.toResponse(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public void disableUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng này"));
+        user.setActive(false);
+        userRepository.save(user);
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/StudentService.java">
+package com.dangdepzaivaio.StudentManagement.service;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.StudentUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
+import java.util.List;
+
+public interface StudentService {
+    StudentResponse createStudent(StudentCreationRequest request);
+    List<StudentResponse> getAllStudents();
+    StudentResponse getStudentById(Long id);
+    StudentResponse updateStudent(Long id, StudentUpdateRequest request);
+    void disableStudent(Long id);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/UserService.java">
+package com.dangdepzaivaio.StudentManagement.service;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
+
+import java.util.List;
+
+public interface UserService {
+    UserResponse createUser(UserCreationRequest request);
+    List<UserResponse> getAllUsers();
+    UserResponse getUserById(Long id);
+    UserResponse updateUser(Long id, UserUpdateRequest request);
+    void disableUser(Long id);
 }
 </file>
 
@@ -2059,6 +3031,43 @@ public class StudentManagementApplication {
 </project>
 </file>
 
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/exception/ErrorCode.java">
+package com.dangdepzaivaio.StudentManagement.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import lombok.Getter;
+
+@Getter
+public enum ErrorCode {
+    UNCATEGORIZED_EXCEPTION(9999, "Lỗi hệ thống không xác định", HttpStatus.INTERNAL_SERVER_ERROR),
+    USER_EXISTED(1001, "Tài khoản đăng nhập đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
+    ROLE_NOT_FOUND(1002, "Vai trò người dùng (Role) không tồn tại", HttpStatus.NOT_FOUND),
+    STUDENT_NOT_FOUND(1003, "Không tìm thấy thông tin sinh viên yêu cầu", HttpStatus.NOT_FOUND),
+    CLASS_NOT_FOUND(1004, "Lớp hành chính không tồn tại trên hệ thống", HttpStatus.NOT_FOUND),
+    VALIDATION_ERROR(4000, "Dữ liệu đầu vào không hợp lệ", HttpStatus.BAD_REQUEST),
+    EMAIL_EXISTED(1005, "Email này đã được sử dụng trên hệ thống", HttpStatus.BAD_REQUEST),
+    SUBJECT_EXISTED(1006, "Môn học này đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
+    SUBJECT_NOT_FOUND(1007, "Không tìm thấy thông tin môn học yêu cầu", HttpStatus.NOT_FOUND),
+    COURSE_CLASS_EXISTED(1008, "Mã lớp học phần này đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
+    COURSE_CLASS_NOT_FOUND(1009, "Không tìm thấy thông tin lớp học phần yêu cầu", HttpStatus.NOT_FOUND),
+    GRADE_EXISTED(1010, "Sinh viên này đã được nhập điểm cho lớp học phần này trước đó", HttpStatus.BAD_REQUEST),
+    GRADE_NOT_FOUND(1011, "Không tìm thấy thông tin đầu điểm yêu cầu", HttpStatus.NOT_FOUND)
+            ;
+    ;
+
+    private final int code;
+    private final String message;
+    private final HttpStatusCode statusCode; // Lưu mã HTTP Status chuẩn (200, 400, 404, 500)
+
+    ErrorCode(int code, String message, HttpStatusCode statusCode) {
+        this.code = code;
+        this.message = message;
+        this.statusCode = statusCode;
+    }
+}
+</file>
+
 <file path="src/main/resources/application.yaml">
 spring:
   application:
@@ -2123,8 +3132,8 @@ Dựng hoàn thiện cấu trúc quan hệ lồng nhau giữa 8 thực thể lõ
 2. **`User`**: Định danh tài khoản hệ thống (Quan hệ `@ManyToMany` tự sinh bảng trung gian `user_roles` liên kết với Role).
 3. **`Department`**: Quản lý các Khoa/Viện đào tạo.
 4. **`Class`**: Lớp hành chính gốc của sinh viên (Quan hệ `@ManyToOne` thuộc về Department).
-5. **`Student`**: Hồ sơ lý lịch sinh viên (Liên kết `@OneToOne` với User bảo mật và `@ManyToOne` với Class).
-6. **`Subject`**: Danh mục môn học và số tín chỉ tương ứng.
+5. **`Subject`**: Danh mục môn học và số tín chỉ tương ứng.
+6. **`Student`**: Hồ sơ lý lịch sinh viên (Liên kết `@OneToOne` với User bảo mật và `@ManyToOne` với Class).
 7. **`CourseClass`**: Lớp học phần mở theo từng học kỳ (Quan hệ `@ManyToOne` liên kết Subject).
 8. **`Grade`**: Bảng điểm số thành phần của sinh viên (Ràng buộc `@UniqueConstraint` kép giữa `student_id` và `course_class_id`).
 
@@ -2138,35 +3147,31 @@ Dựng hoàn thiện cấu trúc quan hệ lồng nhau giữa 8 thực thể lõ
 * Thiết lập Enum `ErrorCode` quản lý tập trung mã lỗi nội bộ kèm HTTP Status chuẩn doanh nghiệp.
 * Hoàn thiện bộ lọc `@RestControllerAdvice` bắt trọn vẹn lỗi Runtime hệ thống, lỗi logic nghiệp vụ (`AppException`), và tự động bóc tách chuỗi thông báo lỗi của Jakarta Validation trả ra ngoài Client.
 
-### Giai đoạn 5: Xây dựng và Kiểm thử Toàn diện CRUD User API
-* **Hoàn thiện Logic Tầng Service & Controller:** Thiết lập thành công trọn bộ 4 Endpoints cốt lõi cho `User`.
-* **Cô lập & Sửa lỗi Xung đột Bảo mật (401 Unauthorized):** Phát hiện và xử lý triệt để tiến trình chạy ngầm, giải phóng cổng `8081` cho việc test logic thuần thục.
-* **Nâng cấp Bộ bắt lỗi Chẩn đoán Nhanh trên Postman:** Tối ưu hóa hàm xử lý lỗi tổng quát trong `GlobalExceptionHandler` để bóc tách và trả thẳng chuỗi định danh lỗi (`ExceptionClass -> Message`) trực tiếp về Postman.
-* **Kết quả Kiểm thử:** Toàn bộ 4 API vượt qua các kịch bản test trên Postman, ghi nhận trạng thái thành công mã `1000` (`200 OK`).
+### Giai đoạn 5: Xây dựng và Kiểm thử Toàn diện CRUD User API & Xóa mềm
+* **Hoàn thiện Logic Tầng Service & Controller:** Thiết lập thành công trọn bộ 5 Endpoints cốt lõi cho `User`.
+* **Cơ chế Vô hiệu hóa Tài khoản (Soft Delete):** Xây dựng hàm `disableUser` chuyển đổi cờ trạng thái `is_active` từ `1` (True) về `0` (False), giải quyết bài toán toàn vẹn dữ liệu và tránh mồ côi dữ liệu lịch sử.
+* **Nâng cấp Bộ bắt lỗi Chẩn đoán Nhanh trên Postman:** Tối ưu hóa hàm xử lỗi tổng quát trong `GlobalExceptionHandler` để bóc tách và trả thẳng chuỗi định danh lỗi (`ExceptionClass -> Message`) trực tiếp về Postman.
+* **Kết quả Kiểm thử:** Toàn bộ các API vượt qua các kịch bản test trên Postman, ghi nhận trạng thái thành công mã `1000` (`200 OK`).
 
-### Giai đoạn 6: Hoàn thiện Nghiệp vụ & Toàn bộ CRUD Student API
+### Giai đoạn 6: Hoàn thiện Nghiệp vụ & Toàn bộ CRUD Student API & Xóa mềm Kép
 * **Thiết lập chuỗi API lồng nhau dữ liệu phức tạp (Nested JSON):** Xây dựng thành công bộ hàm tạo mới sinh viên đi kèm tài khoản hệ thống cùng lúc, tự động map cấu trúc DTO qua MapStruct.
 * **Bảo vệ tính thực thi toàn vẹn bằng `@Transactional`:** Ràng buộc chặt chẽ quá trình lưu dữ liệu xuống bảng `users` và `students`. Đảm bảo hệ thống tự động Rollback (hủy bỏ) toàn luồng nếu xảy ra lỗi xung đột, không sinh dữ liệu rác.
-* **Hoàn thành trọn vẹn các Endpoints cho Student:**
-  * `POST /students`: Tạo mới sinh viên, tự động gán cứng Role `STUDENT` và xác thực logic tồn tại của Lớp hành chính (`classId`).
-  * `GET /students`: Lấy danh sách toàn bộ hồ sơ sinh viên kèm theo dữ liệu "gia phả" đa tầng lồng nhau (User, Role, Class, Department).
-  * `GET /students/{studentId}`: Xem thông tin chi tiết một sinh viên theo ID.
-  * `PUT /students/{studentId}`: Cập nhật lý lịch cá nhân linh hoạt (Họ tên, ngày sinh, giới tính, số điện thoại) và hỗ trợ bốc dỡ điều chuyển lớp hành chính an toàn.
-* **Kiểm thử Toàn diện:** Vượt qua toàn bộ kịch bản lỗi ràng buộc dữ liệu đầu vào (Trùng mã sinh viên, trùng Email, sai định dạng hoặc không tồn tại Lớp hành chính) trên môi trường Postman cục bộ.
+* **Xóa mềm liên kết hai tầng (Cascading Soft Delete):** Xây dựng hàm `disableStudent` nhằm vô hiệu hóa đồng thời trạng thái hoạt động của cả hồ sơ Sinh viên lẫn tài khoản Người dùng (`User`) liên kết `@OneToOne` đi kèm.
+* **Đồng bộ hóa dữ liệu hiện trạng dưới MySQL:** Xử lý triệt để lỗi Safe Update Mode (`Error Code: 1175`) và lỗi tràn bit (`Error Code: 1406`) khi thao tác cập nhật dữ liệu hàng loạt trên MySQL Workbench, đưa toàn bộ dữ liệu kiểm thử về cờ trạng thái hoạt động chuẩn xác (`is_active = 1`).
+
+### Giai đoạn 7: Tiến hành Nghiệp vụ Lõi — Mục 7.1: Hoàn thiện CRUD Môn học (`Subject`)
+* **Thiết lập Request Ràng buộc chặt chẽ:** Tạo cấu trúc `SubjectRequest` dạng Java Record, kiểm soát nghiêm ngặt điều kiện trống dữ liệu và điều kiện số tín chỉ tối thiểu thông qua `@Min(1)`.
+* **Ánh xạ tự động MapStruct:** Triển khai `SubjectMapper` tự sinh mã ánh xạ dữ liệu ngầm cho cả luồng tạo mới (`toEntity`) và cập nhật đè (`updateEntityFromRequest`).
+* **Bổ sung mã lỗi hệ thống:** Cập nhật `ErrorCode` tập trung các mã độc lập: `SUBJECT_EXISTED(1006)` và `SUBJECT_NOT_FOUND(1007)`.
+* **Xây dựng trọn vẹn 5 API Endpoint tại Controller:** Hoàn thành các thao tác `POST` (Tạo môn với mã định danh dễ nhớ như `JAVA_SPRING`), `GET` (Danh sách và Chi tiết), `PUT` (Cập nhật thông tin) và `DELETE` (Xóa cứng môn học). Đã kiểm thử thành công 100% trên Postman.
 
 ---
 
 ## 🚀 4. Lộ trình Triển khai: CẦN LÀM TIẾP
 
-### Giai đoạn 7: Nghiệp vụ Tính toán Điểm số & GPA Lõi (Chi tiết triển khai)
-Để chuẩn bị cho việc lập trình bài toán cốt lõi của hệ thống, Giai đoạn 7 được chia nhỏ thành các bước thực thi nghiêm ngặt sau:
-
-* **Mục 7.1: Hoàn thiện CRUD Môn học (`Subject`)**
-  * Xây dựng `SubjectRequest` DTO kiểm tra điều kiện mã môn và số tín chỉ (>0).
-  * Viết Service xử lý logic kiểm tra trùng `code` môn học trước khi lưu.
-  * Mở các Endpoint: `POST`, `GET`, `PUT`, `DELETE` cho `/subjects`.
+### Giai đoạn 7: Nghiệp vụ Tính toán Điểm số & GPA Lõi (Các phần còn lại)
 * **Mục 7.2: Quản lý Lớp học phần (`CourseClass`)**
-  * Viết API mở lớp học phần theo học kỳ, liên kết chặt chẽ với một ID môn học gốc (`Subject`).
+  * Viết API mở lớp học phần theo từng học kỳ (Ví dụ: `HK1-2026`), liên kết chặt chẽ với một ID môn học gốc (`Subject`) đã được tạo ở Mục 7.1.
 * **Mục 7.3: Xây dựng Tầng xử lý Điểm số (`Grade`) và Thuật toán quy đổi**
   * Thiết lập API nhập điểm thành phần cho sinh viên theo lớp học phần (`attendanceGrade`, `midtermGrade`, `finalGrade`).
   * Xây dựng logic tự động tính toán Điểm tổng kết hệ 10: `overallGrade = (Điểm_CC * 0.1) + (Điểm_GK * 0.3) + (Điểm_CK * 0.6)` *(Tỷ lệ cấu hình linh hoạt)*.
@@ -2210,8 +3215,318 @@ Dựng hoàn thiện cấu trúc quan hệ lồng nhau giữa 8 thực thể lõ
 | 06/06/2026 | `main` | **Merge** | Gộp code từ `feature/setup-entities` vào `main`. |
 | 06/06/2026 | `develop` | **Tạo mới** | Tạo nhánh `develop` từ `main`. |
 | 06/06/2026 | `develop` | **Cập nhật** | Hoàn thành bộ API CRUD User & Nâng cấp bộ chẩn đoán lỗi chi tiết trực tiếp trên Postman (Loại bỏ thành công lỗi kẹt cổng 401). |
-| 07/06/2026 | `develop` | **Cập nhật** | Hoàn thành toàn diện bộ API CRUD Student, xử lý giao dịch cô lập tài khoản @Transactional và gán tự động phân quyền hệ thống. |
-| 07/06/2026 | `develop` | **Tài liệu** | Đẩy mã nguồn an toàn lên GitHub bảo mật hai nhánh độc lập; bổ sung chi tiết cấu trúc thuật toán quy đổi điểm cốt lõi cho Giai đoạn 7. |
+| 07/06/2026 | `develop` | **Cập nhật** | Hoàn thành toàn diện bộ API CRUD Student, xử lý giao dịch cô lập tài khoản `@Transactional` và gán tự động phân quyền hệ thống. |
+| 07/06/2026 | `develop` | **Cập nhật** | Triển khai cơ chế Xóa mềm (Soft Delete) qua cờ trạng thái `is_active` cho cả User và Student. Đồng bộ cập nhật trạng thái liên kết kép thành công dưới MySQL Workbench. |
+| 07/06/2026 | `develop` | **Cập nhật** | Hoàn thành trọn gói Mục 7.1: Thiết kế cấu trúc dữ liệu và triển khai 5 API CRUD hoàn chỉnh cho Môn học (`Subject`), tích hợp MapStruct và Jakarta Validation đầu vào sạch sẽ. |
+
+### 📜 7. SQL
+-- MySQL dump 10.13  Distrib 8.0.46, for Win64 (x86_64)
+--
+-- Host: 127.0.0.1    Database: student_management
+-- ------------------------------------------------------
+-- Server version	8.0.46
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Table structure for table `classes`
+--
+
+DROP TABLE IF EXISTS `classes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `classes` (
+`id` bigint NOT NULL AUTO_INCREMENT,
+`created_at` datetime(6) DEFAULT NULL,
+`updated_at` datetime(6) DEFAULT NULL,
+`name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+`department_id` bigint NOT NULL,
+PRIMARY KEY (`id`),
+UNIQUE KEY `UKpgs3gcxax70h9jugbt24ugwcg` (`name`),
+KEY `FKeerjjltjmtwpjo3jlr7037vxt` (`department_id`),
+CONSTRAINT `FKeerjjltjmtwpjo3jlr7037vxt` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `classes`
+--
+
+LOCK TABLES `classes` WRITE;
+/*!40000 ALTER TABLE `classes` DISABLE KEYS */;
+INSERT INTO `classes` VALUES (1,'2026-06-07 05:23:21.000000','2026-06-07 05:23:21.000000','D21CNPM1',1);
+/*!40000 ALTER TABLE `classes` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `course_classes`
+--
+
+DROP TABLE IF EXISTS `course_classes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `course_classes` (
+`id` bigint NOT NULL AUTO_INCREMENT,
+`created_at` datetime(6) DEFAULT NULL,
+`updated_at` datetime(6) DEFAULT NULL,
+`code` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+`semester` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+`subject_id` bigint NOT NULL,
+PRIMARY KEY (`id`),
+UNIQUE KEY `UKmdeewqfqfih9ft75b0gbp9nrc` (`code`),
+KEY `FKpxijwa2w0cvst789igk5x2fpu` (`subject_id`),
+CONSTRAINT `FKpxijwa2w0cvst789igk5x2fpu` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `course_classes`
+--
+
+LOCK TABLES `course_classes` WRITE;
+/*!40000 ALTER TABLE `course_classes` DISABLE KEYS */;
+INSERT INTO `course_classes` VALUES (2,'2026-06-07 07:39:44.047946','2026-06-07 07:39:44.047946','CPP_BASE_01','HK1-2026',3);
+/*!40000 ALTER TABLE `course_classes` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `departments`
+--
+
+DROP TABLE IF EXISTS `departments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `departments` (
+`id` bigint NOT NULL AUTO_INCREMENT,
+`created_at` datetime(6) DEFAULT NULL,
+`updated_at` datetime(6) DEFAULT NULL,
+`code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+`name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+PRIMARY KEY (`id`),
+UNIQUE KEY `UKl7tivi5261wxdnvo6cct9gg6t` (`code`),
+UNIQUE KEY `UKj6cwks7xecs5jov19ro8ge3qk` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `departments`
+--
+
+LOCK TABLES `departments` WRITE;
+/*!40000 ALTER TABLE `departments` DISABLE KEYS */;
+INSERT INTO `departments` VALUES (1,'2026-06-07 05:23:21.000000','2026-06-07 05:23:21.000000','CNTT','Công nghệ thông tin');
+/*!40000 ALTER TABLE `departments` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `grades`
+--
+
+DROP TABLE IF EXISTS `grades`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `grades` (
+`id` bigint NOT NULL AUTO_INCREMENT,
+`created_at` datetime(6) DEFAULT NULL,
+`updated_at` datetime(6) DEFAULT NULL,
+`attendance_grade` double DEFAULT NULL,
+`final_grade` double DEFAULT NULL,
+`letter_grade` varchar(5) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`midterm_grade` double DEFAULT NULL,
+`overall_grade` double DEFAULT NULL,
+`course_class_id` bigint NOT NULL,
+`student_id` bigint NOT NULL,
+`grade_4` double DEFAULT NULL,
+PRIMARY KEY (`id`),
+UNIQUE KEY `UKko1u7sub9pfixo5kagdclh8sj` (`student_id`,`course_class_id`),
+KEY `FK5c6jpjp7bty7q1flkpcc6pi4a` (`course_class_id`),
+CONSTRAINT `FK13a16545m7vvrcspc999r15s9` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
+CONSTRAINT `FK5c6jpjp7bty7q1flkpcc6pi4a` FOREIGN KEY (`course_class_id`) REFERENCES `course_classes` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `grades`
+--
+
+LOCK TABLES `grades` WRITE;
+/*!40000 ALTER TABLE `grades` DISABLE KEYS */;
+INSERT INTO `grades` VALUES (1,'2026-06-07 07:39:51.514111','2026-06-07 07:39:51.514111',9,8.5,'B+',8,8.4,2,2,3.5);
+/*!40000 ALTER TABLE `grades` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `roles`
+--
+
+DROP TABLE IF EXISTS `roles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `roles` (
+`id` bigint NOT NULL AUTO_INCREMENT,
+`created_at` datetime(6) DEFAULT NULL,
+`updated_at` datetime(6) DEFAULT NULL,
+`name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+PRIMARY KEY (`id`),
+UNIQUE KEY `UKofx66keruapi6vyqpv6f2or37` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `roles`
+--
+
+LOCK TABLES `roles` WRITE;
+/*!40000 ALTER TABLE `roles` DISABLE KEYS */;
+INSERT INTO `roles` VALUES (1,'2026-06-06 15:42:59.479477','2026-06-06 15:42:59.479477','ADMIN'),(2,'2026-06-06 15:42:59.522480','2026-06-06 15:42:59.522480','STUDENT');
+/*!40000 ALTER TABLE `roles` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `students`
+--
+
+DROP TABLE IF EXISTS `students`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `students` (
+`id` bigint NOT NULL AUTO_INCREMENT,
+`created_at` datetime(6) DEFAULT NULL,
+`updated_at` datetime(6) DEFAULT NULL,
+`date_of_birth` date DEFAULT NULL,
+`first_name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+`gender` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`last_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+`phone_number` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+`student_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+`class_id` bigint NOT NULL,
+`user_id` bigint NOT NULL,
+`is_active` bit(1) NOT NULL,
+PRIMARY KEY (`id`),
+UNIQUE KEY `UKcgcf3r5xk73o0etbduc1qxnol` (`student_code`),
+UNIQUE KEY `UKg4fwvutq09fjdlb4bb0byp7t` (`user_id`),
+KEY `FKhnslh0rm5bthlble8vjunbnwe` (`class_id`),
+CONSTRAINT `FKdt1cjx5ve5bdabmuuf3ibrwaq` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+CONSTRAINT `FKhnslh0rm5bthlble8vjunbnwe` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `students`
+--
+
+LOCK TABLES `students` WRITE;
+/*!40000 ALTER TABLE `students` DISABLE KEYS */;
+INSERT INTO `students` VALUES (1,'2026-06-07 05:23:56.212382','2026-06-07 06:37:33.669294','2005-02-02','Anh','Nam','Nguyễn Đình','0987654323','B21DCCN001',1,3,_binary '\0'),(2,'2026-06-07 05:27:11.178181','2026-06-07 05:27:11.178181','2005-05-23','Đăng','Nam','Trần Minh','0123456789','K25TMD002',1,5,_binary ''),(3,'2026-06-07 05:28:07.320240','2026-06-07 05:28:07.320820','2005-01-01','Anh','Nam','Nguyễn Đình','0987654322','K25TMD001',1,6,_binary '');
+/*!40000 ALTER TABLE `students` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `subjects`
+--
+
+DROP TABLE IF EXISTS `subjects`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `subjects` (
+`id` bigint NOT NULL AUTO_INCREMENT,
+`created_at` datetime(6) DEFAULT NULL,
+`updated_at` datetime(6) DEFAULT NULL,
+`code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+`credits` int NOT NULL,
+`name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+PRIMARY KEY (`id`),
+UNIQUE KEY `UKrg7x1lyii7kdyycw98d45vep5` (`code`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `subjects`
+--
+
+LOCK TABLES `subjects` WRITE;
+/*!40000 ALTER TABLE `subjects` DISABLE KEYS */;
+INSERT INTO `subjects` VALUES (3,'2026-06-07 06:35:32.807481','2026-06-07 06:35:32.807481','C++_Base',3,'Lập trình C++ cơ bản');
+/*!40000 ALTER TABLE `subjects` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `user_roles`
+--
+
+DROP TABLE IF EXISTS `user_roles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `user_roles` (
+`user_id` bigint NOT NULL,
+`role_id` bigint NOT NULL,
+PRIMARY KEY (`user_id`,`role_id`),
+KEY `FKh8ciramu9cc9q3qcqiv4ue8a6` (`role_id`),
+CONSTRAINT `FKh8ciramu9cc9q3qcqiv4ue8a6` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`),
+CONSTRAINT `FKhfh9dx7w3ubf1co1vdev94g3f` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `user_roles`
+--
+
+LOCK TABLES `user_roles` WRITE;
+/*!40000 ALTER TABLE `user_roles` DISABLE KEYS */;
+INSERT INTO `user_roles` VALUES (3,2),(5,2),(6,2);
+/*!40000 ALTER TABLE `user_roles` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `users`
+--
+
+DROP TABLE IF EXISTS `users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `users` (
+`id` bigint NOT NULL AUTO_INCREMENT,
+`created_at` datetime(6) DEFAULT NULL,
+`updated_at` datetime(6) DEFAULT NULL,
+`email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+`password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+`username` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+`is_active` bit(1) NOT NULL,
+PRIMARY KEY (`id`),
+UNIQUE KEY `UK6dotkott2kjsp8vw4d0m25fb7` (`email`),
+UNIQUE KEY `UKr43af9ap4edm43mmtq01oddj6` (`username`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `users`
+--
+
+LOCK TABLES `users` WRITE;
+/*!40000 ALTER TABLE `users` DISABLE KEYS */;
+INSERT INTO `users` VALUES (1,'2026-06-06 16:20:40.847736','2026-06-06 16:20:40.847736','minhdang@open.edu.vn','password123','minhdangtran',_binary ''),(2,'2026-06-06 16:21:57.950655','2026-06-06 16:37:24.756683','anhnd.updated@open.edu.vn','newpassword123456','nguyendinhanh',_binary ''),(3,'2026-06-07 05:23:56.176308','2026-06-07 06:37:33.674291','anh.nguyen@open.edu.vn','password123','nguyendinhanh2003',_binary '\0'),(5,'2026-06-07 05:27:11.172961','2026-06-07 05:27:11.172961','minhdangdask@open.edu.vn','password123','dangdepzaivaio',_binary ''),(6,'2026-06-07 05:28:07.315346','2026-06-07 05:28:07.315346','dinhanhboyhot2@open.edu.vn','password123','dinhanhboyhot2',_binary '');
+/*!40000 ALTER TABLE `users` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2026-06-07 15:03:04
 </file>
 
 </files>

@@ -42,4 +42,8 @@ public class Grade extends BaseEntity {
 
     @Column(name = "letter_grade", length = 5)
     private String letterGrade; // Điểm chữ (A, B+, B, C...)
+
+    // BỔ SUNG THÊM DÒNG NÀY
+    @Column(name = "grade_4")
+    private Double grade4; // Điểm số hệ 4 (Ví dụ: 3.5, 4.0)
 }

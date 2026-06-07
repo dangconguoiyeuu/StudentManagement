@@ -3,9 +3,11 @@ package com.dangdepzaivaio.StudentManagement.service.impl;
 import java.util.List;
 import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
 import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
 import com.dangdepzaivaio.StudentManagement.entity.User;
 import com.dangdepzaivaio.StudentManagement.exception.AppException;
 import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.UserMapper;
 import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
 import com.dangdepzaivaio.StudentManagement.service.UserService;
 import jakarta.transaction.Transactional;
@@ -13,45 +15,47 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor // Tự động inject các repository qua Constructor
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final UserMapper userMapper; // Inject mapper thành công
 
     @Override
-    public User createUser(UserCreationRequest request) {
-        // 1. Kiểm tra username đã tồn tại chưa
+    public UserResponse createUser(UserCreationRequest request) {
         if (userRepository.existsByUsername(request.username())) {
             throw new AppException(ErrorCode.USER_EXISTED);
         }
 
-        // 2. Map từ DTO sang Entity (Tạm thời thủ công, sau này dùng Mapper)
         User user = User.builder()
                 .username(request.username())
-                .password(request.password()) // Sẽ mã hóa sau khi làm Security
+                .password(request.password())
                 .email(request.email())
                 .build();
 
-        // 3. Lưu vào database
-        return userRepository.save(user);
-    }
-    @Override
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+        return userMapper.toResponse(userRepository.save(user));
     }
 
     @Override
-    public User getUserById(Long id) {
-        return userRepository.findById(id)
+    public List<UserResponse> getAllUsers() {
+        // Lấy danh sách entity lên và map toàn bộ sang DTO trước khi trả về
+        return userRepository.findAll().stream()
+                .map(userMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    public UserResponse getUserById(Long id) {
+        User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng này"));
-        // Sau này bạn có thể thêm mã lỗi USER_NOT_FOUND vào ErrorCode nhé!
+        return userMapper.toResponse(user);
     }
 
     @Override
-    public User updateUser(Long id, UserUpdateRequest request) {
-        User user = getUserById(id); // Lấy user cũ ra trước
+    public UserResponse updateUser(Long id, UserUpdateRequest request) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng này"));
 
-        // Cập nhật thông tin nếu có truyền vào
         if (request.password() != null && !request.password().isBlank()) {
             user.setPassword(request.password());
         }
@@ -59,14 +63,15 @@ public class UserServiceImpl implements UserService {
             user.setEmail(request.email());
         }
 
-        return userRepository.save(user); // Lưu lại bản cập nhật
+        return userMapper.toResponse(userRepository.save(user));
     }
 
     @Override
     @Transactional
     public void disableUser(Long id) {
-        User user = getUserById(id);
-        user.setActive(false); // Chuyển trạng thái hoạt động thành false (coi như đã xóa)
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng này"));
+        user.setActive(false);
         userRepository.save(user);
     }
 }

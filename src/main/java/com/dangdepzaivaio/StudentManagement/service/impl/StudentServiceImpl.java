@@ -2,6 +2,7 @@ package com.dangdepzaivaio.StudentManagement.service.impl;
 
 import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
 import com.dangdepzaivaio.StudentManagement.dto.request.StudentUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
 import com.dangdepzaivaio.StudentManagement.entity.Class;
 import com.dangdepzaivaio.StudentManagement.entity.Role;
 import com.dangdepzaivaio.StudentManagement.entity.Student;
@@ -33,7 +34,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional // Đảm bảo đồng bộ dữ liệu giữa bảng Users và Students
-    public Student createStudent(StudentCreationRequest request) {
+    public StudentResponse createStudent(StudentCreationRequest request) { // ĐỔI KIỂU TRẢ VỀ THÀNH StudentResponse Ở ĐÂY
 
         // 1. Kiểm tra Mã sinh viên đã tồn tại chưa
         if (studentRepository.existsByStudentCode(request.studentCode())) {
@@ -67,27 +68,30 @@ public class StudentServiceImpl implements StudentService {
         student.setUser(user); // Gán quan hệ @OneToOne
         student.setStudentClass(studentClass); // Gán quan hệ @ManyToOne
 
-        // 6. Lưu hồ sơ sinh viên hoàn chỉnh vào Database
-        return studentRepository.save(student);
+        // 6. Lưu hồ sơ sinh viên hoàn chỉnh vào Database và trả về dạng DTO phẳng sạch sẽ
+        return studentMapper.toResponse(studentRepository.save(student));
     }
 
     @Override
-    public List<Student> getAllStudents() {
-        return studentRepository.findAll();
+    public List<StudentResponse> getAllStudents() {
+        return studentRepository.findAll().stream()
+                .map(studentMapper::toResponse) // SỬA ĐOẠN NÀY
+                .toList();
     }
 
     @Override
-    public Student getStudentById(Long id) {
-        return studentRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND)); // Đã có sẵn mã lỗi 1003
+    public StudentResponse getStudentById(Long id) {
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
+        return studentMapper.toResponse(student); // SỬA ĐOẠN NÀY
     }
 
     @Override
     @Transactional
-    public Student updateStudent(Long id, StudentUpdateRequest request) {
-        Student student = getStudentById(id); // Lấy hồ sơ cũ ra
+    public StudentResponse updateStudent(Long id, StudentUpdateRequest request) {
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
 
-        // Nếu thay đổi lớp hành chính, cần kiểm tra lớp mới có tồn tại không
         if (request.classId() != null) {
             Class studentClass = classRepository.findById(request.classId())
                     .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
@@ -101,7 +105,7 @@ public class StudentServiceImpl implements StudentService {
         student.setGender(request.gender());
         student.setPhoneNumber(request.phoneNumber());
 
-        return studentRepository.save(student);
+        return studentMapper.toResponse(studentRepository.save(student));
     }
 
     @Override

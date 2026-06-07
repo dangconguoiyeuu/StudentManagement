@@ -1,6 +1,7 @@
 package com.dangdepzaivaio.StudentManagement.service.impl;
 
 import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse;
 import com.dangdepzaivaio.StudentManagement.entity.Subject;
 import com.dangdepzaivaio.StudentManagement.exception.AppException;
 import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
@@ -22,29 +23,34 @@ public class SubjectServiceImpl implements SubjectService {
 
     @Override
     @Transactional
-    public Subject createSubject(SubjectRequest request) {
+    public SubjectResponse createSubject(SubjectRequest request) {
         if (subjectRepository.existsByCode(request.code())) {
             throw new AppException(ErrorCode.SUBJECT_EXISTED);
         }
         Subject subject = subjectMapper.toEntity(request);
-        return subjectRepository.save(subject);
+        return subjectMapper.toResponse(subjectRepository.save(subject)); // Đã bọc Response
     }
 
     @Override
-    public List<Subject> getAllSubjects() {
-        return subjectRepository.findAll();
+    public List<SubjectResponse> getAllSubjects() {
+        return subjectRepository.findAll().stream()
+                .map(subjectMapper::toResponse) // Map toàn bộ danh sách sang DTO
+                .toList();
     }
 
     @Override
-    public Subject getSubjectById(Long id) {
-        return subjectRepository.findById(id)
+    public SubjectResponse getSubjectById(Long id) {
+        Subject subject = subjectRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
+        return subjectMapper.toResponse(subject); // Đã bọc Response
     }
 
     @Override
     @Transactional
-    public Subject updateSubject(Long id, SubjectRequest request) {
-        Subject subject = getSubjectById(id);
+    public SubjectResponse updateSubject(Long id, SubjectRequest request) {
+        // Tận dụng hàm tìm kiếm thực thể gốc để xử lý
+        Subject subject = subjectRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
 
         // Kiểm tra nếu đổi sang mã môn mới, mã đó có bị trùng với môn khác không
         if (!subject.getCode().equals(request.code()) && subjectRepository.existsByCode(request.code())) {
@@ -52,17 +58,14 @@ public class SubjectServiceImpl implements SubjectService {
         }
 
         subjectMapper.updateEntityFromRequest(request, subject);
-        return subjectRepository.save(subject);
+        return subjectMapper.toResponse(subjectRepository.save(subject)); // Đã bọc Response
     }
 
     @Override
     @Transactional
     public void deleteSubject(Long id) {
-        // 1. Kiểm tra xem môn học có tồn tại trong hệ thống không
         Subject subject = subjectRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
-
-        // 2. Thực hiện xóa vĩnh viễn môn học khỏi Database
         subjectRepository.delete(subject);
     }
 }

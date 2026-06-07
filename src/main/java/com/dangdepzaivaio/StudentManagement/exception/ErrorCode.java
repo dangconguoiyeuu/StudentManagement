@@ -14,7 +14,12 @@ public enum ErrorCode {
     VALIDATION_ERROR(4000, "Dữ liệu đầu vào không hợp lệ", HttpStatus.BAD_REQUEST),
     EMAIL_EXISTED(1005, "Email này đã được sử dụng trên hệ thống", HttpStatus.BAD_REQUEST),
     SUBJECT_EXISTED(1006, "Môn học này đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
-    SUBJECT_NOT_FOUND(1007, "Không tìm thấy thông tin môn học yêu cầu", HttpStatus.NOT_FOUND)
+    SUBJECT_NOT_FOUND(1007, "Không tìm thấy thông tin môn học yêu cầu", HttpStatus.NOT_FOUND),
+    COURSE_CLASS_EXISTED(1008, "Mã lớp học phần này đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
+    COURSE_CLASS_NOT_FOUND(1009, "Không tìm thấy thông tin lớp học phần yêu cầu", HttpStatus.NOT_FOUND),
+    GRADE_EXISTED(1010, "Sinh viên này đã được nhập điểm cho lớp học phần này trước đó", HttpStatus.BAD_REQUEST),
+    GRADE_NOT_FOUND(1011, "Không tìm thấy thông tin đầu điểm yêu cầu", HttpStatus.NOT_FOUND)
+            ;
     ;
 
     private final int code;
