@@ -81,20 +81,28 @@ public class GradeServiceImpl implements GradeService {
 
         int totalCredits = 0;
         double totalWeightedGrade10 = 0.0;
-        double totalWeightedGrade4 = 0.0;
+        double serverWeightedGrade4 = 0.0;
 
         for (Grade grade : grades) {
-            int credits = grade.getCourseClass().getSubject().getCredits();
-            totalCredits += credits;
-            totalWeightedGrade10 += (grade.getOverallGrade() * credits);
-            totalWeightedGrade4 += (grade.getGrade4() * credits);
+            // Kiểm tra an toàn: Nếu môn học chưa có điểm tổng kết (Null) -> Bỏ qua không cộng vào tích lũy GPA
+            if (grade.getOverallGrade() == null || grade.getGrade4() == null) {
+                continue;
+            }
+
+            // Đảm bảo dữ liệu liên kết không rỗng
+            if (grade.getCourseClass() != null && grade.getCourseClass().getSubject() != null) {
+                int credits = grade.getCourseClass().getSubject().getCredits();
+                totalCredits += credits;
+                totalWeightedGrade10 += (grade.getOverallGrade() * credits);
+                serverWeightedGrade4 += (grade.getGrade4() * credits);
+            }
         }
 
         double gpa10 = 0.0;
         double gpa4 = 0.0;
         if (totalCredits > 0) {
             gpa10 = totalWeightedGrade10 / totalCredits;
-            gpa4 = totalWeightedGrade4 / totalCredits;
+            gpa4 = serverWeightedGrade4 / totalCredits;
             gpa10 = Math.round(gpa10 * 100.0) / 100.0;
             gpa4 = Math.round(gpa4 * 100.0) / 100.0;
         }
@@ -141,10 +149,14 @@ public class GradeServiceImpl implements GradeService {
     }
 
     // Thuật toán tính điểm ngầm
+    // Thuật toán tính điểm ngầm an toàn tuyệt đối
     private void calculateAndConvertGrade(Grade grade) {
-        double overall = (grade.getAttendanceGrade() * 0.1)
-                + (grade.getMidtermGrade() * 0.3)
-                + (grade.getFinalGrade() * 0.6);
+        // 🔥 Bảo vệ toán học: Nếu Frontend gửi null (ô input để trống), tự động hiểu là 0.0
+        double attendance = grade.getAttendanceGrade() != null ? grade.getAttendanceGrade() : 0.0;
+        double midterm = grade.getMidtermGrade() != null ? grade.getMidtermGrade() : 0.0;
+        double finalG = grade.getFinalGrade() != null ? grade.getFinalGrade() : 0.0;
+
+        double overall = (attendance * 0.1) + (midterm * 0.3) + (finalG * 0.6);
 
         overall = Math.round(overall * 100.0) / 100.0;
         grade.setOverallGrade(overall);

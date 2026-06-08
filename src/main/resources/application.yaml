@@ -17,3 +17,6 @@ spring:
         hibernate.jdbc.batch_size: 20
 server:
   port: 8081
+
+jwt:
+  signer-key: "TranMinhDangDepZaiVaioSieuCapVipPro2005"

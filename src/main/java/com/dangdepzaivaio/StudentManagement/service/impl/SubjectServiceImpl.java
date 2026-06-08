@@ -6,6 +6,7 @@ import com.dangdepzaivaio.StudentManagement.entity.Subject;
 import com.dangdepzaivaio.StudentManagement.exception.AppException;
 import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
 import com.dangdepzaivaio.StudentManagement.mapper.SubjectMapper;
+import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
 import com.dangdepzaivaio.StudentManagement.repository.SubjectRepository;
 import com.dangdepzaivaio.StudentManagement.service.SubjectService;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ public class SubjectServiceImpl implements SubjectService {
 
     private final SubjectRepository subjectRepository;
     private final SubjectMapper subjectMapper;
+    private final CourseClassRepository courseClassRepository;
 
     @Override
     @Transactional
@@ -40,9 +42,9 @@ public class SubjectServiceImpl implements SubjectService {
 
     @Override
     public SubjectResponse getSubjectById(Long id) {
-        Subject subject = subjectRepository.findById(id)
+        return subjectRepository.findById(id)
+                .map(subjectMapper::toResponse) // Ánh xạ trực tiếp
                 .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
-        return subjectMapper.toResponse(subject); // Đã bọc Response
     }
 
     @Override
@@ -66,6 +68,9 @@ public class SubjectServiceImpl implements SubjectService {
     public void deleteSubject(Long id) {
         Subject subject = subjectRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
+        if (courseClassRepository.existsBySubjectId(id)) {
+            throw new AppException(ErrorCode.SUBJECT_HAS_CLASSES);
+        }
         subjectRepository.delete(subject);
     }
 }

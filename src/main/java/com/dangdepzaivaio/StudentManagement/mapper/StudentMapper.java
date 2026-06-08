@@ -26,6 +26,5 @@ public interface StudentMapper {
     @Mapping(target = "username", source = "user.username")
     @Mapping(target = "email", source = "user.email")
     @Mapping(target = "className", source = "studentClass.name")
-    @Mapping(target = "isActive", source = "active")
     StudentResponse toResponse(Student student);
 }

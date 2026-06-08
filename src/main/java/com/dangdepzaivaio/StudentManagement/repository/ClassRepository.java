@@ -9,4 +9,7 @@ import java.util.List;
 public interface ClassRepository extends JpaRepository<Class, Long> {
     List<Class> findByDepartmentId(Long departmentId);
     boolean existsByName(String name);
+    boolean existsByDepartmentId(Long departmentId);
+    @org.springframework.data.jpa.repository.Query("SELECT c FROM Class c JOIN FETCH c.department")
+    List<Class> findAllClassesWithJoinFetch();
 }

@@ -8,6 +8,7 @@ import com.dangdepzaivaio.StudentManagement.exception.AppException;
 import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
 import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
 import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
+import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
 import com.dangdepzaivaio.StudentManagement.repository.SubjectRepository;
 import com.dangdepzaivaio.StudentManagement.service.CourseClassService;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class CourseClassServiceImpl implements CourseClassService {
     private final CourseClassRepository courseClassRepository;
     private final SubjectRepository subjectRepository;
     private final CourseClassMapper courseClassMapper;
+    private final GradeRepository gradeRepository;
 
     @Override
     @Transactional
@@ -49,9 +51,9 @@ public class CourseClassServiceImpl implements CourseClassService {
 
     @Override
     public CourseClassResponse getCourseClassById(Long id) {
-        CourseClass courseClass = courseClassRepository.findById(id)
+        return courseClassRepository.findById(id)
+                .map(courseClassMapper::toResponse)
                 .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
-        return courseClassMapper.toResponse(courseClass);
     }
 
     @Override
@@ -79,7 +81,10 @@ public class CourseClassServiceImpl implements CourseClassService {
         CourseClass courseClass = courseClassRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
 
-        // Hiện tại chưa xây dựng bảng điểm (Grade) ràng buộc nên chúng ta tiến hành xóa cứng để dễ dọn rác Dev
+        if (gradeRepository.existsByCourseClassId(id)) {
+            throw new AppException(ErrorCode.COURSE_CLASS_HAS_GRADES);
+        }
+
         courseClassRepository.delete(courseClass);
     }
 }

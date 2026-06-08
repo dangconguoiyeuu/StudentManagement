@@ -13,7 +13,6 @@ import java.util.stream.Collectors;
 public interface UserMapper {
 
     @Mapping(target = "roles", source = "roles")
-    @Mapping(target = "isActive", source = "active")
     UserResponse toResponse(User user);
 
     // Hàm chuyển đổi custom: Ép danh sách thực thể Role thành bộ tên chuỗi gọn gàng

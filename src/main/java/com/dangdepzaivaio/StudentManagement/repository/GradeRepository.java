@@ -19,4 +19,10 @@ public interface GradeRepository extends JpaRepository<Grade, Long> {
 
     List<Grade> findByCourseClassId(Long courseClassId);
     boolean existsByStudentIdAndCourseClassId(Long studentId, Long courseClassId);
+    @Query("SELECT g FROM Grade g " +
+            "JOIN FETCH g.student s " +
+            "JOIN FETCH g.courseClass cc " +
+            "JOIN FETCH cc.subject sub")
+    List<Grade> findAllGradesWithJoinFetch();
+    boolean existsByCourseClassId(Long courseClassId);
 }

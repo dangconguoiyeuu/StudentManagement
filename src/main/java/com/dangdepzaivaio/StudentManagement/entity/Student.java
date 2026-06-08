@@ -36,7 +36,7 @@ public class Student extends BaseEntity {
     private String phoneNumber;
 
     @Builder.Default
-    @Column(name = "is_active", nullable = false)
+    @Column(name = "is_active", nullable = false, columnDefinition = "TINYINT(1)")
     private boolean isActive = true;
 
     // Mỗi sinh viên sở hữu duy nhất 1 tài khoản hệ thống

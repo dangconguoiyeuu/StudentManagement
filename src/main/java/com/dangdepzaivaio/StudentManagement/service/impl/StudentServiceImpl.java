@@ -31,6 +31,7 @@ public class StudentServiceImpl implements StudentService {
     private final ClassRepository classRepository;
     private final RoleRepository roleRepository;
     private final StudentMapper studentMapper;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional // Đảm bảo đồng bộ dữ liệu giữa bảng Users và Students
@@ -38,7 +39,7 @@ public class StudentServiceImpl implements StudentService {
 
         // 1. Kiểm tra Mã sinh viên đã tồn tại chưa
         if (studentRepository.existsByStudentCode(request.studentCode())) {
-            throw new RuntimeException("Mã sinh viên này đã tồn tại trên hệ thống!");
+            throw new AppException(ErrorCode.STUDENT_CODE_EXISTED);
         }
 
         // 2. Kiểm tra Tài khoản đăng nhập đã tồn tại chưa
@@ -56,6 +57,7 @@ public class StudentServiceImpl implements StudentService {
 
         // 4. Khởi tạo tài khoản User hệ thống đi kèm hồ sơ sinh viên
         User user = studentMapper.toUserEntity(request.user());
+        user.setPassword(passwordEncoder.encode(request.user().password()));
 
         // Lấy vai trò STUDENT mặc định đã được khởi tạo từ DatabaseInitializer
         Role studentRole = roleRepository.findByName("STUDENT")
@@ -74,16 +76,16 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public List<StudentResponse> getAllStudents() {
-        return studentRepository.findAll().stream()
-                .map(studentMapper::toResponse) // SỬA ĐOẠN NÀY
+        return studentRepository.findAllActiveStudentsWithJoinFetch().stream() // 🔥 ĐÃ TỐI ƯU SẠCH BÓNG N+1
+                .map(studentMapper::toResponse)
                 .toList();
     }
 
     @Override
     public StudentResponse getStudentById(Long id) {
-        Student student = studentRepository.findById(id)
+        return studentRepository.findByIdWithJoinFetch(id) // 🔥 Đã tối ưu tốc độ ánh xạ phẳng
+                .map(studentMapper::toResponse)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
-        return studentMapper.toResponse(student); // SỬA ĐOẠN NÀY
     }
 
     @Override
