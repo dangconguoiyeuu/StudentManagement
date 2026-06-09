@@ -17,13 +17,16 @@ public class CourseClass extends BaseEntity {
     private Long id;
 
     @Column(name = "code", nullable = false, unique = true, length = 30)
-    private String code; // Mã lớp học phần (Ví dụ: INT3110_01)
+    private String code;
 
     @Column(name = "semester", nullable = false, length = 20)
-    private String semester; // Học kỳ (Ví dụ: HK1-2026)
+    private String semester;
 
-    // Nhiều lớp học phần thuộc về một Môn học gốc
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "subject_id", nullable = false)
     private Subject subject;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "teacher_id")
+    private Teacher teacher; // 🔥 Giảng viên nào trực tiếp đứng lớp học phần này
 }

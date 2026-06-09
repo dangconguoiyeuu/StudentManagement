@@ -1,0 +1,41 @@
+:root {
+  /* 🎨 Hệ màu sắc chuẩn (Bảo vệ mắt, giảm mỏi mắt ban đêm) */
+  --color-bg: #141414;           /* Màu nền tối chủ đạo sâu */
+  --color-surface: #222222;      /* Màu nền của Card, Sidebar, Form */
+  --color-surface-hover: #2d2d2d;/* Màu khi di chuột vào vùng tương tác */
+  --color-border: #333333;       /* Đường viền phân cách mảnh */
+
+  /* 🌟 Màu sắc trạng thái tín chỉ */
+  --color-primary: #007bff;      /* Màu xanh thương hiệu (Nút bấm, trạng thái chính) */
+  --color-success: #28a745;      /* Màu xanh lá (Điểm cao, Đạt, Thành công) */
+  --color-warning: #ffc107;      /* Màu vàng (Mã sinh viên, Cảnh báo, Điểm trung bình) */
+  --color-danger: #dc3545;       /* Màu đỏ (Điểm F, Xóa, Lỗi hệ thống) */
+
+  /* 📝 Màu chữ theo cấp độ phân rã */
+  --text-main: #ffffff;          /* Chữ trắng rõ ràng cho nội dung chính */
+  --text-muted: #aaaaaa;         /* Chữ xám cho nội dung phụ, mô tả */
+  --text-cyan: #00ffff;          /* Màu nhấn phản quang cho tiêu đề, bảng số */
+
+  /* 📐 Hệ khoảng cách và Kích thước (Spacing & Sizing) */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+
+  /* 🔤 Font size tiêu chuẩn hệ thống */
+  --font-base: 14px;
+  --font-md: 16px;
+  --font-lg: 18px;
+  --font-title: 24px;
+}
+
+/* Reset cơ bản cho toàn bộ ứng dụng sử dụng chuẩn toàn cục */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--text-main);
+  font-size: var(--font-base);
+  -webkit-font-smoothing: antialiased;
+}

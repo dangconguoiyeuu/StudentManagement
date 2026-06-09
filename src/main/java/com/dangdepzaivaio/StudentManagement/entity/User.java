@@ -2,7 +2,6 @@ package com.dangdepzaivaio.StudentManagement.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.util.Set;
 
 @Getter
@@ -31,7 +30,10 @@ public class User extends BaseEntity {
     @Column(name = "is_active", nullable = false, columnDefinition = "TINYINT(1)")
     private boolean isActive = true;
 
-    // Quan hệ nhiều-nhiều: Một user có thể có nhiều role, một role có nhiều user
+    @Column(name = "is_first_login", nullable = false)
+    @Builder.Default
+    private boolean isFirstLogin = true; // 🔥 Cờ ép buộc đổi mật khẩu lần đầu
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_roles",

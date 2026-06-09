@@ -13,12 +13,21 @@ import java.util.Optional;
 public interface StudentRepository extends JpaRepository<Student, Long> {
     Optional<Student> findByStudentCode(String studentCode);
     boolean existsByStudentCode(String studentCode);
-    boolean existsByStudentClassId(Long classId); // studentClass là tên thuộc tính liên kết trong thực thể Student
+    boolean existsByStudentClassId(Long classId);
+
+    Optional<Student> findByUserId(Long userId); // 🔥 BỔ SUNG DÒNG NÀY ĐỂ TÌM THEO USER ID
+
     @Query("SELECT s FROM Student s " +
             "JOIN FETCH s.user u " +
             "JOIN FETCH s.studentClass c " +
             "WHERE s.isActive = true")
     List<Student> findAllActiveStudentsWithJoinFetch();
+
+    @Query("SELECT s FROM Student s " +
+            "JOIN FETCH s.user u " +
+            "JOIN FETCH s.studentClass c")
+    List<Student> findAllStudentsWithJoinFetch();
+
     @Query("SELECT s FROM Student s JOIN FETCH s.user JOIN FETCH s.studentClass WHERE s.id = :id")
     Optional<Student> findByIdWithJoinFetch(@Param("id") Long id);
 }

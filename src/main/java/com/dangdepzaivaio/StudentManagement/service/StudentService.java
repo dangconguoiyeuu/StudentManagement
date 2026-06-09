@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface StudentService {
     StudentResponse createStudent(StudentCreationRequest request);
-    List<StudentResponse> getAllStudents();
+    List<StudentResponse> getAllStudents(boolean includeInactive);
     StudentResponse getStudentById(Long id);
     StudentResponse updateStudent(Long id, StudentUpdateRequest request);
     void disableStudent(Long id);

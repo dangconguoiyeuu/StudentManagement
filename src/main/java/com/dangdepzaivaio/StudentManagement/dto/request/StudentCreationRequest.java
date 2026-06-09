@@ -1,6 +1,5 @@
 package com.dangdepzaivaio.StudentManagement.dto.request;
 
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -22,9 +21,5 @@ public record StudentCreationRequest(
         String phoneNumber,
 
         @NotNull(message = "ID lớp hành chính không được để trống")
-        Long classId,
-
-        @Valid // Quan trọng: Để kích hoạt validation cho đối tượng bên trong
-        @NotNull(message = "Thông tin tài khoản không được để trống")
-        UserCreationRequest user
+        Long classId
 ) {}

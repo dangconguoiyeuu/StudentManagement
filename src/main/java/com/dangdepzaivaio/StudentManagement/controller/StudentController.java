@@ -4,7 +4,6 @@ import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
 import com.dangdepzaivaio.StudentManagement.dto.request.StudentUpdateRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
 import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
-import com.dangdepzaivaio.StudentManagement.entity.Student;
 import com.dangdepzaivaio.StudentManagement.service.StudentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,8 +24,9 @@ public class StudentController {
     }
 
     @GetMapping
-    public ApiResponse<List<StudentResponse>> getAllStudents() {
-        return new ApiResponse<>(1000, "Lấy danh sách sinh viên thành công!", studentService.getAllStudents());
+    public ApiResponse<List<StudentResponse>> getAllStudents(
+            @RequestParam(required = false, defaultValue = "false") boolean includeInactive) {
+        return new ApiResponse<>(1000, "Lấy danh sách sinh viên thành công!", studentService.getAllStudents(includeInactive));
     }
 
     @GetMapping("/{studentId}")
@@ -38,10 +38,10 @@ public class StudentController {
     public ApiResponse<StudentResponse> updateStudent(@PathVariable Long studentId, @RequestBody @Valid StudentUpdateRequest request) {
         return new ApiResponse<>(1000, "Cập nhật thông tin sinh viên thành công!", studentService.updateStudent(studentId, request));
     }
+
     @DeleteMapping("/{studentId}")
     public ApiResponse<String> deleteStudent(@PathVariable Long studentId) {
-        studentService.disableStudent(studentId); // Gọi đúng hàm disableStudent
+        studentService.disableStudent(studentId);
         return new ApiResponse<>(1000, "Xóa hồ sơ sinh viên thành công!", "Hồ sơ sinh viên có ID " + studentId + " và tài khoản liên kết đã bị vô hiệu hóa.");
     }
-
 }

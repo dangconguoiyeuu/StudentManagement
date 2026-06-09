@@ -16,6 +16,7 @@ import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
 import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
 import com.dangdepzaivaio.StudentManagement.service.StudentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,59 +32,57 @@ public class StudentServiceImpl implements StudentService {
     private final ClassRepository classRepository;
     private final RoleRepository roleRepository;
     private final StudentMapper studentMapper;
-    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
-    @Transactional // Đảm bảo đồng bộ dữ liệu giữa bảng Users và Students
-    public StudentResponse createStudent(StudentCreationRequest request) { // ĐỔI KIỂU TRẢ VỀ THÀNH StudentResponse Ở ĐÂY
-
-        // 1. Kiểm tra Mã sinh viên đã tồn tại chưa
+    @Transactional
+    public StudentResponse createStudent(StudentCreationRequest request) {
         if (studentRepository.existsByStudentCode(request.studentCode())) {
             throw new AppException(ErrorCode.STUDENT_CODE_EXISTED);
         }
-
-        // 2. Kiểm tra Tài khoản đăng nhập đã tồn tại chưa
-        if (userRepository.existsByUsername(request.user().username())) {
+        // Quy tắc tự động: Tài khoản lấy theo mã sinh viên
+        if (userRepository.existsByUsername(request.studentCode())) {
             throw new AppException(ErrorCode.USER_EXISTED);
         }
 
-        if (userRepository.existsByEmail(request.user().email())) {
-            throw new AppException(ErrorCode.EMAIL_EXISTED);
-        }
-
-        // 3. Kiểm tra Lớp hành chính có tồn tại không
         Class studentClass = classRepository.findById(request.classId())
                 .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
 
-        // 4. Khởi tạo tài khoản User hệ thống đi kèm hồ sơ sinh viên
-        User user = studentMapper.toUserEntity(request.user());
-        user.setPassword(passwordEncoder.encode(request.user().password()));
+        // Tự động khởi dựng tài khoản User hệ thống ngầm bên dưới
+        User user = User.builder()
+                .username(request.studentCode())
+                .password(passwordEncoder.encode("password1234")) // Mật khẩu mặc định
+                .email(request.studentCode().toLowerCase() + "@open.edu.vn") // Tự sinh email trường học
+                .isFirstLogin(true)
+                .isActive(true)
+                .build();
 
-        // Lấy vai trò STUDENT mặc định đã được khởi tạo từ DatabaseInitializer
         Role studentRole = roleRepository.findByName("STUDENT")
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
         user.setRoles(Set.of(studentRole));
         userRepository.save(user);
 
-        // 5. Khởi tạo thực thể Student và liên kết mối quan hệ
         Student student = studentMapper.toEntity(request);
-        student.setUser(user); // Gán quan hệ @OneToOne
-        student.setStudentClass(studentClass); // Gán quan hệ @ManyToOne
+        student.setUser(user);
+        student.setStudentClass(studentClass);
 
-        // 6. Lưu hồ sơ sinh viên hoàn chỉnh vào Database và trả về dạng DTO phẳng sạch sẽ
         return studentMapper.toResponse(studentRepository.save(student));
     }
 
     @Override
-    public List<StudentResponse> getAllStudents() {
-        return studentRepository.findAllActiveStudentsWithJoinFetch().stream() // 🔥 ĐÃ TỐI ƯU SẠCH BÓNG N+1
+    public List<StudentResponse> getAllStudents(boolean includeInactive) {
+        List<Student> students = includeInactive
+                ? studentRepository.findAllStudentsWithJoinFetch()
+                : studentRepository.findAllActiveStudentsWithJoinFetch();
+
+        return students.stream()
                 .map(studentMapper::toResponse)
                 .toList();
     }
 
     @Override
     public StudentResponse getStudentById(Long id) {
-        return studentRepository.findByIdWithJoinFetch(id) // 🔥 Đã tối ưu tốc độ ánh xạ phẳng
+        return studentRepository.findByIdWithJoinFetch(id)
                 .map(studentMapper::toResponse)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
     }
@@ -100,7 +99,6 @@ public class StudentServiceImpl implements StudentService {
             student.setStudentClass(studentClass);
         }
 
-        // Cập nhật các thông tin lý lịch sinh viên
         student.setFirstName(request.firstName());
         student.setLastName(request.lastName());
         student.setDateOfBirth(request.dateOfBirth());
@@ -111,22 +109,18 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    @Transactional // Đảm bảo đồng bộ tính toàn vẹn dữ liệu
+    @Transactional
     public void disableStudent(Long id) {
-        // 1. Kiểm tra xem sinh viên có tồn tại không
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
 
-        // 2. Chuyển trạng thái hoạt động của Sinh viên thành false
         student.setActive(false);
         studentRepository.save(student);
 
-        // 3. Đồng bộ khóa luôn cả tài khoản User đăng nhập đi kèm
         User user = student.getUser();
         if (user != null) {
             user.setActive(false);
             userRepository.save(user);
         }
     }
-
 }
