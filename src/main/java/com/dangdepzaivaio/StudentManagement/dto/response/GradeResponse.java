@@ -2,7 +2,7 @@ package com.dangdepzaivaio.StudentManagement.dto.response;
 
 public record GradeResponse(
         Long id,
-        Long studentId,
+        String studentId, // 🔥 Đã đổi sang String
         String studentCode,
         String studentName,
         Long courseClassId,

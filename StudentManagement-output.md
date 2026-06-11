@@ -55,6 +55,7 @@ src/main/java/com/dangdepzaivaio/StudentManagement/controller/ClassController.ja
 src/main/java/com/dangdepzaivaio/StudentManagement/controller/CourseClassController.java
 src/main/java/com/dangdepzaivaio/StudentManagement/controller/DepartmentController.java
 src/main/java/com/dangdepzaivaio/StudentManagement/controller/GradeController.java
+src/main/java/com/dangdepzaivaio/StudentManagement/controller/RegistrationController.java
 src/main/java/com/dangdepzaivaio/StudentManagement/controller/StudentController.java
 src/main/java/com/dangdepzaivaio/StudentManagement/controller/SubjectController.java
 src/main/java/com/dangdepzaivaio/StudentManagement/controller/TeacherController.java
@@ -68,12 +69,14 @@ src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentCreationRe
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentUpdateRequest.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/SubjectRequest.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/TeacherCreationRequest.java
+src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/TeacherUpdateRequest.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/UserCreationRequest.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/UserUpdateRequest.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/ApiResponse.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/AuthenticationResponse.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/ClassResponse.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/CourseClassResponse.java
+src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/CourseClassStatResponse.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/DepartmentResponse.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/GradeResponse.java
 src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentAcademicSummaryResponse.java
@@ -86,6 +89,7 @@ src/main/java/com/dangdepzaivaio/StudentManagement/entity/Class.java
 src/main/java/com/dangdepzaivaio/StudentManagement/entity/CourseClass.java
 src/main/java/com/dangdepzaivaio/StudentManagement/entity/Department.java
 src/main/java/com/dangdepzaivaio/StudentManagement/entity/Grade.java
+src/main/java/com/dangdepzaivaio/StudentManagement/entity/RegistrationPeriod.java
 src/main/java/com/dangdepzaivaio/StudentManagement/entity/Role.java
 src/main/java/com/dangdepzaivaio/StudentManagement/entity/Student.java
 src/main/java/com/dangdepzaivaio/StudentManagement/entity/Subject.java
@@ -100,12 +104,14 @@ src/main/java/com/dangdepzaivaio/StudentManagement/mapper/DepartmentMapper.java
 src/main/java/com/dangdepzaivaio/StudentManagement/mapper/GradeMapper.java
 src/main/java/com/dangdepzaivaio/StudentManagement/mapper/StudentMapper.java
 src/main/java/com/dangdepzaivaio/StudentManagement/mapper/SubjectMapper.java
+src/main/java/com/dangdepzaivaio/StudentManagement/mapper/TeacherMapper.java
 src/main/java/com/dangdepzaivaio/StudentManagement/mapper/UserMapper.java
 src/main/java/com/dangdepzaivaio/StudentManagement/README.md
 src/main/java/com/dangdepzaivaio/StudentManagement/repository/ClassRepository.java
 src/main/java/com/dangdepzaivaio/StudentManagement/repository/CourseClassRepository.java
 src/main/java/com/dangdepzaivaio/StudentManagement/repository/DepartmentRepository.java
 src/main/java/com/dangdepzaivaio/StudentManagement/repository/GradeRepository.java
+src/main/java/com/dangdepzaivaio/StudentManagement/repository/RegistrationPeriodRepository.java
 src/main/java/com/dangdepzaivaio/StudentManagement/repository/RoleRepository.java
 src/main/java/com/dangdepzaivaio/StudentManagement/repository/StudentRepository.java
 src/main/java/com/dangdepzaivaio/StudentManagement/repository/SubjectRepository.java
@@ -120,11 +126,14 @@ src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/ClassServiceImpl
 src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/CourseClassServiceImpl.java
 src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/DepartmentServiceImpl.java
 src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/GradeServiceImpl.java
+src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/RegistrationServiceImpl.java
 src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/StudentServiceImpl.java
 src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/SubjectServiceImpl.java
+src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/TeacherServiceImpl.java
 src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/UserServiceImpl.java
 src/main/java/com/dangdepzaivaio/StudentManagement/service/StudentService.java
 src/main/java/com/dangdepzaivaio/StudentManagement/service/SubjectService.java
+src/main/java/com/dangdepzaivaio/StudentManagement/service/TeacherService.java
 src/main/java/com/dangdepzaivaio/StudentManagement/service/UserService.java
 src/main/java/com/dangdepzaivaio/StudentManagement/StudentManagementApplication.java
 src/main/resources/application.yaml
@@ -143,10 +152,12 @@ student-management-ui/src/App.jsx
 student-management-ui/src/assets/hero.png
 student-management-ui/src/assets/react.svg
 student-management-ui/src/assets/vite.svg
+student-management-ui/src/components/CourseRegistration.jsx
 student-management-ui/src/index.css
 student-management-ui/src/main.jsx
 student-management-ui/src/pages/GradePage.jsx
 student-management-ui/src/pages/LoginPage.jsx
+student-management-ui/src/pages/RegistrationPage.jsx
 student-management-ui/src/pages/StudentPage.jsx
 student-management-ui/src/pages/TeacherPage.jsx
 student-management-ui/vite.config.js
@@ -156,85 +167,449 @@ StudentManagement.docx
 <files>
 This section contains the contents of the repository's files.
 
-<file path="package.json">
-{
-  "dependencies": {
-    "axios": "^1.17.0",
-    "react-router-dom": "^7.17.0"
-  }
-}
-</file>
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/RegistrationController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/configuration/JwtAuthenticationFilter.java">
-package com.dangdepzaivaio.StudentManagement.configuration;
-
-import com.nimbusds.jwt.SignedJWT;
-import com.nimbusds.jose.crypto.MACVerifier;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassStatResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
+import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
+import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
+import com.dangdepzaivaio.StudentManagement.mapper.StudentMapper;
+import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
+import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
+import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import com.dangdepzaivaio.StudentManagement.service.impl.RegistrationServiceImpl;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
 
-@Component
-public class JwtAuthenticationFilter extends OncePerRequestFilter {
+@RestController
+@RequestMapping("/registration")
+@RequiredArgsConstructor
+public class RegistrationController {
 
-    @Value("${jwt.signer-key}")
-    private String signerKey;
+    private final RegistrationServiceImpl registrationService;
+    private final RegistrationPeriodRepository periodRepository;
+    private final CourseClassRepository courseClassRepository;
+    private final GradeRepository gradeRepository;
+    private final UserRepository userRepository;
+    private final CourseClassMapper courseClassMapper;
+    private final StudentMapper studentMapper;
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
-        String authHeader = request.getHeader("Authorization");
+    @PostMapping("/periods")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<RegistrationPeriod> createPeriod(@RequestBody RegistrationPeriod period) {
+        period.setActive(true);
+        return new ApiResponse<>(1000, "Mo cong dang ky tin chi thanh cong", periodRepository.save(period));
+    }
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            try {
-                SignedJWT signedJWT = SignedJWT.parse(token);
-                MACVerifier verifier = new MACVerifier(signerKey.getBytes());
+    @GetMapping("/periods")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<List<RegistrationPeriod>> getPeriods() {
+        return new ApiResponse<>(1000, "Lay danh sach cong dang ky thanh cong", periodRepository.findAll());
+    }
 
-                // Xác thực chữ ký mã hóa và kiểm tra thời hạn token
-                if (signedJWT.verify(verifier) && new Date().before(signedJWT.getJWTClaimsSet().getExpirationTime())) {
-                    String username = signedJWT.getJWTClaimsSet().getSubject();
-                    String scope = signedJWT.getJWTClaimsSet().getStringClaim("scope"); // Đọc chuỗi Roles từ Payload
+    @PutMapping("/periods/{id}/open")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<RegistrationPeriod> openPeriod(@PathVariable Long id) {
+        RegistrationPeriod period = periodRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
+        period.setActive(true);
+        return new ApiResponse<>(1000, "Da mo cong dang ky", periodRepository.save(period));
+    }
 
-                    // Chuyển đổi chuỗi role sang GrantedAuthority chuẩn Spring Security (Thêm tiền tố ROLE_)
-                    List<SimpleGrantedAuthority> authorities = Arrays.stream(scope.split(" "))
-                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                            .collect(Collectors.toList());
+    @PutMapping("/periods/{id}/close")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<RegistrationPeriod> closePeriod(@PathVariable Long id) {
+        RegistrationPeriod period = periodRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
+        period.setActive(false);
+        return new ApiResponse<>(1000, "Da dong cong dang ky", periodRepository.save(period));
+    }
 
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(username, null, authorities);
+    @GetMapping("/statistics")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<List<CourseClassStatResponse>> getStats() {
+        return new ApiResponse<>(1000, "Tai thong ke dang ky thanh cong", courseClassRepository.getRegistrationStatistics());
+    }
 
-                    // Thiết lập thông tin xác thực vào ngữ cảnh Security
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                }
-            } catch (Exception e) {
-                SecurityContextHolder.clearContext();
-            }
+    @PutMapping("/course-class/{id}/toggle")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<CourseClassResponse> toggleCourseClass(@PathVariable Long id) {
+        CourseClass courseClass = getCourseClass(id);
+        courseClass.setOpenForRegistration(!courseClass.isOpenForRegistration());
+        return new ApiResponse<>(1000, "Cap nhat trang thai lop hoc phan thanh cong",
+                toResponseWithCount(courseClassRepository.save(courseClass)));
+    }
+
+    @PutMapping("/course-class/{id}/open")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<CourseClassResponse> openCourseClass(@PathVariable Long id) {
+        CourseClass courseClass = getCourseClass(id);
+        courseClass.setOpenForRegistration(true);
+        return new ApiResponse<>(1000, "Da mo lop hoc phan cho dang ky",
+                toResponseWithCount(courseClassRepository.save(courseClass)));
+    }
+
+    @PutMapping("/course-class/{id}/close")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<CourseClassResponse> closeCourseClass(@PathVariable Long id) {
+        CourseClass courseClass = getCourseClass(id);
+        courseClass.setOpenForRegistration(false);
+        return new ApiResponse<>(1000, "Da dong lop hoc phan",
+                toResponseWithCount(courseClassRepository.save(courseClass)));
+    }
+
+    @GetMapping("/teacher/{teacherId}/classes")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ApiResponse<List<CourseClassResponse>> getTeacherClasses(@PathVariable String teacherId) {
+        assertTeacherSelf(teacherId);
+        List<CourseClassResponse> list = courseClassRepository.findByTeacherId(teacherId).stream()
+                .map(this::toResponseWithCount)
+                .toList();
+        return new ApiResponse<>(1000, "Tai lich giang day thanh cong", list);
+    }
+
+    @GetMapping("/classes/{classId}/students")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public ApiResponse<List<StudentResponse>> getStudentsInCourseClass(@PathVariable Long classId) {
+        assertTeacherAssignedIfNeeded(classId);
+        List<StudentResponse> list = gradeRepository.findByCourseClassId(classId).stream()
+                .map(g -> studentMapper.toResponse(g.getStudent()))
+                .toList();
+        return new ApiResponse<>(1000, "Tai danh sach sinh vien lop hoc phan thanh cong", list);
+    }
+
+    @GetMapping("/open-course-classes")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<List<CourseClassResponse>> getOpenCourseClasses() {
+        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan dang mo thanh cong",
+                registrationService.getOpenCourseClasses());
+    }
+
+    @GetMapping("/my-classes")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<List<GradeResponse>> getMyRegisteredClasses() {
+        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan da dang ky thanh cong",
+                registrationService.getCurrentStudentRegistrations());
+    }
+
+    @PostMapping("/enroll")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<String> enroll(@RequestParam Long courseClassId) {
+        registrationService.registerCourseClass(courseClassId);
+        return new ApiResponse<>(1000, "Dang ky lop hoc phan thanh cong", "OK");
+    }
+
+    @DeleteMapping("/unenroll")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<String> unenroll(@RequestParam Long courseClassId) {
+        registrationService.cancelRegistration(courseClassId);
+        return new ApiResponse<>(1000, "Huy dang ky lop hoc phan thanh cong", "OK");
+    }
+
+    private CourseClass getCourseClass(Long id) {
+        return courseClassRepository.findByIdWithSubjectAndTeacher(id)
+                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
+    }
+
+    private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
+        courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
+        return courseClassMapper.toResponse(courseClass);
+    }
+
+    private void assertTeacherSelf(String teacherId) {
+        User user = currentUser();
+        if (!user.getId().equals(teacherId)) {
+            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
+        }
+    }
+
+    private void assertTeacherAssignedIfNeeded(Long courseClassId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isTeacher = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_TEACHER"));
+        if (!isTeacher) {
+            return;
         }
 
-        filterChain.doFilter(request, response);
+        CourseClass courseClass = getCourseClass(courseClassId);
+        String email = authentication.getName();
+        if (courseClass.getTeacher() == null
+                || courseClass.getTeacher().getUser() == null
+                || !email.equalsIgnoreCase(courseClass.getTeacher().getUser().getEmail())) {
+            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
+        }
+    }
+
+    private User currentUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
     }
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/TeacherController.java">
-package com.dangdepzaivaio.StudentManagement.controller;
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/TeacherUpdateRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import java.time.LocalDate;
+
+public record TeacherUpdateRequest(
+        String firstName,
+        String lastName,
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/CourseClassStatResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+public record CourseClassStatResponse(
+        Long courseClassId,
+        String courseClassCode,
+        String subjectName,
+        String teacherName,
+        long registeredStudents,
+        String semester,
+        Integer maxStudents,
+        boolean openForRegistration
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/RegistrationPeriod.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "registration_periods")
+public class RegistrationPeriod extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "semester", nullable = false, length = 20)
+    private String semester; // Ví dụ: HK1-2026
+
+    @Column(name = "start_time", nullable = false)
+    private LocalDateTime startTime;
+
+    @Column(name = "end_time", nullable = false)
+    private LocalDateTime endTime;
+
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive;
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/TeacherMapper.java">
+package com.dangdepzaivaio.StudentManagement.mapper;
 
 import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Teacher;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+@Mapper(componentModel = "spring")
+public interface TeacherMapper {
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "department", ignore = true)
+    @Mapping(target = "user", ignore = true)
+    Teacher toEntity(TeacherCreationRequest request);
+
+    // 🔥 VÁ LỖI TRỐNG DỮ LIỆU: Lấy thông tin từ các thực thể liên kết đưa vào DTO phẳng
+    @Mapping(target = "username", source = "user.username")
+    @Mapping(target = "email", source = "user.email") // Ánh xạ Email giảng dạy
+    @Mapping(target = "departmentName", source = "department.name") // Ánh xạ Tên Khoa chuyên môn
+    @Mapping(target = "active", source = "active")
+    TeacherResponse toResponse(Teacher teacher);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/RegistrationPeriodRepository.java">
+package com.dangdepzaivaio.StudentManagement.repository;
+
+import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+@Repository
+public interface RegistrationPeriodRepository extends JpaRepository<RegistrationPeriod, Long> {
+
+    @Query("SELECT r FROM RegistrationPeriod r WHERE r.semester = :semester AND r.isActive = true " +
+            "AND :now BETWEEN r.startTime AND r.endTime")
+    Optional<RegistrationPeriod> findActivePeriod(@Param("semester") String semester, @Param("now") LocalDateTime now);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/RegistrationServiceImpl.java">
+package com.dangdepzaivaio.StudentManagement.service.impl;
+
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
+import com.dangdepzaivaio.StudentManagement.entity.Grade;
+import com.dangdepzaivaio.StudentManagement.entity.Student;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
+import com.dangdepzaivaio.StudentManagement.mapper.GradeMapper;
+import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
+import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
+import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
+import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class RegistrationServiceImpl {
+
+    private final RegistrationPeriodRepository periodRepository;
+    private final CourseClassRepository courseClassRepository;
+    private final StudentRepository studentRepository;
+    private final UserRepository userRepository;
+    private final GradeRepository gradeRepository;
+    private final CourseClassMapper courseClassMapper;
+    private final GradeMapper gradeMapper;
+
+    @Transactional
+    public void registerCourseClass(Long courseClassId) {
+        Student student = getCurrentStudent();
+        CourseClass courseClass = getCourseClass(courseClassId);
+
+        assertRegistrationOpen(courseClass);
+
+        if (gradeRepository.existsByStudentIdAndCourseClassId(student.getId(), courseClassId)) {
+            throw new AppException(ErrorCode.GRADE_EXISTED);
+        }
+
+        long registered = gradeRepository.countByCourseClassId(courseClassId);
+        int maxStudents = courseClass.getMaxStudents() == null ? 60 : courseClass.getMaxStudents();
+        if (registered >= maxStudents) {
+            throw new AppException(ErrorCode.COURSE_CLASS_FULL);
+        }
+
+        Grade enrollment = Grade.builder()
+                .student(student)
+                .courseClass(courseClass)
+                .build();
+
+        gradeRepository.save(enrollment);
+    }
+
+    @Transactional
+    public void cancelRegistration(Long courseClassId) {
+        Student student = getCurrentStudent();
+        CourseClass courseClass = getCourseClass(courseClassId);
+
+        assertRegistrationOpen(courseClass);
+
+        Grade grade = gradeRepository.findByStudentIdAndCourseClassId(student.getId(), courseClassId)
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_ENROLLED));
+
+        if (hasAnyGradeValue(grade)) {
+            throw new AppException(ErrorCode.GRADE_ALREADY_ENTERED);
+        }
+
+        gradeRepository.delete(grade);
+    }
+
+    public List<CourseClassResponse> getOpenCourseClasses() {
+        LocalDateTime now = LocalDateTime.now();
+        return courseClassRepository.findByOpenForRegistrationTrue().stream()
+                .filter(courseClass -> periodRepository.findActivePeriod(courseClass.getSemester(), now).isPresent())
+                .map(this::toResponseWithCount)
+                .toList();
+    }
+
+    public List<GradeResponse> getCurrentStudentRegistrations() {
+        Student student = getCurrentStudent();
+        return gradeRepository.findByStudentId(student.getId()).stream()
+                .map(gradeMapper::toResponse)
+                .toList();
+    }
+
+    private CourseClass getCourseClass(Long courseClassId) {
+        return courseClassRepository.findByIdWithSubjectAndTeacher(courseClassId)
+                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
+    }
+
+    private void assertRegistrationOpen(CourseClass courseClass) {
+        if (!courseClass.isOpenForRegistration()) {
+            throw new AppException(ErrorCode.COURSE_CLASS_CLOSED);
+        }
+
+        periodRepository.findActivePeriod(courseClass.getSemester(), LocalDateTime.now())
+                .orElseThrow(() -> new AppException(ErrorCode.REGISTRATION_PERIOD_CLOSED));
+    }
+
+    private Student getCurrentStudent() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+
+        return studentRepository.findByIdWithJoinFetch(user.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
+    }
+
+    private boolean hasAnyGradeValue(Grade grade) {
+        return grade.getAttendanceGrade() != null
+                || grade.getMidtermGrade() != null
+                || grade.getFinalGrade() != null
+                || grade.getOverallGrade() != null
+                || grade.getLetterGrade() != null
+                || grade.getGrade4() != null;
+    }
+
+    private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
+        courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
+        return courseClassMapper.toResponse(courseClass);
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/TeacherServiceImpl.java">
+package com.dangdepzaivaio.StudentManagement.service.impl;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherUpdateRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
 import com.dangdepzaivaio.StudentManagement.entity.Department;
 import com.dangdepzaivaio.StudentManagement.entity.Role;
@@ -242,46 +617,50 @@ import com.dangdepzaivaio.StudentManagement.entity.Teacher;
 import com.dangdepzaivaio.StudentManagement.entity.User;
 import com.dangdepzaivaio.StudentManagement.exception.AppException;
 import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.TeacherMapper;
 import com.dangdepzaivaio.StudentManagement.repository.DepartmentRepository;
 import com.dangdepzaivaio.StudentManagement.repository.RoleRepository;
 import com.dangdepzaivaio.StudentManagement.repository.TeacherRepository;
 import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
-import jakarta.validation.Valid;
+import com.dangdepzaivaio.StudentManagement.service.TeacherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Set;
 
-@RestController
-@RequestMapping("/teachers")
+@Service
 @RequiredArgsConstructor
-public class TeacherController {
+public class TeacherServiceImpl implements TeacherService {
 
     private final TeacherRepository teacherRepository;
     private final UserRepository userRepository;
     private final DepartmentRepository departmentRepository;
     private final RoleRepository roleRepository;
+    private final TeacherMapper teacherMapper;
     private final PasswordEncoder passwordEncoder;
 
-    @PostMapping
-    public ApiResponse<TeacherResponse> createTeacher(@RequestBody @Valid TeacherCreationRequest request) {
+    @Override
+    @Transactional
+    public TeacherResponse createTeacher(TeacherCreationRequest request) {
         if (teacherRepository.existsByTeacherCode(request.teacherCode())) {
-            throw new AppException(ErrorCode.VALIDATION_ERROR);
-        }
-        if (userRepository.existsByUsername(request.teacherCode())) {
-            throw new AppException(ErrorCode.USER_EXISTED);
+            throw new AppException(ErrorCode.TEACHER_CODE_EXISTED);
         }
 
-        Department department = departmentRepository.findById(request.departmentId())
+        Department dept = departmentRepository.findById(request.departmentId())
                 .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
 
-        // Tự sinh tài khoản theo quy chuẩn: Username = Mã giảng viên, Pass = password1234
+        long nextIndex = userRepository.countByIdStartingWith("GV_") + 1;
+        String generatedId = String.format("GV_%02d", nextIndex);
+
         User user = User.builder()
+                .id(generatedId)
                 .username(request.teacherCode())
                 .password(passwordEncoder.encode("password1234"))
-                .email(request.teacherCode().toLowerCase() + "@teacher.open.edu.vn")
-                .isFirstLogin(true)
+                // 🔥 SỬA ĐỔI: Email trường dạng mã viết thường kết hợp @open.edu.vn
+                .email(request.teacherCode().toLowerCase() + "@open.edu.vn")
                 .isActive(true)
                 .build();
 
@@ -290,1385 +669,614 @@ public class TeacherController {
         user.setRoles(Set.of(teacherRole));
         userRepository.save(user);
 
-        Teacher teacher = Teacher.builder()
-                .teacherCode(request.teacherCode())
-                .firstName(request.firstName())
-                .lastName(request.lastName())
-                .dateOfBirth(request.dateOfBirth())
-                .gender(request.gender())
-                .phoneNumber(request.phoneNumber())
-                .user(user)
-                .department(department)
-                .build();
+        Teacher teacher = teacherMapper.toEntity(request);
+        teacher.setId(generatedId);
+        teacher.setUser(user);
+        teacher.setDepartment(dept);
+        teacher.setActive(true);
 
-        Teacher saved = teacherRepository.save(teacher);
-        TeacherResponse response = new TeacherResponse(saved.getId(), saved.getTeacherCode(), saved.getFirstName(), saved.getLastName(), saved.getDateOfBirth(), saved.getGender(), saved.getPhoneNumber(), saved.isActive(), user.getUsername(), user.getEmail(), department.getName());
-        return new ApiResponse<>(1000, "Cấp tài khoản Giảng viên thành công!", response);
+        return teacherMapper.toResponse(teacherRepository.save(teacher));
     }
 
-    @GetMapping
-    public ApiResponse<List<TeacherResponse>> getAll() {
-        List<TeacherResponse> list = teacherRepository.findAllTeachersWithJoinFetch().stream()
-                .map(t -> new TeacherResponse(t.getId(), t.getTeacherCode(), t.getFirstName(), t.getLastName(), t.getDateOfBirth(), t.getGender(), t.getPhoneNumber(), t.isActive(), t.getUser().getUsername(), t.getUser().getEmail(), t.getDepartment().getName()))
+    @Override
+    public List<TeacherResponse> getAllTeachers() {
+        return teacherRepository.findAllTeachersWithJoinFetch().stream()
+                .map(teacherMapper::toResponse)
                 .toList();
-        return new ApiResponse<>(1000, "Lấy danh sách giảng viên thành công!", list);
+    }
+
+    @Override
+    public TeacherResponse getTeacherById(String id) {
+        return teacherRepository.findById(id)
+                .map(teacherMapper::toResponse)
+                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
+    }
+
+    @Override
+    @Transactional
+    public TeacherResponse updateTeacher(String id, TeacherUpdateRequest request) {
+        Teacher teacher = teacherRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
+
+        teacher.setFirstName(request.firstName());
+        teacher.setLastName(request.lastName());
+        teacher.setDateOfBirth(request.dateOfBirth());
+        teacher.setGender(request.gender());
+        teacher.setPhoneNumber(request.phoneNumber());
+
+        return teacherMapper.toResponse(teacherRepository.save(teacher));
+    }
+
+    @Override
+    @Transactional
+    public void disableTeacher(String id) {
+        Teacher teacher = teacherRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
+        teacher.setActive(false);
+        if (teacher.getUser() != null) teacher.getUser().setActive(false);
+        teacherRepository.save(teacher);
+    }
+
+    @Override
+    @Transactional
+    public void enableTeacher(String id) {
+        Teacher teacher = teacherRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
+        teacher.setActive(true);
+        if (teacher.getUser() != null) teacher.getUser().setActive(true);
+        teacherRepository.save(teacher);
     }
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/TeacherCreationRequest.java">
-package com.dangdepzaivaio.StudentManagement.dto.request;
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/TeacherService.java">
+package com.dangdepzaivaio.StudentManagement.service;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import java.time.LocalDate;
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
 
-public record TeacherCreationRequest(
-        @NotBlank(message = "Mã giảng viên không được để trống") String teacherCode,
-        @NotBlank(message = "Tên không được để trống") String firstName,
-        @NotBlank(message = "Họ không được để trống") String lastName,
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber,
-        @NotNull(message = "ID khoa không được để trống") Long departmentId
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/TeacherResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-import java.time.LocalDate;
-
-public record TeacherResponse(
-        Long id,
-        String teacherCode,
-        String firstName,
-        String lastName,
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber,
-        boolean isActive,
-        String username,
-        String email,
-        String departmentName
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Teacher.java">
-package com.dangdepzaivaio.StudentManagement.entity;
-
-import jakarta.persistence.*;
-import lombok.*;
-import java.time.LocalDate;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Entity
-@Table(name = "teachers")
-public class Teacher extends BaseEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "teacher_code", nullable = false, unique = true, length = 20)
-    private String teacherCode; // Mã giảng viên (Ví dụ: GV2026_01)
-
-    @Column(name = "first_name", nullable = false, length = 50)
-    private String firstName;
-
-    @Column(name = "last_name", nullable = false, length = 100)
-    private String lastName;
-
-    @Column(name = "date_of_birth")
-    private LocalDate dateOfBirth;
-
-    @Column(name = "gender", length = 10)
-    private String gender;
-
-    @Column(name = "phone_number", length = 15)
-    private String phoneNumber;
-
-    @Builder.Default
-    @Column(name = "is_active", nullable = false)
-    private boolean isActive = true;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
-    private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id", nullable = false)
-    private Department department; // Thuộc khoa chủ quản nào
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/TeacherRepository.java">
-package com.dangdepzaivaio.StudentManagement.repository;
-
-import com.dangdepzaivaio.StudentManagement.entity.Teacher;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
 import java.util.List;
-import java.util.Optional;
 
-@Repository
-public interface TeacherRepository extends JpaRepository<Teacher, Long> {
-    boolean existsByTeacherCode(String teacherCode);
-
-    Optional<Teacher> findByTeacherCode(String teacherCode);
-
-    Optional<Teacher> findByUserId(Long userId); // 🔥 BỔ SUNG DÒNG NÀY ĐỂ TÌM THEO USER ID
-
-    @Query("SELECT t FROM Teacher t JOIN FETCH t.user JOIN FETCH t.department")
-    List<Teacher> findAllTeachersWithJoinFetch();
+public interface TeacherService {
+    TeacherResponse createTeacher(TeacherCreationRequest request);
+    List<TeacherResponse> getAllTeachers();
+    TeacherResponse getTeacherById(String id);
+    TeacherResponse updateTeacher(String id, TeacherUpdateRequest request);
+    void disableTeacher(String id);
+    void enableTeacher(String id);
 }
 </file>
 
-<file path="student-management-ui/.gitignore">
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-</file>
-
-<file path="student-management-ui/eslint.config.js">
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import { defineConfig, globalIgnores } from 'eslint/config'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{js,jsx}'],
-    extends: [
-      js.configs.recommended,
-      reactHooks.configs.flat.recommended,
-      reactRefresh.configs.vite,
-    ],
-    languageOptions: {
-      globals: globals.browser,
-      parserOptions: { ecmaFeatures: { jsx: true } },
-    },
-  },
-])
-</file>
-
-<file path="student-management-ui/index.html">
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>student-management-ui</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-</html>
-</file>
-
-<file path="student-management-ui/package.json">
-{
-  "name": "student-management-ui",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "axios": "^1.17.0",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "react-router-dom": "^7.17.0"
-  },
-  "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^10.3.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.6.0",
-    "vite": "^8.0.12"
-  }
-}
-</file>
-
-<file path="student-management-ui/public/favicon.svg">
-<svg xmlns="http://www.w3.org/2000/svg" width="48" height="46" fill="none" viewBox="0 0 48 46"><path fill="#863bff" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z" style="fill:#863bff;fill:color(display-p3 .5252 .23 1);fill-opacity:1"/><mask id="a" width="48" height="46" x="0" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#000" d="M25.842 44.938c-.664.844-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.183c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.498 0-3.579-1.842-3.579H1.133c-.92 0-1.456-1.04-.92-1.787L9.91.473c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.578 1.842 3.578h11.377c.943 0 1.473 1.088.89 1.832L25.843 44.94z" style="fill:#000;fill-opacity:1"/></mask><g mask="url(#a)"><g filter="url(#b)"><ellipse cx="5.508" cy="14.704" fill="#ede6ff" rx="5.508" ry="14.704" style="fill:#ede6ff;fill:color(display-p3 .9275 .9033 1);fill-opacity:1" transform="matrix(.00324 1 1 -.00324 -4.47 31.516)"/></g><g filter="url(#c)"><ellipse cx="10.399" cy="29.851" fill="#ede6ff" rx="10.399" ry="29.851" style="fill:#ede6ff;fill:color(display-p3 .9275 .9033 1);fill-opacity:1" transform="matrix(.00324 1 1 -.00324 -39.328 7.883)"/></g><g filter="url(#d)"><ellipse cx="5.508" cy="30.487" fill="#7e14ff" rx="5.508" ry="30.487" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.814 -25.913 -14.639)scale(1 -1)"/></g><g filter="url(#e)"><ellipse cx="5.508" cy="30.599" fill="#7e14ff" rx="5.508" ry="30.599" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.814 -32.644 -3.334)scale(1 -1)"/></g><g filter="url(#f)"><ellipse cx="5.508" cy="30.599" fill="#7e14ff" rx="5.508" ry="30.599" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="matrix(.00324 1 1 -.00324 -34.34 30.47)"/></g><g filter="url(#g)"><ellipse cx="14.072" cy="22.078" fill="#ede6ff" rx="14.072" ry="22.078" style="fill:#ede6ff;fill:color(display-p3 .9275 .9033 1);fill-opacity:1" transform="rotate(93.35 24.506 48.493)scale(-1 1)"/></g><g filter="url(#h)"><ellipse cx="3.47" cy="21.501" fill="#7e14ff" rx="3.47" ry="21.501" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.009 28.708 47.59)scale(-1 1)"/></g><g filter="url(#i)"><ellipse cx="3.47" cy="21.501" fill="#7e14ff" rx="3.47" ry="21.501" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.009 28.708 47.59)scale(-1 1)"/></g><g filter="url(#j)"><ellipse cx=".387" cy="8.972" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(39.51 .387 8.972)"/></g><g filter="url(#k)"><ellipse cx="47.523" cy="-6.092" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 47.523 -6.092)"/></g><g filter="url(#l)"><ellipse cx="41.412" cy="6.333" fill="#47bfff" rx="5.971" ry="9.665" style="fill:#47bfff;fill:color(display-p3 .2799 .748 1);fill-opacity:1" transform="rotate(37.892 41.412 6.333)"/></g><g filter="url(#m)"><ellipse cx="-1.879" cy="38.332" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 -1.88 38.332)"/></g><g filter="url(#n)"><ellipse cx="-1.879" cy="38.332" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 -1.88 38.332)"/></g><g filter="url(#o)"><ellipse cx="35.651" cy="29.907" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 35.651 29.907)"/></g><g filter="url(#p)"><ellipse cx="38.418" cy="32.4" fill="#47bfff" rx="5.971" ry="15.297" style="fill:#47bfff;fill:color(display-p3 .2799 .748 1);fill-opacity:1" transform="rotate(37.892 38.418 32.4)"/></g></g><defs><filter id="b" width="60.045" height="41.654" x="-19.77" y="16.149" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="7.659"/></filter><filter id="c" width="90.34" height="51.437" x="-54.613" y="-7.533" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="7.659"/></filter><filter id="d" width="79.355" height="29.4" x="-49.64" y="2.03" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="e" width="79.579" height="29.4" x="-45.045" y="20.029" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="f" width="79.579" height="29.4" x="-43.513" y="21.178" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="g" width="74.749" height="58.852" x="15.756" y="-17.901" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="7.659"/></filter><filter id="h" width="61.377" height="25.362" x="23.548" y="2.284" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="i" width="61.377" height="25.362" x="23.548" y="2.284" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="j" width="56.045" height="63.649" x="-27.636" y="-22.853" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="k" width="54.814" height="64.646" x="20.116" y="-38.415" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="l" width="33.541" height="35.313" x="24.641" y="-11.323" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="m" width="54.814" height="64.646" x="-29.286" y="6.009" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="n" width="54.814" height="64.646" x="-29.286" y="6.009" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="o" width="54.814" height="64.646" x="8.244" y="-2.416" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="p" width="39.409" height="43.623" x="18.713" y="10.588" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter></defs></svg>
-</file>
-
-<file path="student-management-ui/public/icons.svg">
-<svg xmlns="http://www.w3.org/2000/svg">
-  <symbol id="bluesky-icon" viewBox="0 0 16 17">
-    <g clip-path="url(#bluesky-clip)"><path fill="#08060d" d="M7.75 7.735c-.693-1.348-2.58-3.86-4.334-5.097-1.68-1.187-2.32-.981-2.74-.79C.188 2.065.1 2.812.1 3.251s.241 3.602.398 4.13c.52 1.744 2.367 2.333 4.07 2.145-2.495.37-4.71 1.278-1.805 4.512 3.196 3.309 4.38-.71 4.987-2.746.608 2.036 1.307 5.91 4.93 2.746 2.72-2.746.747-4.143-1.747-4.512 1.702.189 3.55-.4 4.07-2.145.156-.528.397-3.691.397-4.13s-.088-1.186-.575-1.406c-.42-.19-1.06-.395-2.741.79-1.755 1.24-3.64 3.752-4.334 5.099"/></g>
-    <defs><clipPath id="bluesky-clip"><path fill="#fff" d="M.1.85h15.3v15.3H.1z"/></clipPath></defs>
-  </symbol>
-  <symbol id="discord-icon" viewBox="0 0 20 19">
-    <path fill="#08060d" d="M16.224 3.768a14.5 14.5 0 0 0-3.67-1.153c-.158.286-.343.67-.47.976a13.5 13.5 0 0 0-4.067 0c-.128-.306-.317-.69-.476-.976A14.4 14.4 0 0 0 3.868 3.77C1.546 7.28.916 10.703 1.231 14.077a14.7 14.7 0 0 0 4.5 2.306q.545-.748.965-1.587a9.5 9.5 0 0 1-1.518-.74q.191-.14.372-.293c2.927 1.369 6.107 1.369 8.999 0q.183.152.372.294-.723.437-1.52.74.418.838.963 1.588a14.6 14.6 0 0 0 4.504-2.308c.37-3.911-.63-7.302-2.644-10.309m-9.13 8.234c-.878 0-1.599-.82-1.599-1.82 0-.998.705-1.82 1.6-1.82.894 0 1.614.82 1.599 1.82.001 1-.705 1.82-1.6 1.82m5.91 0c-.878 0-1.599-.82-1.599-1.82 0-.998.705-1.82 1.6-1.82.893 0 1.614.82 1.599 1.82 0 1-.706 1.82-1.6 1.82"/>
-  </symbol>
-  <symbol id="documentation-icon" viewBox="0 0 21 20">
-    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="m15.5 13.333 1.533 1.322c.645.555.967.833.967 1.178s-.322.623-.967 1.179L15.5 18.333m-3.333-5-1.534 1.322c-.644.555-.966.833-.966 1.178s.322.623.966 1.179l1.534 1.321"/>
-    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M17.167 10.836v-4.32c0-1.41 0-2.117-.224-2.68-.359-.906-1.118-1.621-2.08-1.96-.599-.21-1.349-.21-2.848-.21-2.623 0-3.935 0-4.983.369-1.684.591-3.013 1.842-3.641 3.428C3 6.449 3 7.684 3 10.154v2.122c0 2.558 0 3.838.706 4.726q.306.383.713.671c.76.536 1.79.64 3.581.66"/>
-    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M3 10a2.78 2.78 0 0 1 2.778-2.778c.555 0 1.209.097 1.748-.047.48-.129.854-.503.982-.982.145-.54.048-1.194.048-1.749a2.78 2.78 0 0 1 2.777-2.777"/>
-  </symbol>
-  <symbol id="github-icon" viewBox="0 0 19 19">
-    <path fill="#08060d" fill-rule="evenodd" d="M9.356 1.85C5.05 1.85 1.57 5.356 1.57 9.694a7.84 7.84 0 0 0 5.324 7.44c.387.079.528-.168.528-.376 0-.182-.013-.805-.013-1.454-2.165.467-2.616-.935-2.616-.935-.349-.91-.864-1.143-.864-1.143-.71-.48.051-.48.051-.48.787.051 1.2.805 1.2.805.695 1.194 1.817.857 2.268.649.064-.507.27-.857.49-1.052-1.728-.182-3.545-.857-3.545-3.87 0-.857.31-1.558.8-2.104-.078-.195-.349-1 .077-2.078 0 0 .657-.208 2.14.805a7.5 7.5 0 0 1 1.946-.26c.657 0 1.328.092 1.946.26 1.483-1.013 2.14-.805 2.14-.805.426 1.078.155 1.883.078 2.078.502.546.799 1.247.799 2.104 0 3.013-1.818 3.675-3.558 3.87.284.247.528.714.528 1.454 0 1.052-.012 1.896-.012 2.156 0 .208.142.455.528.377a7.84 7.84 0 0 0 5.324-7.441c.013-4.338-3.48-7.844-7.773-7.844" clip-rule="evenodd"/>
-  </symbol>
-  <symbol id="social-icon" viewBox="0 0 20 20">
-    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M12.5 6.667a4.167 4.167 0 1 0-8.334 0 4.167 4.167 0 0 0 8.334 0"/>
-    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M2.5 16.667a5.833 5.833 0 0 1 8.75-5.053m3.837.474.513 1.035c.07.144.257.282.414.309l.93.155c.596.1.736.536.307.965l-.723.73a.64.64 0 0 0-.152.531l.207.903c.164.715-.213.991-.84.618l-.872-.52a.63.63 0 0 0-.577 0l-.872.52c-.624.373-1.003.094-.84-.618l.207-.903a.64.64 0 0 0-.152-.532l-.723-.729c-.426-.43-.289-.864.306-.964l.93-.156a.64.64 0 0 0 .412-.31l.513-1.034c.28-.562.735-.562 1.012 0"/>
-  </symbol>
-  <symbol id="x-icon" viewBox="0 0 19 19">
-    <path fill="#08060d" fill-rule="evenodd" d="M1.893 1.98c.052.072 1.245 1.769 2.653 3.77l2.892 4.114c.183.261.333.48.333.486s-.068.089-.152.183l-.522.593-.765.867-3.597 4.087c-.375.426-.734.834-.798.905a1 1 0 0 0-.118.148c0 .01.236.017.664.017h.663l.729-.83c.4-.457.796-.906.879-.999a692 692 0 0 0 1.794-2.038c.034-.037.301-.34.594-.675l.551-.624.345-.392a7 7 0 0 1 .34-.374c.006 0 .93 1.306 2.052 2.903l2.084 2.965.045.063h2.275c1.87 0 2.273-.003 2.266-.021-.008-.02-1.098-1.572-3.894-5.547-2.013-2.862-2.28-3.246-2.273-3.266.008-.019.282-.332 2.085-2.38l2-2.274 1.567-1.782c.022-.028-.016-.03-.65-.03h-.674l-.3.342a871 871 0 0 1-1.782 2.025c-.067.075-.405.458-.75.852a100 100 0 0 1-.803.91c-.148.172-.299.344-.99 1.127-.304.343-.32.358-.345.327-.015-.019-.904-1.282-1.976-2.808L6.365 1.85H1.8zm1.782.91 8.078 11.294c.772 1.08 1.413 1.973 1.425 1.984.016.017.241.02 1.05.017l1.03-.004-2.694-3.766L7.796 5.75 5.722 2.852l-1.039-.004-1.039-.004z" clip-rule="evenodd"/>
-  </symbol>
-</svg>
-</file>
-
-<file path="student-management-ui/README.md">
-# React + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
-</file>
-
-<file path="student-management-ui/src/api/axiosClient.js">
-import axios from 'axios';
-
-const axiosClient = axios.create({
-    baseURL: 'http://localhost:8081', // Cổng chạy của Spring Boot
-    headers: {
-        'Content-Type': 'application/json',
-    },
-});
-
-// Tự động đính kèm JWT Token vào Header trước khi gửi request
-axiosClient.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
-    }
-);
-
-// Tự động giải nén cấu trúc ApiResponse bọc ngoài của Backend
-axiosClient.interceptors.response.use(
-    (response) => {
-        // Nếu Backend trả về code thành công 1000, lấy thẳng dữ liệu result ra ngoài
-        if (response.data && response.data.code === 1000) {
-            return response.data.result;
-        }
-        return response.data;
-    },
-    (error) => {
-        // Bắt lỗi nghiệp vụ trả về từ GlobalExceptionHandler của Backend
-        const errorMessage = error.response?.data?.message || 'Lỗi kết nối hệ thống!';
-        return Promise.reject(errorMessage);
-    }
-);
-
-export default axiosClient;
-</file>
-
-<file path="student-management-ui/src/App.css">
-.counter {
-  font-size: 16px;
-  padding: 5px 10px;
-  border-radius: 5px;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  margin-bottom: 24px;
-
-  &:hover {
-    border-color: var(--accent-border);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-}
-
-.hero {
-  position: relative;
-
-  .base,
-  .framework,
-  .vite {
-    inset-inline: 0;
-    margin: 0 auto;
-  }
-
-  .base {
-    width: 170px;
-    position: relative;
-    z-index: 0;
-  }
-
-  .framework,
-  .vite {
-    position: absolute;
-  }
-
-  .framework {
-    z-index: 1;
-    top: 34px;
-    height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
-  }
-
-  .vite {
-    z-index: 0;
-    top: 107px;
-    height: 26px;
-    width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
-  }
-}
-
-#center {
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
-  place-content: center;
-  place-items: center;
-  flex-grow: 1;
-
-  @media (max-width: 1024px) {
-    padding: 32px 20px 24px;
-    gap: 18px;
-  }
-}
-
-#next-steps {
-  display: flex;
-  border-top: 1px solid var(--border);
-  text-align: left;
-
-  & > div {
-    flex: 1 1 0;
-    padding: 32px;
-    @media (max-width: 1024px) {
-      padding: 24px 20px;
-    }
-  }
-
-  .icon {
-    margin-bottom: 16px;
-    width: 22px;
-    height: 22px;
-  }
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    text-align: center;
-  }
-}
-
-#docs {
-  border-right: 1px solid var(--border);
-
-  @media (max-width: 1024px) {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-}
-
-#next-steps ul {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  gap: 8px;
-  margin: 32px 0 0;
-
-  .logo {
-    height: 18px;
-  }
-
-  a {
-    color: var(--text-h);
-    font-size: 16px;
-    border-radius: 6px;
-    background: var(--social-bg);
-    display: flex;
-    padding: 6px 12px;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: box-shadow 0.3s;
-
-    &:hover {
-      box-shadow: var(--shadow);
-    }
-    .button-icon {
-      height: 18px;
-      width: 18px;
-    }
-  }
-
-  @media (max-width: 1024px) {
-    margin-top: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-
-    li {
-      flex: 1 1 calc(50% - 8px);
-    }
-
-    a {
-      width: 100%;
-      justify-content: center;
-      box-sizing: border-box;
-    }
-  }
-}
-
-#spacer {
-  height: 88px;
-  border-top: 1px solid var(--border);
-  @media (max-width: 1024px) {
-    height: 48px;
-  }
-}
-
-.ticks {
-  position: relative;
-  width: 100%;
-
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: -4.5px;
-    border: 5px solid transparent;
-  }
-
-  &::before {
-    left: 0;
-    border-left-color: var(--border);
-  }
-  &::after {
-    right: 0;
-    border-right-color: var(--border);
-  }
-}
-</file>
-
-<file path="student-management-ui/src/App.jsx">
-import React, { useState } from 'react';
-import LoginPage from './pages/LoginPage';
-import StudentPage from './pages/StudentPage';
-import TeacherPage from './pages/TeacherPage'; // 🔥 Thêm dòng này
-import GradePage from './pages/GradePage';
-
-function App() {
-    const [token, setToken] = useState(localStorage.getItem('token'));
-    const [username, setUsername] = useState(localStorage.getItem('username'));
-    const [role, setRole] = useState(localStorage.getItem('roles') || '');
-    const [activeTab, setActiveTab] = useState('dashboard');
-
-    const handleLogout = () => {
-        localStorage.clear();
-        setToken(null);
-        setUsername(null);
-        setRole('');
-    };
-
-    if (!token) {
-        return <LoginPage />;
-    }
-
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)' }}>
-
-            {/* HEADER */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-sm) var(--spacing-xl)', backgroundColor: 'var(--color-surface)', color: 'var(--text-main)', borderBottom: '2px solid var(--text-cyan)' }}>
-                <h3>CMS - STUDENT MANAGEMENT</h3>
-                <div>
-                    <span style={{ marginRight: 'var(--spacing-xl)', color: 'var(--text-muted)' }}>Xin chào: <b>{username}</b> ({role})</span>
-                    <button onClick={handleLogout} style={{ padding: '6px 12px', backgroundColor: 'var(--color-danger)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Đăng xuất</button>
-                </div>
-            </div>
-
-            {/* BODY */}
-            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-                {/* SIDEBAR */}
-                <div style={{ width: '240px', backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl) var(--spacing-sm)', borderRight: '1px solid var(--color-border)' }}>
-                    <button onClick={() => setActiveTab('dashboard')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'dashboard' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>📊 Tổng Quan System</button>
-
-                    {/* MENU QUẢN LÝ SINH VIÊN (Dành cho Admin và Teacher) */}
-                    {(role.includes('ADMIN') || role.includes('TEACHER')) && (
-                        <button onClick={() => setActiveTab('students')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'students' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>👥 Quản Lý Sinh Viên</button>
-                    )}
-
-                    {/* 🔥 CHỈ ADMIN MỚI NHÌN THẤY MENU QUẢN LÝ GIẢNG VIÊN */}
-                    {role.includes('ADMIN') && (
-                        <button onClick={() => setActiveTab('teachers')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'teachers' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>💼 Quản Lý Giảng Viên</button>
-                    )}
-
-                    <button onClick={() => setActiveTab('grades')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'grades' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>🎯 Quản Lý Điểm Số</button>
-                </div>
-
-                {/* CONTENT CONTENT CO-GIÃN */}
-                <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)', padding: 'var(--spacing-xl)' }}>
-                    {activeTab === 'dashboard' && (
-                        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            <h2>HỆ THỐNG QUẢN TRỊ ĐÀO TẠO TÍN CHỈ</h2>
-                            <p>Chọn phân hệ bên thanh điều hướng để bắt đầu thực hiện kiểm tra dữ liệu.</p>
-                        </div>
-                    )}
-                    {activeTab === 'students' && <StudentPage />}
-                    {activeTab === 'teachers' && <TeacherPage />}
-                    {activeTab === 'grades' && <GradePage />}
-                </div>
-            </div>
-        </div>
-    );
-}
-
-export default App;
-</file>
-
-<file path="student-management-ui/src/assets/react.svg">
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="35.93" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 228"><path fill="#00D8FF" d="M210.483 73.824a171.49 171.49 0 0 0-8.24-2.597c.465-1.9.893-3.777 1.273-5.621c6.238-30.281 2.16-54.676-11.769-62.708c-13.355-7.7-35.196.329-57.254 19.526a171.23 171.23 0 0 0-6.375 5.848a155.866 155.866 0 0 0-4.241-3.917C100.759 3.829 77.587-4.822 63.673 3.233C50.33 10.957 46.379 33.89 51.995 62.588a170.974 170.974 0 0 0 1.892 8.48c-3.28.932-6.445 1.924-9.474 2.98C17.309 83.498 0 98.307 0 113.668c0 15.865 18.582 31.778 46.812 41.427a145.52 145.52 0 0 0 6.921 2.165a167.467 167.467 0 0 0-2.01 9.138c-5.354 28.2-1.173 50.591 12.134 58.266c13.744 7.926 36.812-.22 59.273-19.855a145.567 145.567 0 0 0 5.342-4.923a168.064 168.064 0 0 0 6.92 6.314c21.758 18.722 43.246 26.282 56.54 18.586c13.731-7.949 18.194-32.003 12.4-61.268a145.016 145.016 0 0 0-1.535-6.842c1.62-.48 3.21-.974 4.76-1.488c29.348-9.723 48.443-25.443 48.443-41.52c0-15.417-17.868-30.326-45.517-39.844Zm-6.365 70.984c-1.4.463-2.836.91-4.3 1.345c-3.24-10.257-7.612-21.163-12.963-32.432c5.106-11 9.31-21.767 12.459-31.957c2.619.758 5.16 1.557 7.61 2.4c23.69 8.156 38.14 20.213 38.14 29.504c0 9.896-15.606 22.743-40.946 31.14Zm-10.514 20.834c2.562 12.94 2.927 24.64 1.23 33.787c-1.524 8.219-4.59 13.698-8.382 15.893c-8.067 4.67-25.32-1.4-43.927-17.412a156.726 156.726 0 0 1-6.437-5.87c7.214-7.889 14.423-17.06 21.459-27.246c12.376-1.098 24.068-2.894 34.671-5.345a134.17 134.17 0 0 1 1.386 6.193ZM87.276 214.515c-7.882 2.783-14.16 2.863-17.955.675c-8.075-4.657-11.432-22.636-6.853-46.752a156.923 156.923 0 0 1 1.869-8.499c10.486 2.32 22.093 3.988 34.498 4.994c7.084 9.967 14.501 19.128 21.976 27.15a134.668 134.668 0 0 1-4.877 4.492c-9.933 8.682-19.886 14.842-28.658 17.94ZM50.35 144.747c-12.483-4.267-22.792-9.812-29.858-15.863c-6.35-5.437-9.555-10.836-9.555-15.216c0-9.322 13.897-21.212 37.076-29.293c2.813-.98 5.757-1.905 8.812-2.773c3.204 10.42 7.406 21.315 12.477 32.332c-5.137 11.18-9.399 22.249-12.634 32.792a134.718 134.718 0 0 1-6.318-1.979Zm12.378-84.26c-4.811-24.587-1.616-43.134 6.425-47.789c8.564-4.958 27.502 2.111 47.463 19.835a144.318 144.318 0 0 1 3.841 3.545c-7.438 7.987-14.787 17.08-21.808 26.988c-12.04 1.116-23.565 2.908-34.161 5.309a160.342 160.342 0 0 1-1.76-7.887Zm110.427 27.268a347.8 347.8 0 0 0-7.785-12.803c8.168 1.033 15.994 2.404 23.343 4.08c-2.206 7.072-4.956 14.465-8.193 22.045a381.151 381.151 0 0 0-7.365-13.322Zm-45.032-43.861c5.044 5.465 10.096 11.566 15.065 18.186a322.04 322.04 0 0 0-30.257-.006c4.974-6.559 10.069-12.652 15.192-18.18ZM82.802 87.83a323.167 323.167 0 0 0-7.227 13.238c-3.184-7.553-5.909-14.98-8.134-22.152c7.304-1.634 15.093-2.97 23.209-3.984a321.524 321.524 0 0 0-7.848 12.897Zm8.081 65.352c-8.385-.936-16.291-2.203-23.593-3.793c2.26-7.3 5.045-14.885 8.298-22.6a321.187 321.187 0 0 0 7.257 13.246c2.594 4.48 5.28 8.868 8.038 13.147Zm37.542 31.03c-5.184-5.592-10.354-11.779-15.403-18.433c4.902.192 9.899.29 14.978.29c5.218 0 10.376-.117 15.453-.343c-4.985 6.774-10.018 12.97-15.028 18.486Zm52.198-57.817c3.422 7.8 6.306 15.345 8.596 22.52c-7.422 1.694-15.436 3.058-23.88 4.071a382.417 382.417 0 0 0 7.859-13.026a347.403 347.403 0 0 0 7.425-13.565Zm-16.898 8.101a358.557 358.557 0 0 1-12.281 19.815a329.4 329.4 0 0 1-23.444.823c-7.967 0-15.716-.248-23.178-.732a310.202 310.202 0 0 1-12.513-19.846h.001a307.41 307.41 0 0 1-10.923-20.627a310.278 310.278 0 0 1 10.89-20.637l-.001.001a307.318 307.318 0 0 1 12.413-19.761c7.613-.576 15.42-.876 23.31-.876H128c7.926 0 15.743.303 23.354.883a329.357 329.357 0 0 1 12.335 19.695a358.489 358.489 0 0 1 11.036 20.54a329.472 329.472 0 0 1-11 20.722Zm22.56-122.124c8.572 4.944 11.906 24.881 6.52 51.026c-.344 1.668-.73 3.367-1.15 5.09c-10.622-2.452-22.155-4.275-34.23-5.408c-7.034-10.017-14.323-19.124-21.64-27.008a160.789 160.789 0 0 1 5.888-5.4c18.9-16.447 36.564-22.941 44.612-18.3ZM128 90.808c12.625 0 22.86 10.235 22.86 22.86s-10.235 22.86-22.86 22.86s-22.86-10.235-22.86-22.86s10.235-22.86 22.86-22.86Z"></path></svg>
-</file>
-
-<file path="student-management-ui/src/assets/vite.svg">
-<svg xmlns="http://www.w3.org/2000/svg" width="77" height="47" fill="none" aria-labelledby="vite-logo-title" viewBox="0 0 77 47"><title id="vite-logo-title">Vite</title><style>.parenthesis{fill:#000}@media (prefers-color-scheme:dark){.parenthesis{fill:#fff}}</style><path fill="#9135ff" d="M40.151 45.71c-.663.844-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.493c-.92 0-1.457-1.04-.92-1.788l7.479-10.471c1.07-1.498 0-3.578-1.842-3.578H15.443c-.92 0-1.456-1.04-.92-1.788l9.696-13.576c.213-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.472c-1.07 1.497 0 3.578 1.842 3.578h11.376c.944 0 1.474 1.087.89 1.83L40.153 45.712z"/><mask id="a" width="48" height="47" x="14" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#000" d="M40.047 45.71c-.663.843-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.389c-.92 0-1.457-1.04-.92-1.788l7.479-10.472c1.07-1.497 0-3.578-1.842-3.578H15.34c-.92 0-1.456-1.04-.92-1.788l9.696-13.575c.213-.297.556-.474.92-.474H53.93c.92 0 1.456 1.04.92 1.788L47.37 13.03c-1.07 1.498 0 3.578 1.842 3.578h11.376c.944 0 1.474 1.088.89 1.831L40.049 45.712z"/></mask><g mask="url(#a)"><g filter="url(#b)"><ellipse cx="5.508" cy="14.704" fill="#eee6ff" rx="5.508" ry="14.704" transform="rotate(269.814 20.96 11.29)scale(-1 1)"/></g><g filter="url(#c)"><ellipse cx="10.399" cy="29.851" fill="#eee6ff" rx="10.399" ry="29.851" transform="rotate(89.814 -16.902 -8.275)scale(1 -1)"/></g><g filter="url(#d)"><ellipse cx="5.508" cy="30.487" fill="#8900ff" rx="5.508" ry="30.487" transform="rotate(89.814 -19.197 -7.127)scale(1 -1)"/></g><g filter="url(#e)"><ellipse cx="5.508" cy="30.599" fill="#8900ff" rx="5.508" ry="30.599" transform="rotate(89.814 -25.928 4.177)scale(1 -1)"/></g><g filter="url(#f)"><ellipse cx="5.508" cy="30.599" fill="#8900ff" rx="5.508" ry="30.599" transform="rotate(89.814 -25.738 5.52)scale(1 -1)"/></g><g filter="url(#g)"><ellipse cx="14.072" cy="22.078" fill="#eee6ff" rx="14.072" ry="22.078" transform="rotate(93.35 31.245 55.578)scale(-1 1)"/></g><g filter="url(#h)"><ellipse cx="3.47" cy="21.501" fill="#8900ff" rx="3.47" ry="21.501" transform="rotate(89.009 35.419 55.202)scale(-1 1)"/></g><g filter="url(#i)"><ellipse cx="3.47" cy="21.501" fill="#8900ff" rx="3.47" ry="21.501" transform="rotate(89.009 35.419 55.202)scale(-1 1)"/></g><g filter="url(#j)"><ellipse cx="14.592" cy="9.743" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(39.51 14.592 9.743)"/></g><g filter="url(#k)"><ellipse cx="61.728" cy="-5.321" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 61.728 -5.32)"/></g><g filter="url(#l)"><ellipse cx="55.618" cy="7.104" fill="#00c2ff" rx="5.971" ry="9.665" transform="rotate(37.892 55.618 7.104)"/></g><g filter="url(#m)"><ellipse cx="12.326" cy="39.103" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 12.326 39.103)"/></g><g filter="url(#n)"><ellipse cx="12.326" cy="39.103" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 12.326 39.103)"/></g><g filter="url(#o)"><ellipse cx="49.857" cy="30.678" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 49.857 30.678)"/></g><g filter="url(#p)"><ellipse cx="52.623" cy="33.171" fill="#00c2ff" rx="5.971" ry="15.297" transform="rotate(37.892 52.623 33.17)"/></g></g><path d="M6.919 0c-9.198 13.166-9.252 33.575 0 46.789h6.215c-9.25-13.214-9.196-33.623 0-46.789zm62.424 0h-6.215c9.198 13.166 9.252 33.575 0 46.789h6.215c9.25-13.214 9.196-33.623 0-46.789" class="parenthesis"/><defs><filter id="b" width="60.045" height="41.654" x="-5.564" y="16.92" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="c" width="90.34" height="51.437" x="-40.407" y="-6.762" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="d" width="79.355" height="29.4" x="-35.435" y="2.801" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="e" width="79.579" height="29.4" x="-30.84" y="20.8" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="f" width="79.579" height="29.4" x="-29.307" y="21.949" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="g" width="74.749" height="58.852" x="29.961" y="-17.13" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="h" width="61.377" height="25.362" x="37.754" y="3.055" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="i" width="61.377" height="25.362" x="37.754" y="3.055" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="j" width="56.045" height="63.649" x="-13.43" y="-22.082" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="k" width="54.814" height="64.646" x="34.321" y="-37.644" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="l" width="33.541" height="35.313" x="38.847" y="-10.552" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="m" width="54.814" height="64.646" x="-15.081" y="6.78" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="n" width="54.814" height="64.646" x="-15.081" y="6.78" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="o" width="54.814" height="64.646" x="22.45" y="-1.645" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="p" width="39.409" height="43.623" x="32.919" y="11.36" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter></defs></svg>
-</file>
-
-<file path="student-management-ui/src/index.css">
-:root {
-  /* 🎨 Hệ màu sắc chuẩn (Bảo vệ mắt, giảm mỏi mắt ban đêm) */
-  --color-bg: #141414;           /* Màu nền tối chủ đạo sâu */
-  --color-surface: #222222;      /* Màu nền của Card, Sidebar, Form */
-  --color-surface-hover: #2d2d2d;/* Màu khi di chuột vào vùng tương tác */
-  --color-border: #333333;       /* Đường viền phân cách mảnh */
-
-  /* 🌟 Màu sắc trạng thái tín chỉ */
-  --color-primary: #007bff;      /* Màu xanh thương hiệu (Nút bấm, trạng thái chính) */
-  --color-success: #28a745;      /* Màu xanh lá (Điểm cao, Đạt, Thành công) */
-  --color-warning: #ffc107;      /* Màu vàng (Mã sinh viên, Cảnh báo, Điểm trung bình) */
-  --color-danger: #dc3545;       /* Màu đỏ (Điểm F, Xóa, Lỗi hệ thống) */
-
-  /* 📝 Màu chữ theo cấp độ phân rã */
-  --text-main: #ffffff;          /* Chữ trắng rõ ràng cho nội dung chính */
-  --text-muted: #aaaaaa;         /* Chữ xám cho nội dung phụ, mô tả */
-  --text-cyan: #00ffff;          /* Màu nhấn phản quang cho tiêu đề, bảng số */
-
-  /* 📐 Hệ khoảng cách và Kích thước (Spacing & Sizing) */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 12px;
-  --spacing-lg: 16px;
-  --spacing-xl: 20px;
-
-  /* 🔤 Font size tiêu chuẩn hệ thống */
-  --font-base: 14px;
-  --font-md: 16px;
-  --font-lg: 18px;
-  --font-title: 24px;
-}
-
-/* Reset cơ bản cho toàn bộ ứng dụng sử dụng chuẩn toàn cục */
-body {
-  margin: 0;
-  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--color-bg);
-  color: var(--text-main);
-  font-size: var(--font-base);
-  -webkit-font-smoothing: antialiased;
-}
-</file>
-
-<file path="student-management-ui/src/main.jsx">
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
-
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
-</file>
-
-<file path="student-management-ui/src/pages/GradePage.jsx">
+<file path="student-management-ui/src/components/CourseRegistration.jsx">
 import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
 
-function GradePage() {
-    const [students, setStudents] = useState([]);
-    const [selectedStudent, setSelectedStudent] = useState('');
+// Giả định bạn lưu thông tin người dùng trong localStorage sau khi login
+const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    };
+};
 
-    const [summary, setSummary] = useState(null); // Điểm của 1 SV
-    const [allGrades, setAllGrades] = useState([]); // Bảng điểm toàn trường
+export default function CourseRegistration({ userRole, userId, studentId, teacherId }) {
+    // State dùng chung
     const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState({ text: '', isError: false });
 
-    const [courseClassId, setCourseClassId] = useState('');
-    const [attendance, setAttendance] = useState('');
-    const [midterm, setMidterm] = useState('');
-    const [finalGrade, setFinalGrade] = useState('');
-    const [inputError, setInputError] = useState('');
+    // --- STATE ADMIN ---
+    const [periodForm, setPeriodForm] = useState({ semester: '', startTime: '', endTime: '' });
+    const [stats, setStats] = useState([]);
 
-    const userRole = localStorage.getItem('roles') || '';
-    const loggedInStudentId = localStorage.getItem('studentId') || '';
+    // --- STATE TEACHER ---
+    const [teacherClasses, setTeacherClasses] = useState([]);
+    const [selectedClassId, setSelectedClassId] = useState(null);
+    const [classStudents, setClassStudents] = useState([]);
 
-    const isAdmin = userRole.includes('ADMIN');
-    const isTeacher = userRole.includes('TEACHER');
-    const canViewAll = isAdmin || isTeacher;
-
-    useEffect(() => {
-        if (canViewAll) {
-            // Lấy danh sách SV để đưa vào Dropdown
-            axiosClient.get('/students').then(res => setStudents(res)).catch(err => console.error(err));
-            // Lấy BẢNG ĐIỂM TOÀN TRƯỜNG làm mặc định
-            fetchAllSystemGrades();
-        } else {
-            // Sinh viên thì khóa chặt ID của mình
-            setSelectedStudent(loggedInStudentId);
-        }
-    }, [canViewAll, loggedInStudentId]);
+    // --- STATE STUDENT (Dùng chung danh sách lớp học phần mở để đăng ký) ---
+    const [availableClasses, setAvailableClasses] = useState([]);
 
     useEffect(() => {
-        if (selectedStudent) {
-            fetchAcademicSummary(selectedStudent);
-        } else if (canViewAll) {
-            setSummary(null); // Trở về chế độ xem toàn trường
-        }
-    }, [selectedStudent]);
+        if (userRole === 'ADMIN') loadAdminStats();
+        if (userRole === 'TEACHER') loadTeacherSchedule();
+        if (userRole === 'STUDENT') loadAvailableClasses();
+    }, [userRole]);
 
-    // Gọi API lấy điểm 1 Sinh Viên (Cũ)
-    const fetchAcademicSummary = async (studentId) => {
-        try {
-            setLoading(true);
-            const data = await axiosClient.get(`/grades/student/${studentId}/summary`);
-            setSummary(data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
+    const showMessage = (text, isError = false) => {
+        setMessage({ text, isError });
+        setTimeout(() => setMessage({ text: '', isError: false }), 4000);
     };
 
-    // 🔥 Gọi API lấy BẢNG ĐIỂM TOÀN HỆ THỐNG (Mới)
-    const fetchAllSystemGrades = async () => {
+    // ==================== 🛠️ LOGIC XỬ LÝ ADMIN ====================
+    const loadAdminStats = async () => {
         try {
-            setLoading(true);
-            const data = await axiosClient.get('/grades');
-            setAllGrades(data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
+            const res = await fetch('http://localhost:8081/registration/statistics', { headers: getAuthHeaders() });
+            const data = await res.json();
+            if (data.code === 1000) setStats(data.result);
+        } catch (err) { showMessage('Không thể tải số liệu thống kê', true); }
     };
 
-    const handleInputGrade = async (e) => {
+    const handleCreatePeriod = async (e) => {
         e.preventDefault();
-        setInputError('');
-        if (!selectedStudent || !courseClassId) {
-            setInputError('Vui lòng chọn Sinh viên cụ thể từ danh sách bên trên trước khi nhập điểm!');
-            return;
-        }
         try {
-            await axiosClient.post('/grades', {
-                studentId: Number(selectedStudent),
-                courseClassId: Number(courseClassId),
-                attendanceGrade: attendance !== '' ? Number(attendance) : null,
-                midtermGrade: midterm !== '' ? Number(midterm) : null,
-                finalGrade: finalGrade !== '' ? Number(finalGrade) : null
+            const res = await fetch('http://localhost:8081/registration/periods', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(periodForm)
             });
-            alert('Nhập điểm thành công!');
-            setCourseClassId(''); setAttendance(''); setMidterm(''); setFinalGrade('');
-            fetchAcademicSummary(selectedStudent);
-        } catch (err) {
-            setInputError(err || 'Lỗi nhập điểm!');
-        }
+            const data = await res.json();
+            if (data.code === 1000) {
+                showMessage('Mở cổng đăng ký tín chỉ thành công!');
+                setPeriodForm({ semester: '', startTime: '', endTime: '' });
+            } else {
+                showMessage(data.message, true);
+            }
+        } catch (err) { showMessage('Lỗi kết nối Server', true); }
+    };
+
+    // ==================== 💼 LOGIC XỬ LÝ TEACHER ====================
+    const loadTeacherSchedule = async () => {
+        try {
+            const res = await fetch(`http://localhost:8081/registration/teacher/${teacherId}/classes`, { headers: getAuthHeaders() });
+            const data = await res.json();
+            if (data.code === 1000) setTeacherClasses(data.result);
+        } catch (err) { showMessage('Không thể tải lịch dạy', true); }
+    };
+
+    const viewClassStudents = async (classId) => {
+        setSelectedClassId(classId);
+        try {
+            const res = await fetch(`http://localhost:8081/registration/classes/${classId}/students`, { headers: getAuthHeaders() });
+            const data = await res.json();
+            if (data.code === 1000) setClassStudents(data.result);
+        } catch (err) { showMessage('Không thể tải danh sách sinh viên', true); }
+    };
+
+    // ==================== 🎓 LOGIC XỬ LÝ STUDENT ====================
+    const loadAvailableClasses = async () => {
+        // Trong thực tế, bạn gọi API lấy danh sách CourseClass mở thuộc Học kỳ hiện tại
+        try {
+            const res = await fetch('http://localhost:8081/grades', { headers: getAuthHeaders() }); // Gọi tạm endpoint để có danh sách hoặc viết riêng API getAllCourseClasses
+            // Giả lập danh sách lớp học phần hiển thị cho sinh viên đăng ký
+            setAvailableClasses([
+                { id: 1, code: 'LHP_CNPM_01', subject: { name: 'Công nghệ phần mềm', credits: 3 }, teacher: { firstName: 'Đăng', lastName: 'Trần' }, semester: 'HK1-2026' },
+                { id: 2, code: 'LHP_CSDL_02', subject: { name: 'Cơ sở dữ liệu', credits: 3 }, teacher: { firstName: 'Hải', lastName: 'Nguyễn' }, semester: 'HK1-2026' }
+            ]);
+        } catch (err) { console.error(err); }
+    };
+
+    const handleEnroll = async (courseClassId) => {
+        try {
+            const res = await fetch(`http://localhost:8081/registration/enroll?studentId=${studentId}&courseClassId=${courseClassId}`, {
+                method: 'POST',
+                headers: getAuthHeaders()
+            });
+            const data = await res.json();
+            if (data.code === 1000) showMessage('Đăng ký môn học thành công!');
+            else showMessage(data.message, true);
+        } catch (err) { showMessage('Cổng đăng ký đang đóng hoặc lỗi hệ thống', true); }
+    };
+
+    const handleUnenroll = async (courseClassId) => {
+        try {
+            const res = await fetch(`http://localhost:8081/registration/unenroll?studentId=${studentId}&courseClassId=${courseClassId}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            const data = await res.json();
+            if (data.code === 1000) showMessage('Hủy đăng ký thành công!');
+            else showMessage(data.message, true);
+        } catch (err) { showMessage('Không thể hủy (Quá hạn hoặc đã có điểm)', true); }
     };
 
     return (
-        <div style={{ color: 'var(--text-main)', padding: 'var(--spacing-sm)' }}>
-            <h2 style={{ color: 'var(--text-cyan)', marginBottom: 'var(--spacing-xl)' }}>
-                QUẢN LÝ ĐIỂM SỐ & GPA HỆ THỐNG
-            </h2>
+        <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+            <h2>Hệ Thống Quản Lý Đăng Ký Tín Chỉ</h2>
 
-            {canViewAll ? (
-                <div style={{ backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-lg)', borderRadius: '6px', marginBottom: 'var(--spacing-xl)', border: '1px solid var(--color-border)' }}>
-                    <label style={{ fontWeight: 'bold', marginRight: 'var(--spacing-md)' }}>🔍 Tra cứu điểm số:</label>
-                    <select
-                        value={selectedStudent}
-                        onChange={(e) => setSelectedStudent(e.target.value)}
-                        style={{ padding: 'var(--spacing-sm)', borderRadius: '4px', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', border: '1px solid var(--color-border)', outline: 'none', minWidth: '300px' }}
-                    >
-                        <option value="">📋 Xem bảng điểm Tổng hợp Toàn trường</option>
-                        {students.map(s => (
-                            <option key={s.id} value={s.id}>SV: {s.studentCode} - {s.lastName} {s.firstName}</option>
-                        ))}
-                    </select>
-                </div>
-            ) : (
-                <div style={{ backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-md)', borderRadius: '6px', marginBottom: 'var(--spacing-xl)', border: '1px solid var(--color-border)', color: 'var(--color-warning)', fontWeight: 'bold' }}>
-                    🔒 Chế độ: Sinh viên đang xem kết quả học tập cá nhân
+            {message.text && (
+                <div style={{ padding: '10px', margin: '10px 0', backgroundColor: message.isError ? '#f8d7da' : '#d4edda', color: message.isError ? '#721c24' : '#155724', borderRadius: '4px' }}>
+                    {message.text}
                 </div>
             )}
 
-            <div style={{ display: 'flex', gap: 'var(--spacing-xl)', alignItems: 'flex-start' }}>
+            <hr />
 
-                {/* CỘT BÊN TRÁI: HIỂN THỊ BẢNG ĐIỂM */}
-                <div style={{ flex: 2, backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+            {/* ==================== VIEW ADMIN ==================== */}
+            {userRole === 'ADMIN' && (
+                <div>
+                    <h3>⚙️ Quyền hạn: Quản trị viên (Admin)</h3>
+                    <div style={{ display: 'flex', gap: '40px', marginTop: '20px' }}>
+                        {/* Form mở cổng */}
+                        <form onSubmit={handleCreatePeriod} style={{ width: '300px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <h4>⏰ Thiết lập lịch đăng ký mới</h4>
+                            <input type="text" placeholder="Học kỳ (VD: HK1-2026)" value={periodForm.semester} onChange={e => setPeriodForm({...periodForm, semester: e.target.value})} required style={{ padding: '8px' }} />
+                            <label>Thời gian bắt đầu:</label>
+                            <input type="datetime-local" value={periodForm.startTime} onChange={e => setPeriodForm({...periodForm, startTime: e.target.value})} required style={{ padding: '8px' }} />
+                            <label>Thời gian kết thúc:</label>
+                            <input type="datetime-local" value={periodForm.endTime} onChange={e => setPeriodForm({...periodForm, endTime: e.target.value})} required style={{ padding: '8px' }} />
+                            <button type="submit" style={{ padding: '10px', backgroundColor: '#28a745', color: '#fff', border: 'none', cursor: 'pointer' }}>Kích Hoạt Mở Cổng</button>
+                        </form>
 
-                    {/* CHẾ ĐỘ 1: XEM 1 SINH VIÊN CỤ THỂ */}
-                    {summary && (
-                        <div>
-                            <h3 style={{ marginTop: 0, marginBottom: 'var(--spacing-lg)', color: 'var(--color-warning)' }}>📋 Kết Quả Tích Lũy Cá Nhân</h3>
-                            <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-xl)' }}>
-                                <div style={{ flex: 1, backgroundColor: 'var(--color-primary)', padding: 'var(--spacing-lg)', borderRadius: '6px', textAlign: 'center' }}>
-                                    <span style={{ fontSize: '13px', opacity: 0.9 }}>Tín Chỉ Tích Lũy</span>
-                                    <h2 style={{ margin: '5px 0 0 0', fontSize: 'var(--font-title)' }}>{summary.totalCredits}</h2>
-                                </div>
-                                <div style={{ flex: 1, backgroundColor: 'var(--color-success)', padding: 'var(--spacing-lg)', borderRadius: '6px', textAlign: 'center' }}>
-                                    <span style={{ fontSize: '13px', opacity: 0.9 }}>GPA Hệ 10</span>
-                                    <h2 style={{ margin: '5px 0 0 0', fontSize: 'var(--font-title)' }}>{summary.gpaSystem10}</h2>
-                                </div>
-                                <div style={{ flex: 1, backgroundColor: 'var(--color-warning)', padding: 'var(--spacing-lg)', borderRadius: '6px', textAlign: 'center', color: '#000' }}>
-                                    <span style={{ fontSize: '13px', fontWeight: 'bold' }}>GPA Hệ 4</span>
-                                    <h2 style={{ margin: '5px 0 0 0', fontSize: 'var(--font-title)' }}>{summary.gpaSystem4}</h2>
-                                </div>
-                            </div>
-                            {/* ... (Render table summary.details như cũ) ... */}
+                        {/* Bảng thống kê số lượng */}
+                        <div style={{ flex: 1 }}>
+                            <h4>📊 Thống kê lượng sinh viên đăng ký theo lớp học phần</h4>
+                            <table border="1" cellPadding="8" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                <thead style={{ backgroundColor: '#f2f2f2' }}>
+                                <tr>
+                                    <th>Mã Lớp Học Phần</th>
+                                    <th>Tên Môn Học</th>
+                                    <th>Giảng Viên</th>
+                                    <th>Số SV Đăng Ký</th>
+                                    <th>Học Kỳ</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {stats.map((stat, i) => (
+                                    <tr key={i}>
+                                        <td>{stat.courseClassCode}</td>
+                                        <td>{stat.subjectName}</td>
+                                        <td>{stat.teacherName}</td>
+                                        <td style={{ fontWeight: 'bold', color: '#0056b3' }}>{stat.registeredStudents} SV</td>
+                                        <td>{stat.semester}</td>
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
                         </div>
-                    )}
+                    </div>
+                </div>
+            )}
 
-                    {/* CHẾ ĐỘ 2: XEM TOÀN TRƯỜNG (KHI ADMIN/TEACHER CHƯA CHỌN SV NÀO) */}
-                    {!summary && canViewAll && (
-                        <div>
-                            <h3 style={{ marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>🌍 Bảng Điểm Toàn Hệ Thống</h3>
-                            {loading ? <p>Đang tải dữ liệu...</p> : (
-                                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 'var(--spacing-sm)' }}>
+            {/* ==================== VIEW TEACHER ==================== */}
+            {userRole === 'TEACHER' && (
+                <div>
+                    <h3>💼 Quyền hạn: Giảng viên</h3>
+                    <h4>📅 Lịch dạy và quản lý danh sách lớp của bạn</h4>
+                    <div style={{ display: 'flex', gap: '20px' }}>
+                        <ul style={{ width: '250px', listStyle: 'none', padding: 0 }}>
+                            {teacherClasses.map(c => (
+                                <li key={c.id} onClick={() => viewClassStudents(c.id)} style={{ padding: '10px', backgroundColor: selectedClassId === c.id ? '#007bff' : '#f8f9fa', color: selectedClassId === c.id ? '#fff' : '#000', margin: '5px 0', cursor: 'pointer', borderRadius: '4px' }}>
+                                    {c.code} - {c.semester}
+                                </li>
+                            ))}
+                        </ul>
+
+                        {selectedClassId && (
+                            <div style={{ flex: 1 }}>
+                                <h4>👥 Danh sách sinh viên thuộc lớp học phần này</h4>
+                                <table border="1" cellPadding="8" style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
-                                    <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>Sinh Viên</th>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>Môn Học</th>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>Lớp HP</th>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>Điểm Tổng</th>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>Điểm Chữ</th>
+                                    <tr>
+                                        <th>Mã Sinh Viên</th>
+                                        <th>Họ Và Tên</th>
+                                        <th>Giới Tính</th>
+                                        <th>Số Điện Thoại</th>
                                     </tr>
                                     </thead>
                                     <tbody>
-                                    {allGrades.map((g, index) => (
-                                        <tr key={index} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                            <td style={{ padding: 'var(--spacing-md)' }}><b>{g.studentName}</b><br/><span style={{fontSize: '12px', color: 'var(--text-muted)'}}>{g.studentCode}</span></td>
-                                            <td style={{ padding: 'var(--spacing-md)' }}>{g.subjectName}</td>
-                                            <td style={{ padding: 'var(--spacing-md)', color: 'var(--color-warning)' }}>{g.courseClassCode}</td>
-                                            <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold' }}>{g.overallGrade}</td>
-                                            <td style={{ padding: 'var(--spacing-md)', color: g.letterGrade === 'F' ? 'var(--color-danger)' : 'var(--color-success)', fontWeight: 'bold' }}>{g.letterGrade}</td>
+                                    {classStudents.map((sv, i) => (
+                                        <tr key={i}>
+                                            <td>{sv.studentCode}</td>
+                                            <td>{sv.firstName} {sv.lastName}</td>
+                                            <td>{sv.gender}</td>
+                                            <td>{sv.phoneNumber}</td>
                                         </tr>
                                     ))}
                                     </tbody>
                                 </table>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                {/* CỘT BÊN PHẢI: FORM NHẬP ĐIỂM (CHỈ TEACHER) */}
-                {isTeacher && (
-                    <div style={{ flex: 1, backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                        <h3>✍️ Nhập Điểm Thành Phần</h3>
-                        {inputError && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-sm)' }}>{inputError}</div>}
-
-                        {!selectedStudent ? (
-                            <div style={{ color: 'var(--color-warning)', fontSize: '14px' }}>
-                                ⚠️ Vui lòng chọn một sinh viên ở Menu bên trên để kích hoạt Form nhập điểm.
                             </div>
-                        ) : (
-                            <form onSubmit={handleInputGrade}>
-                                <div style={{ marginBottom: 'var(--spacing-md)' }}>
-                                    <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontWeight: 'bold' }}>ID Lớp Học Phần:</label>
-                                    <input type="number" placeholder="Ví dụ: 2" value={courseClassId} onChange={(e) => setCourseClassId(e.target.value)} style={inputStyle} />
-                                </div>
-                                <div style={{ marginBottom: 'var(--spacing-md)' }}>
-                                    <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)' }}>Điểm Chuyên Cần:</label>
-                                    <input type="number" step="0.1" min="0" max="10" value={attendance} onChange={(e) => setAttendance(e.target.value)} style={inputStyle} />
-                                </div>
-                                <div style={{ marginBottom: 'var(--spacing-md)' }}>
-                                    <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)' }}>Điểm Giữa Kỳ:</label>
-                                    <input type="number" step="0.1" min="0" max="10" value={midterm} onChange={(e) => setMidterm(e.target.value)} style={inputStyle} />
-                                </div>
-                                <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                                    <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)' }}>Điểm Cuối Kỳ:</label>
-                                    <input type="number" step="0.1" min="0" max="10" value={finalGrade} onChange={(e) => setFinalGrade(e.target.value)} style={inputStyle} />
-                                </div>
-                                <button type="submit" style={{ width: '100%', padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Lưu & Xác Nhận Điểm</button>
-                            </form>
                         )}
                     </div>
-                )}
-            </div>
+                </div>
+            )}
+
+            {/* ==================== VIEW STUDENT ==================== */}
+            {userRole === 'STUDENT' && (
+                <div>
+                    <h3>🎓 Phân hệ: Sinh viên đăng ký tín chỉ</h3>
+                    <h4>🏫 Danh sách môn học / lớp học phần đang mở</h4>
+                    <table border="1" cellPadding="10" style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+                        <thead>
+                        <tr>
+                            <th>Mã Lớp Học Phần</th>
+                            <th>Tên Môn Học</th>
+                            <th>Số Tín Chỉ</th>
+                            <th>Giảng Viên Đứng Lớp</th>
+                            <th>Học Kỳ</th>
+                            <th>Thao Tác</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {availableClasses.map(c => (
+                            <tr key={c.id}>
+                                <td>{c.code}</td>
+                                <td>{c.subject.name}</td>
+                                <td>{c.subject.credits} tín</td>
+                                <td>{c.teacher.lastName} {c.teacher.firstName}</td>
+                                <td>{c.semester}</td>
+                                <td>
+                                    <button onClick={() => handleEnroll(c.id)} style={{ padding: '6px 12px', backgroundColor: '#007bff', color: '#fff', border: 'none', marginRight: '8px', cursor: 'pointer' }}>Đăng Ký</button>
+                                    <button onClick={() => handleUnenroll(c.id)} style={{ padding: '6px 12px', backgroundColor: '#dc3545', color: '#fff', border: 'none', cursor: 'pointer' }}>Hủy Môn</button>
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
     );
 }
-
-const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
-export default GradePage;
 </file>
 
-<file path="student-management-ui/src/pages/LoginPage.jsx">
-import React, { useState } from 'react';
-import axiosClient from '../api/axiosClient';
+<file path="student-management-ui/src/pages/RegistrationPage.jsx">
+import React, { useState, useEffect } from 'react';
 
-function LoginPage() {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
+export default function RegistrationPage() {
+    // Tự động lấy thông tin từ localStorage đồng bộ với hệ thống cũ của bạn
+    const token = localStorage.getItem('token');
+    const username = localStorage.getItem('username') || '';
+    const role = localStorage.getItem('roles') || '';
 
-    // 🔥 Các State quản lý trạng thái ẩn/hiển thị của từng ô mật khẩu độc lập
-    const [showPassword, setShowPassword] = useState(false);
-    const [showNewPassword, setShowNewPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    // Lấy studentId và teacherId đã được đồng bộ từ Backend ở các phiên trước
+    const studentId = localStorage.getItem('studentId') || '';
+    const teacherId = localStorage.getItem('teacherId') || '';
 
-    const [isFirstLoginMode, setIsFirstLoginMode] = useState(false);
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    // State dùng chung để quản lý trạng thái hiển thị
+    const [message, setMessage] = useState({ text: '', isError: false });
 
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
+    // --- STATE PHÂN HỆ ADMIN ---
+    const [periodForm, setPeriodForm] = useState({ semester: '', startTime: '', endTime: '' });
+    const [stats, setStats] = useState([]);
 
+    // --- STATE PHÂN HỆ TEACHER ---
+    const [teacherClasses, setTeacherClasses] = useState([]);
+    const [selectedClassId, setSelectedClassId] = useState(null);
+    const [classStudents, setClassStudents] = useState([]);
+
+    // --- STATE PHÂN HỆ STUDENT ---
+    const [availableClasses, setAvailableClasses] = useState([]);
+
+    const getAuthHeaders = () => ({
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    });
+
+    useEffect(() => {
+        if (role.includes('ADMIN')) loadAdminStats();
+        if (role.includes('TEACHER')) loadTeacherSchedule();
+        if (role.includes('STUDENT')) loadAvailableClasses();
+    }, [role]);
+
+    const showMessage = (text, isError = false) => {
+        setMessage({ text, isError });
+        setTimeout(() => setMessage({ text: '', isError: false }), 4000);
+    };
+
+    // ==================== 🛠️ NGHIỆP VỤ ADMIN ====================
+    const loadAdminStats = async () => {
         try {
-            const data = await axiosClient.post('/auth/login', { username, password });
+            const res = await fetch('http://localhost:8081/registration/statistics', { headers: getAuthHeaders() });
+            const data = await res.json();
+            if (data.code === 1000) setStats(data.result);
+        } catch (err) { showMessage('Không thể tải số liệu thống kê lớp học phần', true); }
+    };
 
-            if (data.isFirstLogin) {
-                setIsFirstLoginMode(true);
-                alert("Hệ thống phát hiện đây là lần đầu bạn đăng nhập. Bạn bắt buộc phải đổi mật khẩu để bảo mật tài khoản!");
+    const handleCreatePeriod = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await fetch('http://localhost:8081/registration/periods', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(periodForm)
+            });
+            const data = await res.json();
+            if (data.code === 1000) {
+                showMessage('Mở cổng đăng ký tín chỉ thành công!');
+                setPeriodForm({ semester: '', startTime: '', endTime: '' });
             } else {
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('username', data.username);
-                localStorage.setItem('roles', data.roles);
-                localStorage.setItem('userId', data.userId);
-
-                if (data.studentId) localStorage.setItem('studentId', data.studentId);
-                if (data.teacherId) localStorage.setItem('teacherId', data.teacherId);
-
-                window.location.href = '/';
+                showMessage(data.message, true);
             }
-        } catch (err) {
-            setError(err || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
-        } finally {
-            setLoading(false);
-        }
+        } catch (err) { showMessage('Lỗi kết nối Server quản lý lịch', true); }
     };
 
-    const handleChangePassword = async (e) => {
-        e.preventDefault();
-        setError('');
-
-        if (newPassword.length < 6) {
-            setError('Mật khẩu mới phải từ 6 ký tự trở lên!');
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            setError('Mật khẩu xác nhận không trùng khớp!');
-            return;
-        }
-
+    // ==================== 💼 NGHIỆP VỤ TEACHER ====================
+    const loadTeacherSchedule = async () => {
+        if (!teacherId) return;
         try {
-            setLoading(true);
-            await axiosClient.post('/auth/change-password', { username, newPassword });
-            alert('Đổi mật khẩu thành công mượt mà! Vui lòng đăng nhập lại bằng mật khẩu mới của bạn.');
-            setIsFirstLoginMode(false);
-            setPassword('');
-            setNewPassword('');
-            setConfirmPassword('');
-            // Reset trạng thái mắt về ẩn
-            setShowPassword(false);
-            setShowNewPassword(false);
-            setShowConfirmPassword(false);
-        } catch (err) {
-            setError(err || 'Có lỗi phát sinh khi đổi mật khẩu.');
-        } finally {
-            setLoading(false);
-        }
+            const res = await fetch(`http://localhost:8081/registration/teacher/${teacherId}/classes`, { headers: getAuthHeaders() });
+            const data = await res.json();
+            if (data.code === 1000) setTeacherClasses(data.result);
+        } catch (err) { showMessage('Không thể tải lịch dạy của giảng viên', true); }
+    };
+
+    const viewClassStudents = async (classId) => {
+        setSelectedClassId(classId);
+        try {
+            const res = await fetch(`http://localhost:8081/registration/classes/${classId}/students`, { headers: getAuthHeaders() });
+            const data = await res.json();
+            if (data.code === 1000) setClassStudents(data.result);
+        } catch (err) { showMessage('Không thể tải danh sách lớp học phần', true); }
+    };
+
+    // ==================== 🎓 NGHIỆP VỤ STUDENT ====================
+    const loadAvailableClasses = async () => {
+        try {
+            // Lấy danh sách lớp học phần mở tạm thời từ endpoint tổng hợp hoặc tùy biến riêng theo nghiệp vụ
+            const res = await fetch('http://localhost:8081/grades', { headers: getAuthHeaders() });
+            // Cấu hình danh sách hiển thị mẫu cho sinh viên thực hiện test chức năng
+            setAvailableClasses([
+                { id: 1, code: 'LHP_CNPM_01', subject: { name: 'Công nghệ phần mềm', credits: 3 }, teacher: { firstName: 'Anh', lastName: 'Nguyễn Đình' }, semester: 'HK1-2026' },
+                { id: 2, code: 'LHP_CSDL_02', subject: { name: 'Cơ sở dữ liệu', credits: 3 }, teacher: { firstName: 'An', lastName: 'Vương Đức' }, semester: 'HK1-2026' }
+            ]);
+        } catch (err) { console.error('Lỗi tải danh sách lớp mở: ', err); }
+    };
+
+    const handleEnroll = async (courseClassId) => {
+        if (!studentId) { showMessage('Định danh sinh viên không hợp lệ!', true); return; }
+        try {
+            const res = await fetch(`http://localhost:8081/registration/enroll?studentId=${studentId}&courseClassId=${courseClassId}`, {
+                method: 'POST',
+                headers: getAuthHeaders()
+            });
+            const data = await res.json();
+            if (data.code === 1000) {
+                showMessage('Đăng ký lớp học phần thành công!');
+                loadAdminStats();
+            } else {
+                showMessage(data.message, true);
+            }
+        } catch (err) { showMessage('Cổng đăng ký đang đóng hoặc đã hết hạn!', true); }
+    };
+
+    const handleUnenroll = async (courseClassId) => {
+        if (!studentId) return;
+        try {
+            const res = await fetch(`http://localhost:8081/registration/unenroll?studentId=${studentId}&courseClassId=${courseClassId}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            const data = await res.json();
+            if (data.code === 1000) {
+                showMessage('Hủy đăng ký môn học thành công!');
+                loadAdminStats();
+            } else {
+                showMessage(data.message, true);
+            }
+        } catch (err) { showMessage('Không thể hủy (Đã quá hạn hoặc lớp học phần đã nhập điểm)', true); }
     };
 
     return (
-        <div style={{ maxWidth: '400px', margin: '100px auto', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--text-main)' }}>
+        <div style={{ padding: 'var(--spacing-md)', color: 'var(--text-main)' }}>
+            <h2 style={{ color: 'var(--text-cyan)', marginBottom: 'var(--spacing-xl)' }}>⏰ HỆ THỐNG ĐĂNG KÝ TÍN CHỈ REALTIME</h2>
 
-            {/* GIAO DIỆN 1: FORM BẮT BUỘC ĐỔI MẬT KHẨU LẦN ĐẦU */}
-            {isFirstLoginMode ? (
-                <form onSubmit={handleChangePassword}>
-                    <h2 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)', color: 'var(--color-warning)' }}>🔒 ĐỔI MẬT KHẨU LẦN ĐẦU</h2>
-                    {error && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>{error}</div>}
-
-                    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                        <label style={{ display: 'block', marginBottom: '4px' }}>Mật khẩu mới:</label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                type={showNewPassword ? "text" : "password"}
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                required
-                                style={inputStyle}
-                            />
-                            <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} style={eyeButtonStyle}>
-                                {showNewPassword ? '👁️' : '🙈'}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                        <label style={{ display: 'block', marginBottom: '4px' }}>Xác nhận mật khẩu mới:</label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                type={showConfirmPassword ? "text" : "password"}
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                required
-                                style={inputStyle}
-                            />
-                            <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={eyeButtonStyle}>
-                                {showConfirmPassword ? '👁️' : '🙈'}
-                            </button>
-                        </div>
-                    </div>
-
-                    <button type="submit" disabled={loading} style={buttonStyle}>
-                        {loading ? 'Đang xử lý...' : 'Xác Nhận Thay Đổi'}
-                    </button>
-                </form>
-            ) : (
-                /* GIAO DIỆN 2: FORM ĐĂNG NHẬP MẶC ĐỊNH */
-                <form onSubmit={handleLogin}>
-                    <h2 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)', color: 'var(--text-cyan)' }}>ĐĂNG NHẬP HỆ THỐNG</h2>
-                    {error && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>{error}</div>}
-
-                    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Tên đăng nhập (Mã số):</label>
-                        <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required style={inputStyleForUsername} />
-                    </div>
-
-                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Mật khẩu:</label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                type={showPassword ? "text" : "password"}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                style={inputStyle}
-                            />
-                            <button type="button" onClick={() => setShowPassword(!showPassword)} style={eyeButtonStyle}>
-                                {showPassword ? '👁️' : '🙈'}
-                            </button>
-                        </div>
-                    </div>
-
-                    <button type="submit" disabled={loading} style={buttonStyle}>
-                        {loading ? 'Đang xác thực...' : 'Đăng Nhập'}
-                    </button>
-                </form>
-            )}
-        </div>
-    );
-}
-
-// 🎨 Cấu hình Style dùng chung cho các trường ô nhập Mật khẩu (Có chừa khoảng trống phải 40px cho nút mắt)
-const inputStyle = {
-    width: '100%',
-    padding: 'var(--spacing-sm)',
-    paddingRight: '40px', // 🔥 Chống tràn đè chữ lên icon mắt
-    borderRadius: '4px',
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-surface-hover)',
-    color: 'var(--text-main)',
-    boxSizing: 'border-box',
-    outline: 'none'
-};
-
-// Style riêng cho Username không cần căn lề phải chừa khoảng trống nút mắt
-const inputStyleForUsername = {
-    width: '100%',
-    padding: 'var(--spacing-sm)',
-    borderRadius: '4px',
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-surface-hover)',
-    color: 'var(--text-main)',
-    boxSizing: 'border-box',
-    outline: 'none'
-};
-
-// 🎨 Cấu hình định vị nút Icon Mắt tuyệt đối nằm đè gọn gàng bên phải ô Input
-const eyeButtonStyle = {
-    position: 'absolute',
-    right: '10px',
-    top: '50%',
-    transform: 'translateY(-50%)',
-    border: 'none',
-    backgroundColor: 'transparent',
-    cursor: 'pointer',
-    fontSize: '16px',
-    display: 'flex',
-    alignItems: 'center',
-    padding: 0,
-    userSelect: 'none'
-};
-
-const buttonStyle = { width: '100%', padding: 'var(--spacing-sm)', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' };
-
-export default LoginPage;
-</file>
-
-<file path="student-management-ui/src/pages/StudentPage.jsx">
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
-
-function StudentPage() {
-    const [students, setStudents] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-
-    const userRole = localStorage.getItem('roles') || '';
-    const isAdmin = userRole.includes('ADMIN');
-
-    const [includeInactive, setIncludeInactive] = useState(false);
-    const [showModal, setShowModal] = useState(false);
-    const [modalError, setModalError] = useState('');
-
-    const [studentCode, setStudentCode] = useState('');
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [dateOfBirth, setDateOfBirth] = useState('');
-    const [gender, setGender] = useState('Nam');
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [classId, setClassId] = useState('');
-
-    useEffect(() => {
-        fetchStudents();
-    }, [includeInactive]);
-
-    const fetchStudents = async () => {
-        try {
-            setLoading(true);
-            const data = await axiosClient.get(`/students?includeInactive=${includeInactive}`);
-            setStudents(data);
-        } catch (err) {
-            setError(err || 'Không thể tải danh sách sinh viên!');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleCreateStudent = async (e) => {
-        e.preventDefault();
-        setModalError('');
-        const payload = { studentCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId) };
-        try {
-            await axiosClient.post('/students', payload);
-            alert(`Cấp tài khoản thành công!\nTài khoản: ${studentCode}\nMật khẩu mặc định: password1234`);
-            setShowModal(false);
-            resetForm();
-            fetchStudents();
-        } catch (err) {
-            setModalError(err || 'Có lỗi xảy ra khi tạo sinh viên!');
-        }
-    };
-
-    const handleDeleteStudent = async (id, code, name) => {
-        if (window.confirm(`Bạn có chắc chắn muốn khóa sinh viên [${code} - ${name}] không?`)) {
-            try {
-                await axiosClient.delete(`/students/${id}`);
-                alert('Đã thực hiện khóa mềm hồ sơ sinh viên thành công!');
-                fetchStudents();
-            } catch (err) {
-                alert(err || 'Không thể khóa sinh viên này!');
-            }
-        }
-    };
-
-    const resetForm = () => {
-        setStudentCode(''); setFirstName(''); setLastName(''); setDateOfBirth(''); setGender('Nam'); setPhoneNumber(''); setClassId(''); setModalError('');
-    };
-
-    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang tải dữ liệu...</div>;
-    if (error) return <div style={{ color: 'var(--color-danger)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>{error}</div>;
-
-    return (
-        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
-                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>QUẢN LÝ DANH SÁCH SINH VIÊN</h2>
-
-                <div style={{ display: 'flex', gap: 'var(--spacing-lg)', alignItems: 'center' }}>
-                    {isAdmin && (
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', cursor: 'pointer', backgroundColor: 'var(--color-surface-hover)', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
-                            <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} style={{ cursor: 'pointer' }} />
-                            <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-warning)' }}>Hiển thị cả SV đã khóa</span>
-                        </label>
-                    )}
-                    {isAdmin && (
-                        <button onClick={() => setShowModal(true)} style={{ padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-success)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                            + Cấp Tài Khoản Sinh Viên
-                        </button>
-                    )}
+            {message.text && (
+                <div style={{ padding: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)', backgroundColor: message.isError ? 'var(--color-danger)' : 'var(--color-primary)', color: 'var(--text-main)', borderRadius: '4px', fontWeight: 'bold' }}>
+                    {message.text}
                 </div>
-            </div>
+            )}
 
-            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-                <thead>
-                <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Trạng thái</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Mã Sinh Viên</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Đệm</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Tên</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Lớp</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Email Hệ Thống</th>
-                    {isAdmin && <th style={{ padding: 'var(--spacing-md)' }}>Hành Động</th>}
-                </tr>
-                </thead>
-                <tbody>
-                {students.map((student) => (
-                    <tr key={student.id} style={{ borderBottom: '1px solid var(--color-border)', opacity: student.isActive ? 1 : 0.55 }}>
-                        <td style={{ padding: 'var(--spacing-md)' }}>
-                            {student.isActive ? <span style={{ color: 'var(--color-success)', fontSize: '12px', fontWeight: 'bold' }}>● Đang học</span> : <span style={{ color: 'var(--color-danger)', fontSize: '12px', fontWeight: 'bold', backgroundColor: 'rgba(220,53,69,0.15)', padding: '2px 6px', borderRadius: '4px' }}>🔒 Đã khóa</span>}
-                        </td>
-                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{student.studentCode}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{student.lastName}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{student.firstName}</td>
-                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)' }}>{student.className}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{student.gender}</td>
-                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-muted)' }}>{student.email}</td>
-                        {isAdmin && (
-                            <td style={{ padding: 'var(--spacing-md)' }}>
-                                {student.isActive ? (
-                                    <button onClick={() => handleDeleteStudent(student.id, student.studentCode, student.firstName)} style={{ padding: 'var(--spacing-xs) var(--spacing-sm)', backgroundColor: 'var(--color-danger)', color: 'var(--text-main)', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Khóa</button>
-                                ) : <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Đã khóa</span>}
-                            </td>
+            {/* ==================== GIAO DIỆN ADMIN ==================== */}
+            {role.includes('ADMIN') && (
+                <div>
+                    <h3 style={{ color: 'var(--text-muted)', marginBottom: 'var(--spacing-lg)' }}>⚙️ Bảng Điều Khiển Quản Trị Viên (Admin)</h3>
+                    <div style={{ display: 'flex', gap: 'var(--spacing-xl)', flexWrap: 'wrap' }}>
+
+                        <form onSubmit={handleCreatePeriod} style={{ flex: '1', minWidth: '300px', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                            <h4>📅 Thiết lập lịch mở cổng đăng ký</h4>
+                            <input type="text" placeholder="Học kỳ (Ví dụ: HK1-2026)" value={periodForm.semester} onChange={e => setPeriodForm({...periodForm, semester: e.target.value})} required style={{ padding: '10px', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px' }} />
+                            <label>Thời gian mở cổng:</label>
+                            <input type="datetime-local" value={periodForm.startTime} onChange={e => setPeriodForm({...periodForm, startTime: e.target.value})} required style={{ padding: '10px', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px' }} />
+                            <label>Thời gian đóng cổng:</label>
+                            <input type="datetime-local" value={periodForm.endTime} onChange={e => setPeriodForm({...periodForm, endTime: e.target.value})} required style={{ padding: '10px', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px' }} />
+                            <button type="submit" style={{ padding: '12px', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Kích Hoạt Mở Cổng</button>
+                        </form>
+
+                        <div style={{ flex: '2', minWidth: '400px', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                            <h4>📊 Thống kê lượng sinh viên đăng ký lớp học phần</h4>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 'var(--spacing-md)', textAlign: 'left' }}>
+                                <thead style={{ borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)' }}>
+                                <tr>
+                                    <th style={{ padding: '10px' }}>Mã Lớp Học Phần</th>
+                                    <th style={{ padding: '10px' }}>Tên Môn Học</th>
+                                    <th style={{ padding: '10px' }}>Giảng Viên</th>
+                                    <th style={{ padding: '10px' }}>Sĩ Số Hiện Tại</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {stats.map((stat, i) => (
+                                    <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                        <td style={{ padding: '10px' }}>{stat.courseClassCode}</td>
+                                        <td style={{ padding: '10px' }}>{stat.subjectName}</td>
+                                        <td style={{ padding: '10px' }}>{stat.teacherName}</td>
+                                        <td style={{ padding: '10px', fontWeight: 'bold', color: 'var(--text-cyan)' }}>{stat.registeredStudents} SV</td>
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ==================== GIAO DIỆN TEACHER ==================== */}
+            {role.includes('TEACHER') && !role.includes('ADMIN') && (
+                <div>
+                    <h3 style={{ color: 'var(--text-muted)' }}>💼 Phân hệ: Giảng Viên Hướng Dẫn</h3>
+                    <p style={{ marginBottom: 'var(--spacing-lg)' }}>Chọn lớp học phần để xem danh sách sinh viên đăng ký tín chỉ:</p>
+                    <div style={{ display: 'flex', gap: 'var(--spacing-xl)' }}>
+                        <div style={{ width: '250px', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                            {teacherClasses.map(c => (
+                                <button key={c.id} onClick={() => viewClassStudents(c.id)} style={{ padding: 'var(--spacing-md)', backgroundColor: selectedClassId === c.id ? 'var(--color-primary)' : 'var(--color-surface)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px', textAlign: 'left', cursor: 'pointer', fontWeight: 'bold' }}>
+                                    {c.code} ({c.semester})
+                                </button>
+                            ))}
+                        </div>
+
+                        {selectedClassId && (
+                            <div style={{ flex: 1, padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                                <h4>👥 Danh sách sinh viên thuộc lớp học phần</h4>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 'var(--spacing-md)', textAlign: 'left' }}>
+                                    <thead style={{ borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)' }}>
+                                    <tr>
+                                        <th style={{ padding: '10px' }}>Mã Sinh Viên</th>
+                                        <th style={{ padding: '10px' }}>Họ Và Tên</th>
+                                        <th style={{ padding: '10px' }}>Giới Tính</th>
+                                        <th style={{ padding: '10px' }}>Số Điện Thoại</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {classStudents.map((sv, i) => (
+                                        <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                            <td style={{ padding: '10px' }}>{sv.studentCode}</td>
+                                            <td style={{ padding: '10px' }}>{sv.firstName} {sv.lastName}</td>
+                                            <td style={{ padding: '10px' }}>{sv.gender}</td>
+                                            <td style={{ padding: '10px' }}>{sv.phoneNumber}</td>
+                                        </tr>
+                                    ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
-                    </tr>
-                ))}
-                </tbody>
-            </table>
-
-            {showModal && (
-                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 }}>
-                    <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--spacing-xl)', borderRadius: '8px', width: '550px' }}>
-                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>✍️ KHỞI TẠO HỒ SƠ & TỰ ĐỘNG CẤP TK</h3>
-                        {modalError && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)' }}>{modalError}</div>}
-                        <form onSubmit={handleCreateStudent}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Mã Sinh Viên (Tài khoản):</label><input type="text" placeholder="B21CNPM001" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>ID Lớp Hành Chính:</label><input type="number" placeholder="ID" value={classId} onChange={(e) => setClassId(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Họ Và Tên Đệm:</label><input type="text" placeholder="Nguyễn Đình" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Tên Sinh Viên:</label><input type="text" placeholder="Anh" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Giới Tính:</label><select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
-                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px' }}>Số Điện Thoại:</label><input type="text" placeholder="0987654321" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
-                            </div>
-                            <div style={{ backgroundColor: 'var(--color-surface-hover)', padding: '10px', borderRadius: '4px', marginBottom: 'var(--spacing-xl)', fontSize: '13px', color: 'var(--color-warning)' }}>
-                                💡 Mật khẩu mặc định tự tạo hệ thống là: <b>password1234</b>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
-                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Hủy Bỏ</button>
-                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Khởi Tạo & Cấp TK</button>
-                            </div>
-                        </form>
                     </div>
+                </div>
+            )}
+
+            {/* ==================== GIAO DIỆN STUDENT ==================== */}
+            {role.includes('STUDENT') && !role.includes('ADMIN') && (
+                <div style={{ padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                    <h3 style={{ color: 'var(--text-cyan)', marginBottom: 'var(--spacing-md)' }}>🎓 Danh Sách Môn Học Đang Mở Đăng Ký</h3>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead style={{ borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)' }}>
+                        <tr>
+                            <th style={{ padding: '12px' }}>Mã Lớp Học Phần</th>
+                            <th style={{ padding: '12px' }}>Tên Môn Học</th>
+                            <th style={{ padding: '12px' }}>Số Tín Chỉ</th>
+                            <th style={{ padding: '12px' }}>Giảng Viên</th>
+                            <th style={{ padding: '12px' }}>Thao Tác</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {availableClasses.map(c => (
+                            <tr key={c.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                <td style={{ padding: '12px' }}>{c.code}</td>
+                                <td style={{ padding: '12px' }}>{c.subject.name}</td>
+                                <td style={{ padding: '12px' }}>{c.subject.credits} tín</td>
+                                <td style={{ padding: '12px' }}>{c.teacher.lastName} {c.teacher.firstName}</td>
+                                <td style={{ padding: '12px' }}>
+                                    <button onClick={() => handleEnroll(c.id)} style={{ padding: '6px 14px', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '8px', fontWeight: 'bold' }}>Đăng ký</button>
+                                    <button onClick={() => handleUnenroll(c.id)} style={{ padding: '6px 14px', backgroundColor: 'var(--color-danger)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Hủy môn</button>
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
                 </div>
             )}
         </div>
     );
 }
-
-const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
-export default StudentPage;
-</file>
-
-<file path="student-management-ui/src/pages/TeacherPage.jsx">
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
-
-function TeacherPage() {
-    const [teachers, setTeachers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
-    const [modalError, setModalError] = useState('');
-
-    const [teacherCode, setTeacherCode] = useState('');
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [dateOfBirth, setDateOfBirth] = useState('');
-    const [gender, setGender] = useState('Nam');
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [departmentId, setDepartmentId] = useState('');
-
-    useEffect(() => {
-        fetchTeachers();
-    }, []);
-
-    const fetchTeachers = async () => {
-        try {
-            setLoading(true);
-            const data = await axiosClient.get('/teachers');
-            setTeachers(data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleCreateTeacher = async (e) => {
-        e.preventDefault();
-        setModalError('');
-        const payload = { teacherCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, departmentId: Number(departmentId) };
-        try {
-            await axiosClient.post('/teachers', payload);
-            alert(`Cấp tài khoản Giảng viên thành công!\nTài khoản: ${teacherCode}\nMật khẩu: password1234`);
-            setShowModal(false);
-            resetForm();
-            fetchTeachers();
-        } catch (err) {
-            setModalError(err || 'Lỗi khởi tạo hồ sơ giảng viên.');
-        }
-    };
-
-    const resetForm = () => {
-        setTeacherCode(''); setFirstName(''); setLastName(''); setDateOfBirth(''); setGender('Nam'); setPhoneNumber(''); setDepartmentId(''); setModalError('');
-    };
-
-    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang tải danh sách giảng viên...</div>;
-
-    return (
-        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
-                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>QUẢN LÝ DANH SÁCH GIẢNG VIÊN</h2>
-                <button onClick={() => setShowModal(true)} style={{ padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-success)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                    + Cấp Tài Khoản Giảng Viên
-                </button>
-            </div>
-
-            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-                <thead>
-                <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Mã Giảng Viên</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Tên</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Khoa Chuyên Môn</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Email Giảng Dạy</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Số Điện Thoại</th>
-                </tr>
-                </thead>
-                <tbody>
-                {teachers.map((t) => (
-                    <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{t.teacherCode}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{t.lastName} {t.firstName}</td>
-                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)' }}>{t.departmentName}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{t.gender}</td>
-                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-muted)' }}>{t.email}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{t.phoneNumber || '-'}</td>
-                    </tr>
-                ))}
-                </tbody>
-            </table>
-
-            {showModal && (
-                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 }}>
-                    <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--spacing-xl)', borderRadius: '8px', width: '550px' }}>
-                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>✍️ THÊM MỚI HỒ SƠ GIẢNG VIÊN</h3>
-                        {modalError && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)' }}>{modalError}</div>}
-                        <form onSubmit={handleCreateTeacher}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Mã Giảng Viên:</label><input type="text" placeholder="GV2026_01" value={teacherCode} onChange={(e) => setTeacherCode(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>ID Khoa/Viện:</label><input type="number" placeholder="ID" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Họ Và Tên Đệm:</label><input type="text" placeholder="Trần Quốc" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Tên Giảng Viên:</label><input type="text" placeholder="Tuấn" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Giới Tính:</label><select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
-                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px' }}>Số Điện Thoại:</label><input type="text" placeholder="0912345678" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
-                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}>Hủy</button>
-                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}>Khởi Tạo & Cấp TK</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
-const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
-export default TeacherPage;
-</file>
-
-<file path="student-management-ui/vite.config.js">
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
-})
 </file>
 
 <file path=".gitattributes">
@@ -2208,168 +1816,76 @@ try {
 Write-Output "MVN_CMD=$MAVEN_HOME/bin/$MVN_CMD"
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/configuration/DatabaseInitializer.java">
-package com.dangdepzaivaio.StudentManagement.configuration;
-
-import com.dangdepzaivaio.StudentManagement.entity.Role;
-import com.dangdepzaivaio.StudentManagement.entity.User;
-import com.dangdepzaivaio.StudentManagement.repository.RoleRepository;
-import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
-import java.util.List;
-
-@Configuration
-@RequiredArgsConstructor
-@Slf4j
-public class DatabaseInitializer {
-
-    private final RoleRepository roleRepository;
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-
-    @Bean
-    ApplicationRunner initRolesAndResetPasswords() {
-        return args -> {
-            // 1. Giữ nguyên logic khởi tạo Role
-            if (roleRepository.findByName("ADMIN").isEmpty()) {
-                roleRepository.save(Role.builder().name("ADMIN").build());
-            }
-            if (roleRepository.findByName("TEACHER").isEmpty()) {
-                roleRepository.save(Role.builder().name("TEACHER").build());
-            }
-            if (roleRepository.findByName("STUDENT").isEmpty()) {
-                roleRepository.save(Role.builder().name("STUDENT").build());
-            }
-
-            // 2. 🔥 AUTO RESET: Lấy tất cả user ra và ép mật khẩu về đúng chữ "password1234" bằng lõi mã hóa của Java
-            List<User> users = userRepository.findAll();
-            for (User user : users) {
-                user.setPassword(passwordEncoder.encode("password1234"));
-                userRepository.save(user);
-            }
-        };
-    }
+<file path="package.json">
+{
+  "dependencies": {
+    "axios": "^1.17.0",
+    "react-router-dom": "^7.17.0"
+  }
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/configuration/SecurityConfig.java">
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/configuration/JwtAuthenticationFilter.java">
 package com.dangdepzaivaio.StudentManagement.configuration;
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import com.nimbusds.jwt.SignedJWT;
+import com.nimbusds.jose.crypto.MACVerifier;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
-@Configuration
-@EnableWebSecurity
-@EnableMethodSecurity
-@RequiredArgsConstructor
-public class SecurityConfig {
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    @Value("${jwt.signer-key}")
+    private String signerKey;
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
-        httpSecurity.cors(cors -> cors.configurationSource(corsConfigurationSource()));
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+        String authHeader = request.getHeader("Authorization");
 
-        httpSecurity.authorizeHttpRequests(request -> request
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/auth/login", "/auth/change-password").permitAll() // Mở công khai endpoint đổi pass lần đầu
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            try {
+                SignedJWT signedJWT = SignedJWT.parse(token);
+                MACVerifier verifier = new MACVerifier(signerKey.getBytes());
 
-                // 🔒 KHÓA CHẶT: Chỉ duy nhất ADMIN được quyền tạo mới, cập nhật, xóa bỏ các đối tượng (Học sinh, Giảng viên, Khoa, Lớp)
-                .requestMatchers(HttpMethod.POST, "/students/**", "/teachers/**", "/classes/**", "/departments/**", "/subjects/**", "/users/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/students/**", "/teachers/**", "/classes/**", "/departments/**", "/subjects/**", "/users/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/students/**", "/teachers/**", "/classes/**", "/departments/**", "/subjects/**", "/users/**").hasRole("ADMIN")
+                // Xác thực chữ ký mã hóa và kiểm tra thời hạn token
+                if (signedJWT.verify(verifier) && new Date().before(signedJWT.getJWTClaimsSet().getExpirationTime())) {
+                    String username = signedJWT.getJWTClaimsSet().getSubject();
+                    String scope = signedJWT.getJWTClaimsSet().getStringClaim("scope"); // Đọc chuỗi Roles từ Payload
 
-                // ADMIN và TEACHER được quyền gọi danh sách để xem
-                .requestMatchers(HttpMethod.GET, "/students/**", "/teachers/**", "/classes/**", "/departments/**", "/subjects/**").hasAnyRole("ADMIN", "TEACHER")
+                    // Chuyển đổi chuỗi role sang GrantedAuthority chuẩn Spring Security (Thêm tiền tố ROLE_)
+                    List<SimpleGrantedAuthority> authorities = Arrays.stream(scope.split(" "))
+                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                            .collect(Collectors.toList());
 
-                .requestMatchers(HttpMethod.POST, "/grades/**").hasRole("TEACHER")
-                .requestMatchers(HttpMethod.PUT, "/grades/**").hasRole("TEACHER")
-                .requestMatchers(HttpMethod.DELETE, "/grades/**").hasRole("TEACHER")
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(username, null, authorities);
 
-                // 2. Việc Xem điểm: ADMIN (để quản lý), TEACHER (để rà soát), STUDENT (để tự xem điểm mình) đều được phép
-                .requestMatchers(HttpMethod.GET, "/grades/**").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
+                    // Thiết lập thông tin xác thực vào ngữ cảnh Security
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
+            } catch (Exception e) {
+                SecurityContextHolder.clearContext();
+            }
+        }
 
-                .anyRequest().authenticated());
-
-        httpSecurity.csrf(AbstractHttpConfigurer::disable);
-        httpSecurity.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-
-        return httpSecurity.build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/AuthenticationController.java">
-package com.dangdepzaivaio.StudentManagement.controller;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.AuthenticationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.AuthenticationResponse;
-import com.dangdepzaivaio.StudentManagement.service.impl.AuthenticationService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import java.util.Map;
-
-@RestController
-@RequestMapping("/auth")
-@RequiredArgsConstructor
-public class AuthenticationController {
-
-    private final AuthenticationService authenticationService;
-
-    @PostMapping("/login")
-    public ApiResponse<AuthenticationResponse> login(@RequestBody AuthenticationRequest request) {
-        var result = authenticationService.authenticate(request);
-        return new ApiResponse<>(1000, "Đăng nhập hệ thống thành công!", result);
-    }
-
-    @PostMapping("/change-password")
-    public ApiResponse<String> changePassword(@RequestBody Map<String, String> request) {
-        String username = request.get("username");
-        String newPassword = request.get("newPassword");
-        authenticationService.changePasswordFirstLogin(username, newPassword);
-        return new ApiResponse<>(1000, "Đổi mật khẩu lần đầu thành công!", "Mật khẩu mới đã được áp dụng.");
+        filterChain.doFilter(request, response);
     }
 }
 </file>
@@ -2518,11 +2034,11 @@ package com.dangdepzaivaio.StudentManagement.controller;
 import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
 import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse;
 import com.dangdepzaivaio.StudentManagement.service.GradeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
 @RestController
@@ -2538,7 +2054,7 @@ public class GradeController {
     }
 
     @GetMapping("/student/{studentId}")
-    public ApiResponse<List<GradeResponse>> getGradesByStudent(@PathVariable Long studentId) {
+    public ApiResponse<List<GradeResponse>> getGradesByStudent(@PathVariable String studentId) { // 🔥 String
         return new ApiResponse<>(1000, "Lấy bảng điểm chi tiết của sinh viên thành công!", gradeService.getGradesByStudent(studentId));
     }
 
@@ -2557,14 +2073,70 @@ public class GradeController {
         gradeService.deleteGrade(id);
         return new ApiResponse<>(1000, "Xóa đầu điểm thành công!", "Đầu điểm có ID " + id + " đã bị loại bỏ hoàn toàn.");
     }
-    // ==================== ENDPOINT TỔNG HỢP HỌC TẬP & TÍNH GPA ====================
+
     @GetMapping("/student/{studentId}/summary")
-    public ApiResponse<com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse> getAcademicSummary(@PathVariable Long studentId) {
+    public ApiResponse<StudentAcademicSummaryResponse> getAcademicSummary(@PathVariable String studentId) { // 🔥 String
         return new ApiResponse<>(1000, "Tổng hợp kết quả học tập và tính GPA thành công!", gradeService.getAcademicSummary(studentId));
     }
+
     @GetMapping("/{id}")
     public ApiResponse<GradeResponse> getGradeById(@PathVariable Long id) {
         return new ApiResponse<>(1000, "Lấy chi tiết thông tin điểm số thành công!", gradeService.getGradeById(id));
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/TeacherController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
+import com.dangdepzaivaio.StudentManagement.service.TeacherService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/teachers")
+@RequiredArgsConstructor
+public class TeacherController {
+
+    private final TeacherService teacherService;
+
+    @PostMapping
+    public ApiResponse<TeacherResponse> createTeacher(@RequestBody @Valid TeacherCreationRequest request) {
+        return new ApiResponse<>(1000, "Cap tai khoan giang vien thanh cong", teacherService.createTeacher(request));
+    }
+
+    @GetMapping
+    public ApiResponse<List<TeacherResponse>> getAll() {
+        return new ApiResponse<>(1000, "Lay danh sach giang vien thanh cong", teacherService.getAllTeachers());
+    }
+
+    @GetMapping("/{teacherId}")
+    public ApiResponse<TeacherResponse> getTeacher(@PathVariable String teacherId) {
+        return new ApiResponse<>(1000, "Lay chi tiet giang vien thanh cong", teacherService.getTeacherById(teacherId));
+    }
+
+    @PutMapping("/{teacherId}")
+    public ApiResponse<TeacherResponse> updateTeacher(@PathVariable String teacherId, @RequestBody @Valid TeacherUpdateRequest request) {
+        return new ApiResponse<>(1000, "Cap nhat giang vien thanh cong", teacherService.updateTeacher(teacherId, request));
+    }
+
+    @PutMapping("/{teacherId}/enable")
+    public ApiResponse<String> enableTeacher(@PathVariable String teacherId) {
+        teacherService.enableTeacher(teacherId);
+        return new ApiResponse<>(1000, "Mo khoa tai khoan giang vien thanh cong", "ID: " + teacherId);
+    }
+
+    @DeleteMapping("/{teacherId}")
+    public ApiResponse<String> deleteTeacher(@PathVariable String teacherId) {
+        teacherService.disableTeacher(teacherId);
+        return new ApiResponse<>(1000, "Khoa tai khoan giang vien thanh cong", "ID: " + teacherId);
     }
 }
 </file>
@@ -2590,18 +2162,28 @@ public record ClassRequest(
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/CourseClassRequest.java">
 package com.dangdepzaivaio.StudentManagement.dto.request;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record CourseClassRequest(
-        @NotBlank(message = "Mã lớp học phần không được để trống")
+        @NotBlank(message = "Ma lop hoc phan khong duoc de trong")
         String code,
 
-        @NotBlank(message = "Học kỳ không được để trống")
+        @NotBlank(message = "Hoc ky khong duoc de trong")
         String semester,
 
-        @NotNull(message = "ID môn học gốc không được để trống")
-        Long subjectId
+        @NotNull(message = "ID mon hoc khong duoc de trong")
+        Long subjectId,
+
+        String teacherId,
+
+        @Min(value = 1, message = "Si so toi da phai lon hon 0")
+        Integer maxStudents,
+
+        String schedule,
+
+        Boolean openForRegistration
 ) {}
 </file>
 
@@ -2625,7 +2207,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record GradeRequest(
         @NotNull(message = "ID sinh viên không được để trống")
-        Long studentId,
+        String studentId, // 🔥 Đã đổi sang String
 
         @NotNull(message = "ID lớp học phần không được để trống")
         Long courseClassId,
@@ -2641,34 +2223,6 @@ public record GradeRequest(
         @Min(value = 0, message = "Điểm cuốii kỳ không được nhỏ hơn 0")
         @Max(value = 10, message = "Điểm cuối kỳ không được lớn hơn 10")
         Double finalGrade
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentCreationRequest.java">
-package com.dangdepzaivaio.StudentManagement.dto.request;
-
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import java.time.LocalDate;
-
-public record StudentCreationRequest(
-        @NotBlank(message = "Mã sinh viên không được để trống")
-        @Size(max = 20, message = "Mã sinh viên không vượt quá 20 ký tự")
-        String studentCode,
-
-        @NotBlank(message = "Tên sinh viên không được để trống")
-        String firstName,
-
-        @NotBlank(message = "Họ và tên đệm không được để trống")
-        String lastName,
-
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber,
-
-        @NotNull(message = "ID lớp hành chính không được để trống")
-        Long classId
 ) {}
 </file>
 
@@ -2688,7 +2242,8 @@ public record StudentUpdateRequest(
         LocalDate dateOfBirth,
         String gender,
         String phoneNumber,
-        Long classId
+        Long classId,
+        Boolean active // 🔥 THÊM TRƯỜNG NÀY: Để nhận trạng thái Đang học (true) / Khóa (false) từ form sửa
 ) {}
 </file>
 
@@ -2709,6 +2264,24 @@ public record SubjectRequest(
         @NotNull(message = "Số tín chỉ không được để trống")
         @Min(value = 1, message = "Số tín chỉ phải lớn hơn hoặc bằng 1")
         Integer credits
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/TeacherCreationRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.time.LocalDate;
+
+public record TeacherCreationRequest(
+        @NotBlank(message = "Mã giảng viên không được để trống") String teacherCode,
+        @NotBlank(message = "Tên không được để trống") String firstName,
+        @NotBlank(message = "Họ không được để trống") String lastName,
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+        @NotNull(message = "ID khoa không được để trống") Long departmentId
 ) {}
 </file>
 
@@ -2762,25 +2335,6 @@ public record ApiResponse<T>(
 ) {}
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/AuthenticationResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-import lombok.Builder;
-import java.util.Set;
-
-@Builder
-public record AuthenticationResponse(
-        String token,
-        boolean authenticated,
-        Long userId,
-        String username,
-        Set<String> roles,
-        boolean isFirstLogin,
-        Long studentId, // 🔥 BỔ SUNG TRƯỜNG NÀY
-        Long teacherId  // 🔥 BỔ SUNG TRƯỜNG NÀY
-) {}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/ClassResponse.java">
 package com.dangdepzaivaio.StudentManagement.dto.response;
 
@@ -2794,9 +2348,16 @@ public record CourseClassResponse(
         Long id,
         String code,
         String semester,
+        Long subjectId,
         String subjectCode,
         String subjectName,
-        Integer credits
+        Integer credits,
+        String teacherId,
+        String teacherName,
+        Integer maxStudents,
+        long registeredStudents,
+        String schedule,
+        boolean openForRegistration
 ) {}
 </file>
 
@@ -2811,7 +2372,7 @@ package com.dangdepzaivaio.StudentManagement.dto.response;
 
 public record GradeResponse(
         Long id,
-        Long studentId,
+        String studentId, // 🔥 Đã đổi sang String
         String studentCode,
         String studentName,
         Long courseClassId,
@@ -2832,14 +2393,14 @@ package com.dangdepzaivaio.StudentManagement.dto.response;
 import java.util.List;
 
 public record StudentAcademicSummaryResponse(
-        Long studentId,
+        String studentId,        // 🔥 Đã đổi sang String
         String studentCode,
         String studentName,
         String className,
-        List<GradeResponse> details, // Danh sách chi tiết điểm từng môn của sinh viên
-        Integer totalCredits,        // Tổng số tín chỉ tích lũy
-        Double gpaSystem10,          // GPA tích lũy hệ 10
-        Double gpaSystem4            // GPA tích lũy hệ 4
+        List<GradeResponse> details,
+        Integer totalCredits,
+        Double gpaSystem10,
+        Double gpaSystem4
 ) {}
 </file>
 
@@ -2849,20 +2410,17 @@ package com.dangdepzaivaio.StudentManagement.dto.response;
 import java.time.LocalDate;
 
 public record StudentResponse(
-        Long id,
+        String id, // 🔥 ĐÃ SỬA: Chuyển hoàn toàn sang kiểu dữ liệu String để hứng chuỗi 'HS_01'
         String studentCode,
         String firstName,
         String lastName,
         LocalDate dateOfBirth,
         String gender,
         String phoneNumber,
-        boolean isActive,
-
-        // Bóc tách dữ liệu từ User sang phẳng luôn
+        boolean active,
         String username,
         String email,
-
-        // Bóc tách dữ liệu từ lớp hành chính Class sang
+        Long classId,
         String className
 ) {}
 </file>
@@ -2878,17 +2436,37 @@ public record SubjectResponse(
 ) {}
 </file>
 
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/TeacherResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+import java.time.LocalDate;
+
+public record TeacherResponse(
+        String id,          // PHẢI LÀ String
+        String teacherCode,
+        String firstName,
+        String lastName,
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+        boolean active,
+        String username,
+        String email,
+        String departmentName
+) {}
+</file>
+
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/UserResponse.java">
 package com.dangdepzaivaio.StudentManagement.dto.response;
 
 import java.util.Set;
 
 public record UserResponse(
-        Long id,
+        String id, // 🔥 Đã đổi sang String
         String username,
         String email,
-        boolean isActive,
-        Set<String> roles // Chỉ trả ra chuỗi tên Role (ADMIN, STUDENT) thay vì cả Object thực thể
+        boolean active,
+        Set<String> roles
 ) {}
 </file>
 
@@ -2948,41 +2526,6 @@ public class Class extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id", nullable = false)
     private Department department;
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/CourseClass.java">
-package com.dangdepzaivaio.StudentManagement.entity;
-
-import jakarta.persistence.*;
-import lombok.*;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Entity
-@Table(name = "course_classes")
-public class CourseClass extends BaseEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "code", nullable = false, unique = true, length = 30)
-    private String code;
-
-    @Column(name = "semester", nullable = false, length = 20)
-    private String semester;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "subject_id", nullable = false)
-    private Subject subject;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "teacher_id")
-    private Teacher teacher; // 🔥 Giảng viên nào trực tiếp đứng lớp học phần này
 }
 </file>
 
@@ -3067,6 +2610,59 @@ public class Subject extends BaseEntity {
 }
 </file>
 
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Teacher.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDate;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "teachers")
+public class Teacher extends BaseEntity {
+
+    @Id
+    @Column(name = "id", length = 20)
+    private String id; // 🔥 Khóa chính kiểu Chuỗi đồng bộ với User
+
+    @Column(name = "teacher_code", nullable = false, unique = true, length = 20)
+    private String teacherCode;
+
+    @Column(name = "first_name", nullable = false, length = 50)
+    private String firstName;
+
+    @Column(name = "last_name", nullable = false, length = 100)
+    private String lastName;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(name = "gender", length = 10)
+    private String gender;
+
+    @Column(name = "phone_number", length = 15)
+    private String phoneNumber;
+
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId // 🔥 Ép khóa chính trùng vẹn với User liên kết
+    @JoinColumn(name = "id")
+    private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id", nullable = false)
+    private Department department;
+}
+</file>
+
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/exception/AppException.java">
 package com.dangdepzaivaio.StudentManagement.exception;
 
@@ -3115,6 +2711,8 @@ package com.dangdepzaivaio.StudentManagement.mapper;
 import com.dangdepzaivaio.StudentManagement.dto.request.CourseClassRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
 import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
+import com.dangdepzaivaio.StudentManagement.entity.Subject;
+import com.dangdepzaivaio.StudentManagement.entity.Teacher;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
@@ -3124,17 +2722,47 @@ public interface CourseClassMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "subject", ignore = true)
+    @Mapping(target = "teacher", ignore = true)
+    @Mapping(target = "registeredStudents", ignore = true)
     CourseClass toEntity(CourseClassRequest request);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "subject", ignore = true)
+    @Mapping(target = "teacher", ignore = true)
+    @Mapping(target = "registeredStudents", ignore = true)
     void updateEntityFromRequest(CourseClassRequest request, @MappingTarget CourseClass courseClass);
 
-    // Phẳng hóa dữ liệu từ Object Subject lồng nhau
-    @Mapping(target = "subjectCode", source = "subject.code")
-    @Mapping(target = "subjectName", source = "subject.name")
-    @Mapping(target = "credits", source = "subject.credits")
-    CourseClassResponse toResponse(CourseClass courseClass);
+    default CourseClassResponse toResponse(CourseClass courseClass) {
+        if (courseClass == null) {
+            return null;
+        }
+
+        Subject subject = courseClass.getSubject();
+        Teacher teacher = courseClass.getTeacher();
+        String teacherName = teacher == null
+                ? null
+                : (safe(teacher.getLastName()) + " " + safe(teacher.getFirstName())).trim();
+
+        return new CourseClassResponse(
+                courseClass.getId(),
+                courseClass.getCode(),
+                courseClass.getSemester(),
+                subject == null ? null : subject.getId(),
+                subject == null ? null : subject.getCode(),
+                subject == null ? null : subject.getName(),
+                subject == null ? null : subject.getCredits(),
+                teacher == null ? null : teacher.getId(),
+                teacherName == null || teacherName.isBlank() ? null : teacherName,
+                courseClass.getMaxStudents(),
+                courseClass.getRegisteredStudents(),
+                courseClass.getSchedule(),
+                courseClass.isOpenForRegistration()
+        );
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
+    }
 }
 </file>
 
@@ -3233,6 +2861,26 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
 }
 </file>
 
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/TeacherRepository.java">
+package com.dangdepzaivaio.StudentManagement.repository;
+
+import com.dangdepzaivaio.StudentManagement.entity.Teacher;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface TeacherRepository extends JpaRepository<Teacher, String> {
+    boolean existsByTeacherCode(String teacherCode);
+    Optional<Teacher> findByTeacherCode(String teacherCode);
+
+    @Query("SELECT t FROM Teacher t JOIN FETCH t.user JOIN FETCH t.department")
+    List<Teacher> findAllTeachersWithJoinFetch();
+}
+</file>
+
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/ClassService.java">
 package com.dangdepzaivaio.StudentManagement.service;
 
@@ -3286,229 +2934,17 @@ package com.dangdepzaivaio.StudentManagement.service;
 
 import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse; // QUAN TRỌNG: Phải import cái này
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse;
 import java.util.List;
 
 public interface GradeService {
     GradeResponse inputGrade(GradeRequest request);
-    List<GradeResponse> getGradesByStudent(Long studentId);
+    List<GradeResponse> getGradesByStudent(String studentId); // 🔥 Sửa sang String
     GradeResponse updateGrade(Long id, GradeRequest request);
-
-    // Khai báo cho bộ CRUD bổ sung
     List<GradeResponse> getAllGrades();
     GradeResponse getGradeById(Long id);
     void deleteGrade(Long id);
-
-    // 🔥 CHÍNH LÀ DÒNG NÀY: Khai báo hàm tổng hợp học tập để Impl có thể @Override thành công
-    StudentAcademicSummaryResponse getAcademicSummary(Long studentId);
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/AuthenticationService.java">
-package com.dangdepzaivaio.StudentManagement.service.impl;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.AuthenticationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.AuthenticationResponse;
-import com.dangdepzaivaio.StudentManagement.entity.User;
-import com.dangdepzaivaio.StudentManagement.exception.AppException;
-import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
-import com.dangdepzaivaio.StudentManagement.repository.StudentRepository; // 🔥 Import thêm
-import com.dangdepzaivaio.StudentManagement.repository.TeacherRepository; // 🔥 Import thêm
-import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.MACSigner;
-import com.nimbusds.jwt.JWTClaimsSet;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.Date;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-@Service
-@RequiredArgsConstructor
-public class AuthenticationService {
-
-    private final UserRepository userRepository;
-    private final StudentRepository studentRepository; // 🔥 Bổ sung để tìm ID học sinh
-    private final TeacherRepository teacherRepository; // 🔥 Bổ sung để tìm ID giảng viên
-    private final PasswordEncoder passwordEncoder;
-
-    @Value("${jwt.signer-key}")
-    private String SIGNER_KEY;
-
-    public AuthenticationResponse authenticate(AuthenticationRequest request) {
-        User user = userRepository.findByUsername(request.username())
-                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
-
-        boolean authenticated = passwordEncoder.matches(request.password(), user.getPassword());
-
-        if (!authenticated) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
-        }
-
-        String token = generateToken(user);
-        Set<String> roles = user.getRoles().stream()
-                .map(com.dangdepzaivaio.StudentManagement.entity.Role::getName)
-                .collect(Collectors.toSet());
-
-        // Logic xử lý trích xuất ID thực tế dựa theo vai trò nghiệp vụ đăng nhập
-// Logic xử lý trích xuất ID thực tế dựa theo mối quan hệ bảng thay vì so sánh chuỗi mã số
-        Long studentId = null;
-        Long teacherId = null;
-
-        if (roles.contains("STUDENT")) {
-            // 🔥 SỬA: Tìm chính xác Student thông qua User ID gốc đăng nhập thành công
-            studentId = studentRepository.findByUserId(user.getId())
-                    .map(com.dangdepzaivaio.StudentManagement.entity.Student::getId)
-                    .orElse(null);
-        } else if (roles.contains("TEACHER")) {
-            // 🔥 SỬA: Tìm chính xác Teacher thông qua User ID gốc đăng nhập thành công
-            teacherId = teacherRepository.findByUserId(user.getId())
-                    .map(com.dangdepzaivaio.StudentManagement.entity.Teacher::getId)
-                    .orElse(null);
-        }
-        return AuthenticationResponse.builder()
-                .token(token)
-                .authenticated(true)
-                .userId(user.getId())
-                .username(user.getUsername())
-                .roles(roles)
-                .isFirstLogin(user.isFirstLogin())
-                .studentId(studentId) // Đẩy ra ngoài giao diện
-                .teacherId(teacherId) // Đẩy ra ngoài giao diện
-                .build();
-    }
-
-    @Transactional
-    public void changePasswordFirstLogin(String username, String newPassword) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-
-        user.setPassword(passwordEncoder.encode(newPassword));
-        user.setFirstLogin(false);
-        userRepository.save(user);
-    }
-
-    private String generateToken(User user) {
-        JWSHeader header = new JWSHeader(JWSAlgorithm.HS256);
-        String rolesScope = user.getRoles().stream()
-                .map(com.dangdepzaivaio.StudentManagement.entity.Role::getName)
-                .collect(Collectors.joining(" "));
-
-        JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
-                .subject(user.getUsername())
-                .issuer("dangdepzaivaio.com")
-                .issueTime(new Date())
-                .expirationTime(new Date(Instant.now().plus(2, ChronoUnit.HOURS).toEpochMilli()))
-                .claim("userId", user.getId())
-                .claim("scope", rolesScope)
-                .build();
-
-        Payload payload = new Payload(jwtClaimsSet.toJSONObject());
-        JWSObject jwsObject = new JWSObject(header, payload);
-
-        try {
-            jwsObject.sign(new MACSigner(SIGNER_KEY.getBytes()));
-            return jwsObject.serialize();
-        } catch (JOSEException e) {
-            throw new RuntimeException("Không thể tạo Token bảo mật", e);
-        }
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/ClassServiceImpl.java">
-package com.dangdepzaivaio.StudentManagement.service.impl;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.ClassRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.ClassResponse;
-import com.dangdepzaivaio.StudentManagement.entity.Class;
-import com.dangdepzaivaio.StudentManagement.entity.Department;
-import com.dangdepzaivaio.StudentManagement.exception.AppException;
-import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.mapper.ClassMapper;
-import com.dangdepzaivaio.StudentManagement.repository.ClassRepository;
-import com.dangdepzaivaio.StudentManagement.repository.DepartmentRepository;
-import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
-import com.dangdepzaivaio.StudentManagement.service.ClassService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
-
-@Service
-@RequiredArgsConstructor
-public class ClassServiceImpl implements ClassService {
-    // 🔥 ĐÃ GOM TOÀN BỘ KHAI BÁO LÊN ĐẦU CLASS THEO ĐÚNG CHUẨN LOMBOK
-    private final ClassRepository classRepository;
-    private final DepartmentRepository departmentRepository;
-    private final StudentRepository studentRepository;
-    private final ClassMapper classMapper;
-
-    @Override
-    @Transactional
-    public ClassResponse createClass(ClassRequest request) {
-        if (classRepository.existsByName(request.name())) {
-            throw new AppException(ErrorCode.CLASS_EXISTED);
-        }
-        Department department = departmentRepository.findById(request.departmentId())
-                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
-
-        Class studentClass = classMapper.toEntity(request);
-        studentClass.setDepartment(department);
-        return classMapper.toResponse(classRepository.save(studentClass));
-    }
-
-    @Override
-    public List<ClassResponse> getAllClasses() {
-        return classRepository.findAllClassesWithJoinFetch().stream()
-                .map(classMapper::toResponse)
-                .toList();
-    }
-
-    @Override
-    @Transactional
-    public ClassResponse updateClass(Long id, ClassRequest request) {
-        Class studentClass = classRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
-
-        if (!studentClass.getName().equals(request.name()) && classRepository.existsByName(request.name())) {
-            throw new AppException(ErrorCode.CLASS_EXISTED);
-        }
-
-        Department department = departmentRepository.findById(request.departmentId())
-                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
-
-        classMapper.updateEntityFromRequest(request, studentClass);
-        studentClass.setDepartment(department);
-        return classMapper.toResponse(classRepository.save(studentClass));
-    }
-
-    @Override
-    @Transactional
-    public void deleteClass(Long id) {
-        Class studentClass = classRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
-
-        if (studentRepository.existsByStudentClassId(id)) {
-            throw new AppException(ErrorCode.CLASS_HAS_STUDENTS);
-        }
-
-        classRepository.delete(studentClass);
-    }
-
-    @Override
-    public ClassResponse getClassById(Long id) {
-        Class adminClass = classRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
-        return classMapper.toResponse(adminClass);
-    }
+    StudentAcademicSummaryResponse getAcademicSummary(String studentId); // 🔥 Sửa sang String
 }
 </file>
 
@@ -3607,6 +3043,1575 @@ class StudentManagementApplicationTests {
 }
 </file>
 
+<file path="student-management-ui/.gitignore">
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+</file>
+
+<file path="student-management-ui/eslint.config.js">
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      globals: globals.browser,
+      parserOptions: { ecmaFeatures: { jsx: true } },
+    },
+  },
+])
+</file>
+
+<file path="student-management-ui/index.html">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>student-management-ui</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+</file>
+
+<file path="student-management-ui/package.json">
+{
+  "name": "student-management-ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.17.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-router-dom": "^7.17.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^10.3.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.6.0",
+    "vite": "^8.0.12"
+  }
+}
+</file>
+
+<file path="student-management-ui/public/favicon.svg">
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="46" fill="none" viewBox="0 0 48 46"><path fill="#863bff" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z" style="fill:#863bff;fill:color(display-p3 .5252 .23 1);fill-opacity:1"/><mask id="a" width="48" height="46" x="0" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#000" d="M25.842 44.938c-.664.844-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.183c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.498 0-3.579-1.842-3.579H1.133c-.92 0-1.456-1.04-.92-1.787L9.91.473c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.578 1.842 3.578h11.377c.943 0 1.473 1.088.89 1.832L25.843 44.94z" style="fill:#000;fill-opacity:1"/></mask><g mask="url(#a)"><g filter="url(#b)"><ellipse cx="5.508" cy="14.704" fill="#ede6ff" rx="5.508" ry="14.704" style="fill:#ede6ff;fill:color(display-p3 .9275 .9033 1);fill-opacity:1" transform="matrix(.00324 1 1 -.00324 -4.47 31.516)"/></g><g filter="url(#c)"><ellipse cx="10.399" cy="29.851" fill="#ede6ff" rx="10.399" ry="29.851" style="fill:#ede6ff;fill:color(display-p3 .9275 .9033 1);fill-opacity:1" transform="matrix(.00324 1 1 -.00324 -39.328 7.883)"/></g><g filter="url(#d)"><ellipse cx="5.508" cy="30.487" fill="#7e14ff" rx="5.508" ry="30.487" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.814 -25.913 -14.639)scale(1 -1)"/></g><g filter="url(#e)"><ellipse cx="5.508" cy="30.599" fill="#7e14ff" rx="5.508" ry="30.599" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.814 -32.644 -3.334)scale(1 -1)"/></g><g filter="url(#f)"><ellipse cx="5.508" cy="30.599" fill="#7e14ff" rx="5.508" ry="30.599" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="matrix(.00324 1 1 -.00324 -34.34 30.47)"/></g><g filter="url(#g)"><ellipse cx="14.072" cy="22.078" fill="#ede6ff" rx="14.072" ry="22.078" style="fill:#ede6ff;fill:color(display-p3 .9275 .9033 1);fill-opacity:1" transform="rotate(93.35 24.506 48.493)scale(-1 1)"/></g><g filter="url(#h)"><ellipse cx="3.47" cy="21.501" fill="#7e14ff" rx="3.47" ry="21.501" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.009 28.708 47.59)scale(-1 1)"/></g><g filter="url(#i)"><ellipse cx="3.47" cy="21.501" fill="#7e14ff" rx="3.47" ry="21.501" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(89.009 28.708 47.59)scale(-1 1)"/></g><g filter="url(#j)"><ellipse cx=".387" cy="8.972" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(39.51 .387 8.972)"/></g><g filter="url(#k)"><ellipse cx="47.523" cy="-6.092" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 47.523 -6.092)"/></g><g filter="url(#l)"><ellipse cx="41.412" cy="6.333" fill="#47bfff" rx="5.971" ry="9.665" style="fill:#47bfff;fill:color(display-p3 .2799 .748 1);fill-opacity:1" transform="rotate(37.892 41.412 6.333)"/></g><g filter="url(#m)"><ellipse cx="-1.879" cy="38.332" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 -1.88 38.332)"/></g><g filter="url(#n)"><ellipse cx="-1.879" cy="38.332" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 -1.88 38.332)"/></g><g filter="url(#o)"><ellipse cx="35.651" cy="29.907" fill="#7e14ff" rx="4.407" ry="29.108" style="fill:#7e14ff;fill:color(display-p3 .4922 .0767 1);fill-opacity:1" transform="rotate(37.892 35.651 29.907)"/></g><g filter="url(#p)"><ellipse cx="38.418" cy="32.4" fill="#47bfff" rx="5.971" ry="15.297" style="fill:#47bfff;fill:color(display-p3 .2799 .748 1);fill-opacity:1" transform="rotate(37.892 38.418 32.4)"/></g></g><defs><filter id="b" width="60.045" height="41.654" x="-19.77" y="16.149" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="7.659"/></filter><filter id="c" width="90.34" height="51.437" x="-54.613" y="-7.533" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="7.659"/></filter><filter id="d" width="79.355" height="29.4" x="-49.64" y="2.03" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="e" width="79.579" height="29.4" x="-45.045" y="20.029" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="f" width="79.579" height="29.4" x="-43.513" y="21.178" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="g" width="74.749" height="58.852" x="15.756" y="-17.901" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="7.659"/></filter><filter id="h" width="61.377" height="25.362" x="23.548" y="2.284" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="i" width="61.377" height="25.362" x="23.548" y="2.284" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="j" width="56.045" height="63.649" x="-27.636" y="-22.853" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="k" width="54.814" height="64.646" x="20.116" y="-38.415" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="l" width="33.541" height="35.313" x="24.641" y="-11.323" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="m" width="54.814" height="64.646" x="-29.286" y="6.009" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="n" width="54.814" height="64.646" x="-29.286" y="6.009" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="o" width="54.814" height="64.646" x="8.244" y="-2.416" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter><filter id="p" width="39.409" height="43.623" x="18.713" y="10.588" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17158" stdDeviation="4.596"/></filter></defs></svg>
+</file>
+
+<file path="student-management-ui/public/icons.svg">
+<svg xmlns="http://www.w3.org/2000/svg">
+  <symbol id="bluesky-icon" viewBox="0 0 16 17">
+    <g clip-path="url(#bluesky-clip)"><path fill="#08060d" d="M7.75 7.735c-.693-1.348-2.58-3.86-4.334-5.097-1.68-1.187-2.32-.981-2.74-.79C.188 2.065.1 2.812.1 3.251s.241 3.602.398 4.13c.52 1.744 2.367 2.333 4.07 2.145-2.495.37-4.71 1.278-1.805 4.512 3.196 3.309 4.38-.71 4.987-2.746.608 2.036 1.307 5.91 4.93 2.746 2.72-2.746.747-4.143-1.747-4.512 1.702.189 3.55-.4 4.07-2.145.156-.528.397-3.691.397-4.13s-.088-1.186-.575-1.406c-.42-.19-1.06-.395-2.741.79-1.755 1.24-3.64 3.752-4.334 5.099"/></g>
+    <defs><clipPath id="bluesky-clip"><path fill="#fff" d="M.1.85h15.3v15.3H.1z"/></clipPath></defs>
+  </symbol>
+  <symbol id="discord-icon" viewBox="0 0 20 19">
+    <path fill="#08060d" d="M16.224 3.768a14.5 14.5 0 0 0-3.67-1.153c-.158.286-.343.67-.47.976a13.5 13.5 0 0 0-4.067 0c-.128-.306-.317-.69-.476-.976A14.4 14.4 0 0 0 3.868 3.77C1.546 7.28.916 10.703 1.231 14.077a14.7 14.7 0 0 0 4.5 2.306q.545-.748.965-1.587a9.5 9.5 0 0 1-1.518-.74q.191-.14.372-.293c2.927 1.369 6.107 1.369 8.999 0q.183.152.372.294-.723.437-1.52.74.418.838.963 1.588a14.6 14.6 0 0 0 4.504-2.308c.37-3.911-.63-7.302-2.644-10.309m-9.13 8.234c-.878 0-1.599-.82-1.599-1.82 0-.998.705-1.82 1.6-1.82.894 0 1.614.82 1.599 1.82.001 1-.705 1.82-1.6 1.82m5.91 0c-.878 0-1.599-.82-1.599-1.82 0-.998.705-1.82 1.6-1.82.893 0 1.614.82 1.599 1.82 0 1-.706 1.82-1.6 1.82"/>
+  </symbol>
+  <symbol id="documentation-icon" viewBox="0 0 21 20">
+    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="m15.5 13.333 1.533 1.322c.645.555.967.833.967 1.178s-.322.623-.967 1.179L15.5 18.333m-3.333-5-1.534 1.322c-.644.555-.966.833-.966 1.178s.322.623.966 1.179l1.534 1.321"/>
+    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M17.167 10.836v-4.32c0-1.41 0-2.117-.224-2.68-.359-.906-1.118-1.621-2.08-1.96-.599-.21-1.349-.21-2.848-.21-2.623 0-3.935 0-4.983.369-1.684.591-3.013 1.842-3.641 3.428C3 6.449 3 7.684 3 10.154v2.122c0 2.558 0 3.838.706 4.726q.306.383.713.671c.76.536 1.79.64 3.581.66"/>
+    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M3 10a2.78 2.78 0 0 1 2.778-2.778c.555 0 1.209.097 1.748-.047.48-.129.854-.503.982-.982.145-.54.048-1.194.048-1.749a2.78 2.78 0 0 1 2.777-2.777"/>
+  </symbol>
+  <symbol id="github-icon" viewBox="0 0 19 19">
+    <path fill="#08060d" fill-rule="evenodd" d="M9.356 1.85C5.05 1.85 1.57 5.356 1.57 9.694a7.84 7.84 0 0 0 5.324 7.44c.387.079.528-.168.528-.376 0-.182-.013-.805-.013-1.454-2.165.467-2.616-.935-2.616-.935-.349-.91-.864-1.143-.864-1.143-.71-.48.051-.48.051-.48.787.051 1.2.805 1.2.805.695 1.194 1.817.857 2.268.649.064-.507.27-.857.49-1.052-1.728-.182-3.545-.857-3.545-3.87 0-.857.31-1.558.8-2.104-.078-.195-.349-1 .077-2.078 0 0 .657-.208 2.14.805a7.5 7.5 0 0 1 1.946-.26c.657 0 1.328.092 1.946.26 1.483-1.013 2.14-.805 2.14-.805.426 1.078.155 1.883.078 2.078.502.546.799 1.247.799 2.104 0 3.013-1.818 3.675-3.558 3.87.284.247.528.714.528 1.454 0 1.052-.012 1.896-.012 2.156 0 .208.142.455.528.377a7.84 7.84 0 0 0 5.324-7.441c.013-4.338-3.48-7.844-7.773-7.844" clip-rule="evenodd"/>
+  </symbol>
+  <symbol id="social-icon" viewBox="0 0 20 20">
+    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M12.5 6.667a4.167 4.167 0 1 0-8.334 0 4.167 4.167 0 0 0 8.334 0"/>
+    <path fill="none" stroke="#aa3bff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35" d="M2.5 16.667a5.833 5.833 0 0 1 8.75-5.053m3.837.474.513 1.035c.07.144.257.282.414.309l.93.155c.596.1.736.536.307.965l-.723.73a.64.64 0 0 0-.152.531l.207.903c.164.715-.213.991-.84.618l-.872-.52a.63.63 0 0 0-.577 0l-.872.52c-.624.373-1.003.094-.84-.618l.207-.903a.64.64 0 0 0-.152-.532l-.723-.729c-.426-.43-.289-.864.306-.964l.93-.156a.64.64 0 0 0 .412-.31l.513-1.034c.28-.562.735-.562 1.012 0"/>
+  </symbol>
+  <symbol id="x-icon" viewBox="0 0 19 19">
+    <path fill="#08060d" fill-rule="evenodd" d="M1.893 1.98c.052.072 1.245 1.769 2.653 3.77l2.892 4.114c.183.261.333.48.333.486s-.068.089-.152.183l-.522.593-.765.867-3.597 4.087c-.375.426-.734.834-.798.905a1 1 0 0 0-.118.148c0 .01.236.017.664.017h.663l.729-.83c.4-.457.796-.906.879-.999a692 692 0 0 0 1.794-2.038c.034-.037.301-.34.594-.675l.551-.624.345-.392a7 7 0 0 1 .34-.374c.006 0 .93 1.306 2.052 2.903l2.084 2.965.045.063h2.275c1.87 0 2.273-.003 2.266-.021-.008-.02-1.098-1.572-3.894-5.547-2.013-2.862-2.28-3.246-2.273-3.266.008-.019.282-.332 2.085-2.38l2-2.274 1.567-1.782c.022-.028-.016-.03-.65-.03h-.674l-.3.342a871 871 0 0 1-1.782 2.025c-.067.075-.405.458-.75.852a100 100 0 0 1-.803.91c-.148.172-.299.344-.99 1.127-.304.343-.32.358-.345.327-.015-.019-.904-1.282-1.976-2.808L6.365 1.85H1.8zm1.782.91 8.078 11.294c.772 1.08 1.413 1.973 1.425 1.984.016.017.241.02 1.05.017l1.03-.004-2.694-3.766L7.796 5.75 5.722 2.852l-1.039-.004-1.039-.004z" clip-rule="evenodd"/>
+  </symbol>
+</svg>
+</file>
+
+<file path="student-management-ui/README.md">
+# React + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+</file>
+
+<file path="student-management-ui/src/api/axiosClient.js">
+import axios from 'axios';
+
+const axiosClient = axios.create({
+    baseURL: 'http://localhost:8081', // Cổng chạy của Spring Boot
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+
+// Tự động đính kèm JWT Token vào Header trước khi gửi request
+axiosClient.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
+// Tự động giải nén cấu trúc ApiResponse bọc ngoài của Backend
+axiosClient.interceptors.response.use(
+    (response) => {
+        // Nếu Backend trả về code thành công 1000, lấy thẳng dữ liệu result ra ngoài
+        if (response.data && response.data.code === 1000) {
+            return response.data.result;
+        }
+        return response.data;
+    },
+    (error) => {
+        // Bắt lỗi nghiệp vụ trả về từ GlobalExceptionHandler của Backend
+        const errorMessage = error.response?.data?.message || 'Lỗi kết nối hệ thống!';
+        return Promise.reject(errorMessage);
+    }
+);
+
+export default axiosClient;
+</file>
+
+<file path="student-management-ui/src/App.css">
+.counter {
+  font-size: 16px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 2px solid transparent;
+  transition: border-color 0.3s;
+  margin-bottom: 24px;
+
+  &:hover {
+    border-color: var(--accent-border);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.hero {
+  position: relative;
+
+  .base,
+  .framework,
+  .vite {
+    inset-inline: 0;
+    margin: 0 auto;
+  }
+
+  .base {
+    width: 170px;
+    position: relative;
+    z-index: 0;
+  }
+
+  .framework,
+  .vite {
+    position: absolute;
+  }
+
+  .framework {
+    z-index: 1;
+    top: 34px;
+    height: 28px;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
+      scale(1.4);
+  }
+
+  .vite {
+    z-index: 0;
+    top: 107px;
+    height: 26px;
+    width: auto;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
+      scale(0.8);
+  }
+}
+
+#center {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  place-content: center;
+  place-items: center;
+  flex-grow: 1;
+
+  @media (max-width: 1024px) {
+    padding: 32px 20px 24px;
+    gap: 18px;
+  }
+}
+
+#next-steps {
+  display: flex;
+  border-top: 1px solid var(--border);
+  text-align: left;
+
+  & > div {
+    flex: 1 1 0;
+    padding: 32px;
+    @media (max-width: 1024px) {
+      padding: 24px 20px;
+    }
+  }
+
+  .icon {
+    margin-bottom: 16px;
+    width: 22px;
+    height: 22px;
+  }
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+#docs {
+  border-right: 1px solid var(--border);
+
+  @media (max-width: 1024px) {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+#next-steps ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  margin: 32px 0 0;
+
+  .logo {
+    height: 18px;
+  }
+
+  a {
+    color: var(--text-h);
+    font-size: 16px;
+    border-radius: 6px;
+    background: var(--social-bg);
+    display: flex;
+    padding: 6px 12px;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: box-shadow 0.3s;
+
+    &:hover {
+      box-shadow: var(--shadow);
+    }
+    .button-icon {
+      height: 18px;
+      width: 18px;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    margin-top: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+
+    li {
+      flex: 1 1 calc(50% - 8px);
+    }
+
+    a {
+      width: 100%;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+  }
+}
+
+#spacer {
+  height: 88px;
+  border-top: 1px solid var(--border);
+  @media (max-width: 1024px) {
+    height: 48px;
+  }
+}
+
+.ticks {
+  position: relative;
+  width: 100%;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: -4.5px;
+    border: 5px solid transparent;
+  }
+
+  &::before {
+    left: 0;
+    border-left-color: var(--border);
+  }
+  &::after {
+    right: 0;
+    border-right-color: var(--border);
+  }
+}
+</file>
+
+<file path="student-management-ui/src/App.jsx">
+import React, { useState, useEffect } from 'react';
+import LoginPage from './pages/LoginPage';
+import StudentPage from './pages/StudentPage';
+import TeacherPage from './pages/TeacherPage';
+import GradePage from './pages/GradePage';
+import RegistrationPage from './pages/RegistrationPage'; // 🔥 THÊM MỚI: Import trang đăng ký tín chỉ
+
+function App() {
+    const [token, setToken] = useState(localStorage.getItem('token'));
+    const [username, setUsername] = useState(localStorage.getItem('username'));
+    const [role, setRole] = useState(localStorage.getItem('roles') || '');
+    const [activeTab, setActiveTab] = useState('dashboard');
+
+    // 🔥 LOGIC KIỂM TRA PHIÊN ĐĂNG NHẬP THỜI GIAN THỰC (15 PHÚT) - GIỮ NGUYÊN
+    useEffect(() => {
+        const checkSession = () => {
+            const lastExitTime = localStorage.getItem('lastExitTime');
+            const currentToken = localStorage.getItem('token');
+
+            if (currentToken && lastExitTime) {
+                const timeAway = Date.now() - parseInt(lastExitTime, 10);
+                const FIFTEEN_MINUTES = 15 * 60 * 1000;
+
+                if (timeAway > FIFTEEN_MINUTES) {
+                    localStorage.clear();
+                    setToken(null);
+                    setUsername(null);
+                    setRole('');
+                    alert("Phiên làm việc của bạn đã hết hạn do không hoạt động trong 15 phút. Vui lòng đăng nhập lại!");
+                } else {
+                    localStorage.removeItem('lastExitTime');
+                }
+            }
+        };
+
+        checkSession();
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                localStorage.setItem('lastExitTime', Date.now().toString());
+            } else if (document.visibilityState === 'visible') {
+                checkSession();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        const handleBeforeUnload = () => {
+            localStorage.setItem('lastExitTime', Date.now().toString());
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, []);
+
+    const handleLogout = () => {
+        localStorage.clear();
+        setToken(null);
+        setUsername(null);
+        setRole('');
+    };
+
+    if (!token) {
+        return <LoginPage />;
+    }
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)' }}>
+
+            {/* HEADER - GIỮ NGUYÊN */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-sm) var(--spacing-xl)', backgroundColor: 'var(--color-surface)', color: 'var(--text-main)', borderBottom: '2px solid var(--text-cyan)' }}>
+                <h3>CMS - STUDENT MANAGEMENT</h3>
+                <div>
+                    <span style={{ marginRight: 'var(--spacing-xl)', color: 'var(--text-muted)' }}>Xin chào: <b>{username}</b> ({role})</span>
+                    <button onClick={handleLogout} style={{ padding: '6px 12px', backgroundColor: 'var(--color-danger)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Đăng xuất</button>
+                </div>
+            </div>
+
+            {/* BODY */}
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+                {/* SIDEBAR */}
+                <div style={{ width: '240px', backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl) var(--spacing-sm)', borderRight: '1px solid var(--color-border)' }}>
+                    <button onClick={() => setActiveTab('dashboard')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'dashboard' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>📊 Tổng Quan System</button>
+
+                    {/* MENU QUẢN LÝ SINH VIÊN */}
+                    {(role.includes('ADMIN') || role.includes('TEACHER')) && (
+                        <button onClick={() => setActiveTab('students')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'students' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>👥 Quản Lý Sinh Viên</button>
+                    )}
+
+                    {/* MENU QUẢN LÝ GIẢNG VIÊN */}
+                    {role.includes('ADMIN') && (
+                        <button onClick={() => setActiveTab('teachers')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'teachers' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>💼 Quản Lý Giảng Viên</button>
+                    )}
+
+                    <button onClick={() => setActiveTab('grades')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'grades' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>🎯 Quản Lý Điểm Số</button>
+
+                    {/* 🔥 THÊM MỚI: Menu Đăng ký tín chỉ dành cho tất cả mọi người hiển thị đồng bộ style */}
+                    <button onClick={() => setActiveTab('registration')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'registration' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>⏰ Đăng Ký Tín Chỉ</button>
+                </div>
+
+                {/* CONTENT AREA CO-GIÃN */}
+                <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)', padding: 'var(--spacing-xl)' }}>
+                    {activeTab === 'dashboard' && (
+                        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            <h2>HỆ THỐNG QUẢN TRỊ ĐÀO TẠO TÍN CHỈ</h2>
+                            <p>Chọn phân hệ bên thanh điều hướng để bắt đầu thực hiện kiểm tra dữ liệu.</p>
+                        </div>
+                    )}
+                    {activeTab === 'students' && <StudentPage />}
+                    {activeTab === 'teachers' && <TeacherPage />}
+                    {activeTab === 'grades' && <GradePage />}
+
+                    {/* 🔥 THÊM MỚI: Vùng render trang Đăng ký tín chỉ khi click chọn tab */}
+                    {activeTab === 'registration' && <RegistrationPage />}
+                </div>
+
+            </div>
+        </div>
+    );
+}
+
+export default App;
+</file>
+
+<file path="student-management-ui/src/assets/react.svg">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="35.93" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 228"><path fill="#00D8FF" d="M210.483 73.824a171.49 171.49 0 0 0-8.24-2.597c.465-1.9.893-3.777 1.273-5.621c6.238-30.281 2.16-54.676-11.769-62.708c-13.355-7.7-35.196.329-57.254 19.526a171.23 171.23 0 0 0-6.375 5.848a155.866 155.866 0 0 0-4.241-3.917C100.759 3.829 77.587-4.822 63.673 3.233C50.33 10.957 46.379 33.89 51.995 62.588a170.974 170.974 0 0 0 1.892 8.48c-3.28.932-6.445 1.924-9.474 2.98C17.309 83.498 0 98.307 0 113.668c0 15.865 18.582 31.778 46.812 41.427a145.52 145.52 0 0 0 6.921 2.165a167.467 167.467 0 0 0-2.01 9.138c-5.354 28.2-1.173 50.591 12.134 58.266c13.744 7.926 36.812-.22 59.273-19.855a145.567 145.567 0 0 0 5.342-4.923a168.064 168.064 0 0 0 6.92 6.314c21.758 18.722 43.246 26.282 56.54 18.586c13.731-7.949 18.194-32.003 12.4-61.268a145.016 145.016 0 0 0-1.535-6.842c1.62-.48 3.21-.974 4.76-1.488c29.348-9.723 48.443-25.443 48.443-41.52c0-15.417-17.868-30.326-45.517-39.844Zm-6.365 70.984c-1.4.463-2.836.91-4.3 1.345c-3.24-10.257-7.612-21.163-12.963-32.432c5.106-11 9.31-21.767 12.459-31.957c2.619.758 5.16 1.557 7.61 2.4c23.69 8.156 38.14 20.213 38.14 29.504c0 9.896-15.606 22.743-40.946 31.14Zm-10.514 20.834c2.562 12.94 2.927 24.64 1.23 33.787c-1.524 8.219-4.59 13.698-8.382 15.893c-8.067 4.67-25.32-1.4-43.927-17.412a156.726 156.726 0 0 1-6.437-5.87c7.214-7.889 14.423-17.06 21.459-27.246c12.376-1.098 24.068-2.894 34.671-5.345a134.17 134.17 0 0 1 1.386 6.193ZM87.276 214.515c-7.882 2.783-14.16 2.863-17.955.675c-8.075-4.657-11.432-22.636-6.853-46.752a156.923 156.923 0 0 1 1.869-8.499c10.486 2.32 22.093 3.988 34.498 4.994c7.084 9.967 14.501 19.128 21.976 27.15a134.668 134.668 0 0 1-4.877 4.492c-9.933 8.682-19.886 14.842-28.658 17.94ZM50.35 144.747c-12.483-4.267-22.792-9.812-29.858-15.863c-6.35-5.437-9.555-10.836-9.555-15.216c0-9.322 13.897-21.212 37.076-29.293c2.813-.98 5.757-1.905 8.812-2.773c3.204 10.42 7.406 21.315 12.477 32.332c-5.137 11.18-9.399 22.249-12.634 32.792a134.718 134.718 0 0 1-6.318-1.979Zm12.378-84.26c-4.811-24.587-1.616-43.134 6.425-47.789c8.564-4.958 27.502 2.111 47.463 19.835a144.318 144.318 0 0 1 3.841 3.545c-7.438 7.987-14.787 17.08-21.808 26.988c-12.04 1.116-23.565 2.908-34.161 5.309a160.342 160.342 0 0 1-1.76-7.887Zm110.427 27.268a347.8 347.8 0 0 0-7.785-12.803c8.168 1.033 15.994 2.404 23.343 4.08c-2.206 7.072-4.956 14.465-8.193 22.045a381.151 381.151 0 0 0-7.365-13.322Zm-45.032-43.861c5.044 5.465 10.096 11.566 15.065 18.186a322.04 322.04 0 0 0-30.257-.006c4.974-6.559 10.069-12.652 15.192-18.18ZM82.802 87.83a323.167 323.167 0 0 0-7.227 13.238c-3.184-7.553-5.909-14.98-8.134-22.152c7.304-1.634 15.093-2.97 23.209-3.984a321.524 321.524 0 0 0-7.848 12.897Zm8.081 65.352c-8.385-.936-16.291-2.203-23.593-3.793c2.26-7.3 5.045-14.885 8.298-22.6a321.187 321.187 0 0 0 7.257 13.246c2.594 4.48 5.28 8.868 8.038 13.147Zm37.542 31.03c-5.184-5.592-10.354-11.779-15.403-18.433c4.902.192 9.899.29 14.978.29c5.218 0 10.376-.117 15.453-.343c-4.985 6.774-10.018 12.97-15.028 18.486Zm52.198-57.817c3.422 7.8 6.306 15.345 8.596 22.52c-7.422 1.694-15.436 3.058-23.88 4.071a382.417 382.417 0 0 0 7.859-13.026a347.403 347.403 0 0 0 7.425-13.565Zm-16.898 8.101a358.557 358.557 0 0 1-12.281 19.815a329.4 329.4 0 0 1-23.444.823c-7.967 0-15.716-.248-23.178-.732a310.202 310.202 0 0 1-12.513-19.846h.001a307.41 307.41 0 0 1-10.923-20.627a310.278 310.278 0 0 1 10.89-20.637l-.001.001a307.318 307.318 0 0 1 12.413-19.761c7.613-.576 15.42-.876 23.31-.876H128c7.926 0 15.743.303 23.354.883a329.357 329.357 0 0 1 12.335 19.695a358.489 358.489 0 0 1 11.036 20.54a329.472 329.472 0 0 1-11 20.722Zm22.56-122.124c8.572 4.944 11.906 24.881 6.52 51.026c-.344 1.668-.73 3.367-1.15 5.09c-10.622-2.452-22.155-4.275-34.23-5.408c-7.034-10.017-14.323-19.124-21.64-27.008a160.789 160.789 0 0 1 5.888-5.4c18.9-16.447 36.564-22.941 44.612-18.3ZM128 90.808c12.625 0 22.86 10.235 22.86 22.86s-10.235 22.86-22.86 22.86s-22.86-10.235-22.86-22.86s10.235-22.86 22.86-22.86Z"></path></svg>
+</file>
+
+<file path="student-management-ui/src/assets/vite.svg">
+<svg xmlns="http://www.w3.org/2000/svg" width="77" height="47" fill="none" aria-labelledby="vite-logo-title" viewBox="0 0 77 47"><title id="vite-logo-title">Vite</title><style>.parenthesis{fill:#000}@media (prefers-color-scheme:dark){.parenthesis{fill:#fff}}</style><path fill="#9135ff" d="M40.151 45.71c-.663.844-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.493c-.92 0-1.457-1.04-.92-1.788l7.479-10.471c1.07-1.498 0-3.578-1.842-3.578H15.443c-.92 0-1.456-1.04-.92-1.788l9.696-13.576c.213-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.472c-1.07 1.497 0 3.578 1.842 3.578h11.376c.944 0 1.474 1.087.89 1.83L40.153 45.712z"/><mask id="a" width="48" height="47" x="14" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#000" d="M40.047 45.71c-.663.843-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.389c-.92 0-1.457-1.04-.92-1.788l7.479-10.472c1.07-1.497 0-3.578-1.842-3.578H15.34c-.92 0-1.456-1.04-.92-1.788l9.696-13.575c.213-.297.556-.474.92-.474H53.93c.92 0 1.456 1.04.92 1.788L47.37 13.03c-1.07 1.498 0 3.578 1.842 3.578h11.376c.944 0 1.474 1.088.89 1.831L40.049 45.712z"/></mask><g mask="url(#a)"><g filter="url(#b)"><ellipse cx="5.508" cy="14.704" fill="#eee6ff" rx="5.508" ry="14.704" transform="rotate(269.814 20.96 11.29)scale(-1 1)"/></g><g filter="url(#c)"><ellipse cx="10.399" cy="29.851" fill="#eee6ff" rx="10.399" ry="29.851" transform="rotate(89.814 -16.902 -8.275)scale(1 -1)"/></g><g filter="url(#d)"><ellipse cx="5.508" cy="30.487" fill="#8900ff" rx="5.508" ry="30.487" transform="rotate(89.814 -19.197 -7.127)scale(1 -1)"/></g><g filter="url(#e)"><ellipse cx="5.508" cy="30.599" fill="#8900ff" rx="5.508" ry="30.599" transform="rotate(89.814 -25.928 4.177)scale(1 -1)"/></g><g filter="url(#f)"><ellipse cx="5.508" cy="30.599" fill="#8900ff" rx="5.508" ry="30.599" transform="rotate(89.814 -25.738 5.52)scale(1 -1)"/></g><g filter="url(#g)"><ellipse cx="14.072" cy="22.078" fill="#eee6ff" rx="14.072" ry="22.078" transform="rotate(93.35 31.245 55.578)scale(-1 1)"/></g><g filter="url(#h)"><ellipse cx="3.47" cy="21.501" fill="#8900ff" rx="3.47" ry="21.501" transform="rotate(89.009 35.419 55.202)scale(-1 1)"/></g><g filter="url(#i)"><ellipse cx="3.47" cy="21.501" fill="#8900ff" rx="3.47" ry="21.501" transform="rotate(89.009 35.419 55.202)scale(-1 1)"/></g><g filter="url(#j)"><ellipse cx="14.592" cy="9.743" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(39.51 14.592 9.743)"/></g><g filter="url(#k)"><ellipse cx="61.728" cy="-5.321" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 61.728 -5.32)"/></g><g filter="url(#l)"><ellipse cx="55.618" cy="7.104" fill="#00c2ff" rx="5.971" ry="9.665" transform="rotate(37.892 55.618 7.104)"/></g><g filter="url(#m)"><ellipse cx="12.326" cy="39.103" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 12.326 39.103)"/></g><g filter="url(#n)"><ellipse cx="12.326" cy="39.103" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 12.326 39.103)"/></g><g filter="url(#o)"><ellipse cx="49.857" cy="30.678" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 49.857 30.678)"/></g><g filter="url(#p)"><ellipse cx="52.623" cy="33.171" fill="#00c2ff" rx="5.971" ry="15.297" transform="rotate(37.892 52.623 33.17)"/></g></g><path d="M6.919 0c-9.198 13.166-9.252 33.575 0 46.789h6.215c-9.25-13.214-9.196-33.623 0-46.789zm62.424 0h-6.215c9.198 13.166 9.252 33.575 0 46.789h6.215c9.25-13.214 9.196-33.623 0-46.789" class="parenthesis"/><defs><filter id="b" width="60.045" height="41.654" x="-5.564" y="16.92" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="c" width="90.34" height="51.437" x="-40.407" y="-6.762" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="d" width="79.355" height="29.4" x="-35.435" y="2.801" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="e" width="79.579" height="29.4" x="-30.84" y="20.8" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="f" width="79.579" height="29.4" x="-29.307" y="21.949" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="g" width="74.749" height="58.852" x="29.961" y="-17.13" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="h" width="61.377" height="25.362" x="37.754" y="3.055" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="i" width="61.377" height="25.362" x="37.754" y="3.055" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="j" width="56.045" height="63.649" x="-13.43" y="-22.082" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="k" width="54.814" height="64.646" x="34.321" y="-37.644" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="l" width="33.541" height="35.313" x="38.847" y="-10.552" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="m" width="54.814" height="64.646" x="-15.081" y="6.78" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="n" width="54.814" height="64.646" x="-15.081" y="6.78" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="o" width="54.814" height="64.646" x="22.45" y="-1.645" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="p" width="39.409" height="43.623" x="32.919" y="11.36" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter></defs></svg>
+</file>
+
+<file path="student-management-ui/src/index.css">
+:root {
+  /* 🎨 Hệ màu sắc chuẩn (Bảo vệ mắt, giảm mỏi mắt ban đêm) */
+  --color-bg: #141414;           /* Màu nền tối chủ đạo sâu */
+  --color-surface: #222222;      /* Màu nền của Card, Sidebar, Form */
+  --color-surface-hover: #2d2d2d;/* Màu khi di chuột vào vùng tương tác */
+  --color-border: #333333;       /* Đường viền phân cách mảnh */
+
+  /* 🌟 Màu sắc trạng thái tín chỉ */
+  --color-primary: #007bff;      /* Màu xanh thương hiệu (Nút bấm, trạng thái chính) */
+  --color-success: #28a745;      /* Màu xanh lá (Điểm cao, Đạt, Thành công) */
+  --color-warning: #ffc107;      /* Màu vàng (Mã sinh viên, Cảnh báo, Điểm trung bình) */
+  --color-danger: #dc3545;       /* Màu đỏ (Điểm F, Xóa, Lỗi hệ thống) */
+
+  /* 📝 Màu chữ theo cấp độ phân rã */
+  --text-main: #ffffff;          /* Chữ trắng rõ ràng cho nội dung chính */
+  --text-muted: #aaaaaa;         /* Chữ xám cho nội dung phụ, mô tả */
+  --text-cyan: #00ffff;          /* Màu nhấn phản quang cho tiêu đề, bảng số */
+
+  /* 📐 Hệ khoảng cách và Kích thước (Spacing & Sizing) */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+
+  /* 🔤 Font size tiêu chuẩn hệ thống */
+  --font-base: 14px;
+  --font-md: 16px;
+  --font-lg: 18px;
+  --font-title: 24px;
+}
+
+/* Reset cơ bản cho toàn bộ ứng dụng sử dụng chuẩn toàn cục */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--text-main);
+  font-size: var(--font-base);
+  -webkit-font-smoothing: antialiased;
+}
+</file>
+
+<file path="student-management-ui/src/main.jsx">
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+</file>
+
+<file path="student-management-ui/src/pages/GradePage.jsx">
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
+
+function GradePage() {
+    const [students, setStudents] = useState([]);
+    const [selectedStudent, setSelectedStudent] = useState('');
+
+    const [summary, setSummary] = useState(null); // Điểm của 1 SV
+    const [allGrades, setAllGrades] = useState([]); // Bảng điểm toàn trường
+    const [loading, setLoading] = useState(false);
+
+    const [courseClassId, setCourseClassId] = useState('');
+    const [attendance, setAttendance] = useState('');
+    const [midterm, setMidterm] = useState('');
+    const [finalGrade, setFinalGrade] = useState('');
+    const [inputError, setInputError] = useState('');
+
+    const userRole = localStorage.getItem('roles') || '';
+    const loggedInStudentId = localStorage.getItem('studentId') || '';
+
+    const isAdmin = userRole.includes('ADMIN');
+    const isTeacher = userRole.includes('TEACHER');
+    const canViewAll = isAdmin || isTeacher;
+
+    useEffect(() => {
+        if (canViewAll) {
+            // Lấy danh sách SV để đưa vào Dropdown
+            axiosClient.get('/students').then(res => setStudents(res)).catch(err => console.error(err));
+            // Lấy BẢNG ĐIỂM TOÀN TRƯỜNG làm mặc định
+            fetchAllSystemGrades();
+        } else {
+            // Sinh viên thì khóa chặt ID của mình
+            setSelectedStudent(loggedInStudentId);
+        }
+    }, [canViewAll, loggedInStudentId]);
+
+    useEffect(() => {
+        if (selectedStudent) {
+            fetchAcademicSummary(selectedStudent);
+        } else if (canViewAll) {
+            setSummary(null); // Trở về chế độ xem toàn trường
+        }
+    }, [selectedStudent]);
+
+    // Gọi API lấy điểm 1 Sinh Viên
+    const fetchAcademicSummary = async (studentId) => {
+        try {
+            setLoading(true);
+            const data = await axiosClient.get(`/grades/student/${studentId}/summary`);
+            setSummary(data);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Gọi API lấy BẢNG ĐIỂM TOÀN HỆ THỐNG
+    const fetchAllSystemGrades = async () => {
+        try {
+            setLoading(true);
+            const data = await axiosClient.get('/grades');
+            setAllGrades(data);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleInputGrade = async (e) => {
+        e.preventDefault();
+        setInputError('');
+        if (!selectedStudent || !courseClassId) {
+            setInputError('Vui lòng chọn Sinh viên cụ thể từ danh sách bên trên trước khi nhập điểm!');
+            return;
+        }
+        try {
+            await axiosClient.post('/grades', {
+                // ✅ FIX: Giữ nguyên String "HS_01", KHÔNG ép thành Number
+                studentId: selectedStudent,
+                courseClassId: Number(courseClassId),
+                attendanceGrade: attendance !== '' ? Number(attendance) : null,
+                midtermGrade: midterm !== '' ? Number(midterm) : null,
+                finalGrade: finalGrade !== '' ? Number(finalGrade) : null
+            });
+            alert('Nhập điểm thành công!');
+            setCourseClassId(''); setAttendance(''); setMidterm(''); setFinalGrade('');
+            fetchAcademicSummary(selectedStudent);
+        } catch (err) {
+            setInputError(err || 'Lỗi nhập điểm!');
+        }
+    };
+
+    return (
+        <div style={{ color: 'var(--text-main)', padding: 'var(--spacing-sm)' }}>
+            <h2 style={{ color: 'var(--text-cyan)', marginBottom: 'var(--spacing-xl)' }}>
+                QUẢN LÝ ĐIỂM SỐ & GPA HỆ THỐNG
+            </h2>
+
+            {canViewAll ? (
+                <div style={{ backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-lg)', borderRadius: '6px', marginBottom: 'var(--spacing-xl)', border: '1px solid var(--color-border)' }}>
+                    <label style={{ fontWeight: 'bold', marginRight: 'var(--spacing-md)' }}>🔍 Tra cứu điểm số:</label>
+                    <select
+                        value={selectedStudent}
+                        onChange={(e) => setSelectedStudent(e.target.value)}
+                        style={{ padding: 'var(--spacing-sm)', borderRadius: '4px', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', border: '1px solid var(--color-border)', outline: 'none', minWidth: '300px' }}
+                    >
+                        <option value="">📋 Xem bảng điểm Tổng hợp Toàn trường</option>
+                        {students.map(s => (
+                            <option key={s.id} value={s.id}>SV: {s.studentCode} - {s.lastName} {s.firstName}</option>
+                        ))}
+                    </select>
+                </div>
+            ) : (
+                <div style={{ backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-md)', borderRadius: '6px', marginBottom: 'var(--spacing-xl)', border: '1px solid var(--color-border)', color: 'var(--color-warning)', fontWeight: 'bold' }}>
+                    🔒 Chế độ: Sinh viên đang xem kết quả học tập cá nhân
+                </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 'var(--spacing-xl)', alignItems: 'flex-start' }}>
+
+                {/* CỘT BÊN TRÁI: HIỂN THỊ BẢNG ĐIỂM */}
+                <div style={{ flex: 2, backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+
+                    {/* CHẾ ĐỘ 1: XEM 1 SINH VIÊN CỤ THỂ */}
+                    {summary && (
+                        <div>
+                            <h3 style={{ marginTop: 0, marginBottom: 'var(--spacing-lg)', color: 'var(--color-warning)' }}>📋 Kết Quả Tích Lũy Cá Nhân</h3>
+                            <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-xl)' }}>
+                                <div style={{ flex: 1, backgroundColor: 'var(--color-primary)', padding: 'var(--spacing-lg)', borderRadius: '6px', textAlign: 'center' }}>
+                                    <span style={{ fontSize: '13px', opacity: 0.9 }}>Tín Chỉ Tích Lũy</span>
+                                    <h2 style={{ margin: '5px 0 0 0', fontSize: 'var(--font-title)' }}>{summary.totalCredits}</h2>
+                                </div>
+                                <div style={{ flex: 1, backgroundColor: 'var(--color-success)', padding: 'var(--spacing-lg)', borderRadius: '6px', textAlign: 'center' }}>
+                                    <span style={{ fontSize: '13px', opacity: 0.9 }}>GPA Hệ 10</span>
+                                    <h2 style={{ margin: '5px 0 0 0', fontSize: 'var(--font-title)' }}>{summary.gpaSystem10}</h2>
+                                </div>
+                                <div style={{ flex: 1, backgroundColor: 'var(--color-warning)', padding: 'var(--spacing-lg)', borderRadius: '6px', textAlign: 'center', color: '#000' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: 'bold' }}>GPA Hệ 4</span>
+                                    <h2 style={{ margin: '5px 0 0 0', fontSize: 'var(--font-title)' }}>{summary.gpaSystem4}</h2>
+                                </div>
+                            </div>
+
+                            {/* Bảng chi tiết điểm từng môn */}
+                            {summary.details && summary.details.length > 0 && (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 'var(--spacing-sm)' }}>
+                                    <thead>
+                                    <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>Môn Học</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>Lớp HP</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>CC</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>GK</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>CK</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>Tổng</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>Chữ</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>Hệ 4</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {summary.details.map((d, i) => (
+                                        <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                            <td style={{ padding: 'var(--spacing-md)' }}>{d.subjectName}</td>
+                                            <td style={{ padding: 'var(--spacing-md)', color: 'var(--color-warning)' }}>{d.courseClassCode}</td>
+                                            <td style={{ padding: 'var(--spacing-md)' }}>{d.attendanceGrade}</td>
+                                            <td style={{ padding: 'var(--spacing-md)' }}>{d.midtermGrade}</td>
+                                            <td style={{ padding: 'var(--spacing-md)' }}>{d.finalGrade}</td>
+                                            <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold' }}>{d.overallGrade}</td>
+                                            <td style={{ padding: 'var(--spacing-md)', color: d.letterGrade === 'F' ? 'var(--color-danger)' : 'var(--color-success)', fontWeight: 'bold' }}>{d.letterGrade}</td>
+                                            <td style={{ padding: 'var(--spacing-md)' }}>{d.grade4}</td>
+                                        </tr>
+                                    ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    )}
+
+                    {/* CHẾ ĐỘ 2: XEM TOÀN TRƯỜNG (KHI ADMIN/TEACHER CHƯA CHỌN SV NÀO) */}
+                    {!summary && canViewAll && (
+                        <div>
+                            <h3 style={{ marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>🌍 Bảng Điểm Toàn Hệ Thống</h3>
+                            {loading ? <p>Đang tải dữ liệu...</p> : (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 'var(--spacing-sm)' }}>
+                                    <thead>
+                                    <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>Sinh Viên</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>Môn Học</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>Lớp HP</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>Điểm Tổng</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>Điểm Chữ</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {allGrades.map((g, index) => (
+                                        <tr key={index} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                            <td style={{ padding: 'var(--spacing-md)' }}><b>{g.studentName}</b><br/><span style={{fontSize: '12px', color: 'var(--text-muted)'}}>{g.studentCode}</span></td>
+                                            <td style={{ padding: 'var(--spacing-md)' }}>{g.subjectName}</td>
+                                            <td style={{ padding: 'var(--spacing-md)', color: 'var(--color-warning)' }}>{g.courseClassCode}</td>
+                                            <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold' }}>{g.overallGrade}</td>
+                                            <td style={{ padding: 'var(--spacing-md)', color: g.letterGrade === 'F' ? 'var(--color-danger)' : 'var(--color-success)', fontWeight: 'bold' }}>{g.letterGrade}</td>
+                                        </tr>
+                                    ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    )}
+
+                    {/* CHẾ ĐỘ 3: SINH VIÊN XEM ĐIỂM NHƯNG CHƯA CÓ DỮ LIỆU */}
+                    {!summary && !canViewAll && !loading && (
+                        <p style={{ color: 'var(--text-muted)' }}>Chưa có dữ liệu điểm nào được ghi nhận.</p>
+                    )}
+                </div>
+
+                {/* CỘT BÊN PHẢI: FORM NHẬP ĐIỂM (CHỈ TEACHER) */}
+                {isTeacher && (
+                    <div style={{ flex: 1, backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                        <h3>✍️ Nhập Điểm Thành Phần</h3>
+                        {inputError && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-sm)' }}>{inputError}</div>}
+
+                        {!selectedStudent ? (
+                            <div style={{ color: 'var(--color-warning)', fontSize: '14px' }}>
+                                ⚠️ Vui lòng chọn một sinh viên ở Menu bên trên để kích hoạt Form nhập điểm.
+                            </div>
+                        ) : (
+                            <form onSubmit={handleInputGrade}>
+                                <div style={{ marginBottom: 'var(--spacing-md)' }}>
+                                    <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontWeight: 'bold' }}>ID Lớp Học Phần:</label>
+                                    <input type="number" placeholder="Ví dụ: 2" value={courseClassId} onChange={(e) => setCourseClassId(e.target.value)} style={inputStyle} />
+                                </div>
+                                <div style={{ marginBottom: 'var(--spacing-md)' }}>
+                                    <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)' }}>Điểm Chuyên Cần:</label>
+                                    <input type="number" step="0.1" min="0" max="10" value={attendance} onChange={(e) => setAttendance(e.target.value)} style={inputStyle} />
+                                </div>
+                                <div style={{ marginBottom: 'var(--spacing-md)' }}>
+                                    <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)' }}>Điểm Giữa Kỳ:</label>
+                                    <input type="number" step="0.1" min="0" max="10" value={midterm} onChange={(e) => setMidterm(e.target.value)} style={inputStyle} />
+                                </div>
+                                <div style={{ marginBottom: 'var(--spacing-xl)' }}>
+                                    <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)' }}>Điểm Cuối Kỳ:</label>
+                                    <input type="number" step="0.1" min="0" max="10" value={finalGrade} onChange={(e) => setFinalGrade(e.target.value)} style={inputStyle} />
+                                </div>
+                                <button type="submit" style={{ width: '100%', padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Lưu & Xác Nhận Điểm</button>
+                            </form>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
+export default GradePage;
+</file>
+
+<file path="student-management-ui/src/pages/LoginPage.jsx">
+import React, { useState } from 'react';
+import axiosClient from '../api/axiosClient';
+
+function LoginPage() {
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+
+    // Các State quản lý trạng thái ẩn/hiển thị của từng ô mật khẩu độc lập
+    const [showPassword, setShowPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    const [isFirstLoginMode, setIsFirstLoginMode] = useState(false);
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+
+        try {
+            const data = await axiosClient.post('/auth/login', { username, password });
+
+            // ✅ FIX: Java serialize boolean field "isFirstLogin" thành "firstLogin" trong JSON
+            if (data.firstLogin) {
+                setIsFirstLoginMode(true);
+                alert("Hệ thống phát hiện đây là lần đầu bạn đăng nhập. Bạn bắt buộc phải đổi mật khẩu để bảo mật tài khoản!");
+            } else {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('username', data.username);
+                localStorage.setItem('roles', data.roles);
+                localStorage.setItem('userId', data.userId);
+
+                if (data.studentId) localStorage.setItem('studentId', data.studentId);
+                if (data.teacherId) localStorage.setItem('teacherId', data.teacherId);
+
+                window.location.href = '/';
+            }
+        } catch (err) {
+            setError(err || 'Email hoặc mật khẩu không chính xác!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleChangePassword = async (e) => {
+        e.preventDefault();
+        setError('');
+
+        if (newPassword.length < 6) {
+            setError('Mật khẩu mới phải từ 6 ký tự trở lên!');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setError('Mật khẩu xác nhận không trùng khớp!');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            await axiosClient.post('/auth/change-password', { username, newPassword });
+            alert('Đổi mật khẩu thành công mượt mà! Vui lòng đăng nhập lại bằng mật khẩu mới của bạn.');
+            setIsFirstLoginMode(false);
+            setPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+            // Reset trạng thái mắt về ẩn
+            setShowPassword(false);
+            setShowNewPassword(false);
+            setShowConfirmPassword(false);
+        } catch (err) {
+            setError(err || 'Có lỗi phát sinh khi đổi mật khẩu.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div style={{ maxWidth: '400px', margin: '100px auto', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--text-main)' }}>
+
+            {/* GIAO DIỆN 1: FORM BẮT BUỘC ĐỔI MẬT KHẨU LẦN ĐẦU */}
+            {isFirstLoginMode ? (
+                <form onSubmit={handleChangePassword}>
+                    <h2 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)', color: 'var(--color-warning)' }}>🔒 ĐỔI MẬT KHẨU LẦN ĐẦU</h2>
+                    {error && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>{error}</div>}
+
+                    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                        <label style={{ display: 'block', marginBottom: '4px' }}>Mật khẩu mới:</label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showNewPassword ? "text" : "password"}
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                required
+                                style={inputStyle}
+                            />
+                            <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} style={eyeButtonStyle}>
+                                {showNewPassword ? '👁️' : '🙈'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
+                        <label style={{ display: 'block', marginBottom: '4px' }}>Xác nhận mật khẩu mới:</label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showConfirmPassword ? "text" : "password"}
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                                style={inputStyle}
+                            />
+                            <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={eyeButtonStyle}>
+                                {showConfirmPassword ? '👁️' : '🙈'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" disabled={loading} style={buttonStyle}>
+                        {loading ? 'Đang xử lý...' : 'Xác Nhận Thay Đổi'}
+                    </button>
+                </form>
+            ) : (
+                /* GIAO DIỆN 2: FORM ĐĂNG NHẬP MẶC ĐỊNH */
+                <form onSubmit={handleLogin}>
+                    <h2 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)', color: 'var(--text-cyan)' }}>ĐĂNG NHẬP HỆ THỐNG</h2>
+                    {error && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>{error}</div>}
+
+                    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                        {/* 🔥 SỬA: Đổi nhãn từ Tên đăng nhập thành Email */}
+                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Email đăng nhập (@open.edu.vn):</label>
+                        <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required style={inputStyleForUsername} />
+                    </div>
+
+                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
+                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Mật khẩu:</label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                style={inputStyle}
+                            />
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} style={eyeButtonStyle}>
+                                {showPassword ? '👁️' : '🙈'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" disabled={loading} style={buttonStyle}>
+                        {loading ? 'Đang xác thực...' : 'Đăng Nhập'}
+                    </button>
+                </form>
+            )}
+        </div>
+    );
+}
+
+// Style dùng chung cho ô nhập Mật khẩu (Có chừa khoảng trống phải 40px cho nút mắt)
+const inputStyle = {
+    width: '100%',
+    padding: 'var(--spacing-sm)',
+    paddingRight: '40px', // Chống tràn đè chữ lên icon mắt
+    borderRadius: '4px',
+    border: '1px solid var(--color-border)',
+    backgroundColor: 'var(--color-surface-hover)',
+    color: 'var(--text-main)',
+    boxSizing: 'border-box',
+    outline: 'none'
+};
+
+// Style riêng cho Username không cần căn lề phải chừa khoảng trống nút mắt
+const inputStyleForUsername = {
+    width: '100%',
+    padding: 'var(--spacing-sm)',
+    borderRadius: '4px',
+    border: '1px solid var(--color-border)',
+    backgroundColor: 'var(--color-surface-hover)',
+    color: 'var(--text-main)',
+    boxSizing: 'border-box',
+    outline: 'none'
+};
+
+// Định vị nút Icon Mắt tuyệt đối nằm đè gọn gàng bên phải ô Input
+const eyeButtonStyle = {
+    position: 'absolute',
+    right: '10px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    border: 'none',
+    backgroundColor: 'transparent',
+    cursor: 'pointer',
+    fontSize: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    padding: 0,
+    userSelect: 'none'
+};
+
+const buttonStyle = { width: '100%', padding: 'var(--spacing-sm)', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' };
+
+export default LoginPage;
+</file>
+
+<file path="student-management-ui/src/pages/StudentPage.jsx">
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
+
+function StudentPage() {
+    const [students, setStudents] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    const userRole = localStorage.getItem('roles') || '';
+    const isAdmin = userRole.includes('ADMIN');
+
+    const [includeInactive, setIncludeInactive] = useState(false);
+    const [showModal, setShowModal] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingStudentId, setEditingStudentId] = useState(''); // 🔥 ĐÃ SỬA: Chuyển sang String trống làm mặc định
+
+    // Form States
+    const [studentCode, setStudentCode] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [dateOfBirth, setDateOfBirth] = useState('');
+    const [gender, setGender] = useState('Nam');
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [classId, setClassId] = useState('');
+
+    useEffect(() => {
+        fetchStudents();
+    }, [includeInactive]);
+
+    const fetchStudents = async () => {
+        try {
+            setLoading(true);
+            const data = await axiosClient.get(`/students?includeInactive=${includeInactive}`);
+            setStudents(data);
+        } catch (err) {
+            setError(err || 'Không thể tải danh sách sinh viên!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        if (isEditMode) {
+            const payload = { firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId) };
+            try {
+                await axiosClient.put(`/students/${editingStudentId}`, payload);
+                alert("Cập nhật hồ sơ sinh viên thành công!");
+                setShowModal(false);
+                resetForm();
+                fetchStudents();
+            } catch (err) {
+                alert(err || 'Lỗi cập nhật hồ sơ!');
+            }
+        } else {
+            const payload = { studentCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId) };
+            try {
+                await axiosClient.post('/students', payload);
+                alert(`Cấp tài khoản thành công mượt mà!`);
+                setShowModal(false);
+                resetForm();
+                fetchStudents();
+            } catch (err) {
+                alert(err || 'Có lỗi xảy ra khi tạo sinh viên!');
+            }
+        }
+    };
+
+    const handleOpenEdit = (student) => {
+        setIsEditMode(true);
+        setEditingStudentId(student.id); // Lưu chuỗi ID dạng 'HS_01' làm đích cập nhật
+        setStudentCode(student.studentCode);
+        setFirstName(student.firstName);
+        setLastName(student.lastName);
+        setDateOfBirth(student.dateOfBirth || '');
+        setGender(student.gender || 'Nam');
+        setPhoneNumber(student.phoneNumber || '');
+        setClassId(student.classId || '');
+        setShowModal(true);
+    };
+
+    const handleDeleteStudent = async (id, code, name) => {
+        if (window.confirm(`Bạn có chắc chắn muốn KHÓA tài khoản sinh viên [${code} - ${name}] không?`)) {
+            try {
+                await axiosClient.delete(`/students/${id}`);
+                alert('Đã khóa hồ sơ sinh viên và đóng băng tài khoản thành công!');
+                fetchStudents();
+            } catch (err) {
+                alert(err || 'Không thể khóa sinh viên này!');
+            }
+        }
+    };
+
+    const handleEnableStudent = async (id, code, name) => {
+        if (window.confirm(`Bạn có chắc chắn muốn MỞ KHÓA cho sinh viên [${code} - ${name}] không?`)) {
+            try {
+                await axiosClient.put(`/students/${id}/enable`);
+                alert('Tái kích hoạt hệ thống và mở khóa tài khoản thành công!');
+                fetchStudents();
+            } catch (err) {
+                alert(err || 'Không thể mở khóa sinh viên này!');
+            }
+        }
+    };
+
+    const resetForm = () => {
+        setStudentCode(''); setFirstName(''); setLastName(''); setDateOfBirth(''); setGender('Nam'); setPhoneNumber(''); setClassId('');
+        setIsEditMode(false); setEditingStudentId('');
+    };
+
+    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang tải dữ liệu...</div>;
+    if (error) return <div style={{ color: 'var(--color-danger)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>{error}</div>;
+
+    return (
+        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
+                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>QUẢN LÝ DANH SÁCH SINH VIÊN</h2>
+                <div style={{ display: 'flex', gap: 'var(--spacing-lg)', alignItems: 'center' }}>
+                    {isAdmin && (
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', cursor: 'pointer', backgroundColor: 'var(--color-surface-hover)', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
+                            <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
+                            <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-warning)' }}>Hiển thị cả SV đã khóa</span>
+                        </label>
+                    )}
+                    {isAdmin && (
+                        <button onClick={() => { resetForm(); setShowModal(true); }} style={{ padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-success)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                            + Cấp Tài Khoản Sinh Viên
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+                <thead>
+                <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Hệ thống ID</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Mã Sinh Viên</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Tên</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Lớp Học Phần</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Trạng thái</th>
+                    {isAdmin && <th style={{ padding: 'var(--spacing-md)' }}>Hành Động Tác Vụ</th>}
+                </tr>
+                </thead>
+                <tbody>
+                {students.map((student) => (
+                    <tr key={student.id} style={{ borderBottom: '1px solid var(--color-border)', opacity: student.active ? 1 : 0.55 }}>
+                        {/* Hiển thị chuỗi định danh đồng bộ hóa dùng chung với User */}
+                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--text-muted)' }}>{student.id}</td>
+                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{student.studentCode}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{student.lastName} {student.firstName}</td>
+                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)' }}>{student.className}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{student.gender}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>
+                            {student.active ? <span style={{ color: 'var(--color-success)', fontSize: '12px', fontWeight: 'bold' }}>● Đang học</span> : <span style={{ color: 'var(--color-danger)', fontSize: '12px', fontWeight: 'bold' }}>🔒 Đã khóa</span>}
+                        </td>
+                        {isAdmin && (
+                            <td style={{ padding: 'var(--spacing-md)' }}>
+                                {/* 🔥 HÀNH ĐỘNG: Phân tách nút bấm độc lập hoàn chỉnh ra bên ngoài danh sách */}
+                                <button onClick={() => handleOpenEdit(student)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', marginRight: '5px', fontWeight: 'bold' }}>Sửa</button>
+                                {student.active ? (
+                                    <button onClick={() => handleDeleteStudent(student.id, student.studentCode, student.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Khóa</button>
+                                ) : (
+                                    <button onClick={() => handleEnableStudent(student.id, student.studentCode, student.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Mở Khóa</button>
+                                )}
+                            </td>
+                        )}
+                    </tr>
+                ))}
+                </tbody>
+            </table>
+
+            {showModal && (
+                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 }}>
+                    <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--spacing-xl)', borderRadius: '8px', width: '550px' }}>
+                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>{isEditMode ? '📝 CẬP NHẬT HỒ SƠ SINH VIÊN' : '✍️ KHỞI TẠO HỒ SƠ SYSTEM'}</h3>
+                        <form onSubmit={handleSubmit}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Mã Sinh Viên:</label><input type="text" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} disabled={isEditMode} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>ID Lớp Hành Chính:</label><input type="number" value={classId} onChange={(e) => setClassId(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Họ Và Tên Đệm:</label><input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Tên Sinh Viên:</label><input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Giới Tính:</label><select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
+                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px' }}>Số Điện Thoại:</label><input type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
+                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}>Hủy Bỏ</button>
+                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}>{isEditMode ? 'Lưu Thay Đổi' : 'Khởi Tạo & Cấp TK'}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
+export default StudentPage;
+</file>
+
+<file path="student-management-ui/src/pages/TeacherPage.jsx">
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
+
+function TeacherPage() {
+    const [teachers, setTeachers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [modalError, setModalError] = useState('');
+
+    const [teacherCode, setTeacherCode] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [dateOfBirth, setDateOfBirth] = useState('');
+    const [gender, setGender] = useState('Nam');
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [departmentId, setDepartmentId] = useState('');
+
+    useEffect(() => {
+        fetchTeachers();
+    }, []);
+
+    const fetchTeachers = async () => {
+        try {
+            setLoading(true);
+            const data = await axiosClient.get('/teachers');
+            setTeachers(data);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCreateTeacher = async (e) => {
+        e.preventDefault();
+        setModalError('');
+        const payload = { teacherCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, departmentId: Number(departmentId) };
+        try {
+            await axiosClient.post('/teachers', payload);
+            alert(`Cấp tài khoản Giảng viên thành công!\nTài khoản: ${teacherCode}\nMật khẩu: password1234`);
+            setShowModal(false);
+            resetForm();
+            fetchTeachers();
+        } catch (err) {
+            setModalError(err || 'Lỗi khởi tạo hồ sơ giảng viên.');
+        }
+    };
+
+    const resetForm = () => {
+        setTeacherCode(''); setFirstName(''); setLastName(''); setDateOfBirth(''); setGender('Nam'); setPhoneNumber(''); setDepartmentId(''); setModalError('');
+    };
+
+    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang tải danh sách giảng viên...</div>;
+
+    return (
+        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
+                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>QUẢN LÝ DANH SÁCH GIẢNG VIÊN</h2>
+                <button onClick={() => setShowModal(true)} style={{ padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-success)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                    + Cấp Tài Khoản Giảng Viên
+                </button>
+            </div>
+
+            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+                <thead>
+                <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Mã Giảng Viên</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Tên</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Khoa Chuyên Môn</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Email Giảng Dạy</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Số Điện Thoại</th>
+                </tr>
+                </thead>
+                <tbody>
+                {teachers.map((t) => (
+                    <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{t.teacherCode}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{t.lastName} {t.firstName}</td>
+                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)' }}>{t.departmentName}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{t.gender}</td>
+                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-muted)' }}>{t.email}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{t.phoneNumber || '-'}</td>
+                    </tr>
+                ))}
+                </tbody>
+            </table>
+
+            {showModal && (
+                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 }}>
+                    <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--spacing-xl)', borderRadius: '8px', width: '550px' }}>
+                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>✍️ THÊM MỚI HỒ SƠ GIẢNG VIÊN</h3>
+                        {modalError && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)' }}>{modalError}</div>}
+                        <form onSubmit={handleCreateTeacher}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Mã Giảng Viên:</label><input type="text" placeholder="GV2026_01" value={teacherCode} onChange={(e) => setTeacherCode(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>ID Khoa/Viện:</label><input type="number" placeholder="ID" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Họ Và Tên Đệm:</label><input type="text" placeholder="Trần Quốc" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Tên Giảng Viên:</label><input type="text" placeholder="Tuấn" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Giới Tính:</label><select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
+                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px' }}>Số Điện Thoại:</label><input type="text" placeholder="0912345678" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
+                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}>Hủy</button>
+                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}>Khởi Tạo & Cấp TK</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
+export default TeacherPage;
+</file>
+
+<file path="student-management-ui/vite.config.js">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/configuration/DatabaseInitializer.java">
+package com.dangdepzaivaio.StudentManagement.configuration;
+
+import com.dangdepzaivaio.StudentManagement.entity.Role;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.repository.RoleRepository;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.util.List;
+
+@Configuration
+@RequiredArgsConstructor
+@Slf4j
+public class DatabaseInitializer {
+
+    private final RoleRepository roleRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    @Bean
+    ApplicationRunner initRolesAndResetPasswords() {
+        return args -> {
+            // 1. Khởi tạo các Role mặc định nếu chưa có
+            if (roleRepository.findByName("ADMIN").isEmpty()) {
+                roleRepository.save(Role.builder().name("ADMIN").build());
+                log.info("Đã khởi tạo Role: ADMIN");
+            }
+            if (roleRepository.findByName("TEACHER").isEmpty()) {
+                roleRepository.save(Role.builder().name("TEACHER").build());
+                log.info("Đã khởi tạo Role: TEACHER");
+            }
+            if (roleRepository.findByName("STUDENT").isEmpty()) {
+                roleRepository.save(Role.builder().name("STUDENT").build());
+                log.info("Đã khởi tạo Role: STUDENT");
+            }
+
+            // 2. ✅ FIX: Chỉ reset mật khẩu về mặc định cho những tài khoản CHƯA TỪNG đăng nhập
+            // (isFirstLogin = true). Điều này vẫn có thể reset pass của user chưa đổi khi restart,
+            // nhưng đây là hành vi cố ý để đảm bảo pass mặc định luôn đúng khi deploy mới.
+            //
+            // ⚠️  LƯU Ý PRODUCTION: Nếu không muốn reset pass mỗi lần restart,
+            //     hãy comment toàn bộ block bên dưới sau lần deploy đầu tiên.
+            List<User> users = userRepository.findAll();
+            int resetCount = 0;
+            for (User user : users) {
+                if (user.isFirstLogin()) {
+                    user.setPassword(passwordEncoder.encode("password1234"));
+                    userRepository.save(user);
+                    resetCount++;
+                }
+            }
+            if (resetCount > 0) {
+                log.warn("DatabaseInitializer: Đã reset mật khẩu mặc định cho {} tài khoản chưa đổi pass. " +
+                        "Xem xét tắt tính năng này sau khi deploy production.", resetCount);
+            }
+        };
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/configuration/SecurityConfig.java">
+package com.dangdepzaivaio.StudentManagement.configuration;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
+
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+@RequiredArgsConstructor
+public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
+        httpSecurity.cors(cors -> cors.configurationSource(corsConfigurationSource()));
+
+        httpSecurity.authorizeHttpRequests(request -> request
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/auth/login", "/auth/change-password").permitAll()
+
+                .requestMatchers(HttpMethod.POST, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
+
+                .requestMatchers(HttpMethod.GET, "/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
+
+                .requestMatchers(HttpMethod.POST, "/grades/**").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.PUT, "/grades/**").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.DELETE, "/grades/**").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.GET, "/grades/**").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
+
+                .requestMatchers(HttpMethod.POST, "/registration/periods").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/registration/periods/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/registration/periods").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/registration/statistics").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/registration/course-class/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/registration/teacher/**").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.GET, "/registration/classes/**").hasAnyRole("ADMIN", "TEACHER")
+                .requestMatchers(HttpMethod.GET, "/registration/open-course-classes", "/registration/my-classes").hasRole("STUDENT")
+                .requestMatchers(HttpMethod.POST, "/registration/enroll").hasRole("STUDENT")
+                .requestMatchers(HttpMethod.DELETE, "/registration/unenroll").hasRole("STUDENT")
+
+                .anyRequest().authenticated());
+
+        httpSecurity.csrf(AbstractHttpConfigurer::disable);
+        httpSecurity.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return httpSecurity.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/AuthenticationController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.AuthenticationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.AuthenticationResponse;
+import com.dangdepzaivaio.StudentManagement.service.impl.AuthenticationService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/auth")
+@RequiredArgsConstructor
+public class AuthenticationController {
+
+    private final AuthenticationService authenticationService;
+
+    @PostMapping("/login")
+    public ApiResponse<AuthenticationResponse> login(@RequestBody AuthenticationRequest request) {
+        var result = authenticationService.authenticate(request);
+        return new ApiResponse<>(1000, "Đăng nhập hệ thống thành công!", result);
+    }
+
+    @PostMapping("/change-password")
+    public ApiResponse<String> changePassword(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String newPassword = request.get("newPassword");
+        authenticationService.changePasswordFirstLogin(username, newPassword);
+        return new ApiResponse<>(1000, "Đổi mật khẩu lần đầu thành công!", "Mật khẩu mới đã được áp dụng.");
+    }
+}
+</file>
+
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/SubjectController.java">
 package com.dangdepzaivaio.StudentManagement.controller;
 
@@ -3652,6 +4657,102 @@ public class SubjectController {
         subjectService.deleteSubject(subjectId);
         return new ApiResponse<>(1000, "Xóa môn học thành công!", "Môn học có ID " + subjectId + " đã bị xóa hoàn toàn.");
     }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentCreationRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
+
+public record StudentCreationRequest(
+        @NotBlank(message = "Mã sinh viên không được để trống")
+        @Size(max = 20, message = "Mã sinh viên không vượt quá 20 ký tự")
+        String studentCode,
+
+        @NotBlank(message = "Tên sinh viên không được để trống")
+        String firstName,
+
+        @NotBlank(message = "Họ và tên đệm không được để trống")
+        String lastName,
+
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+
+        @NotNull(message = "ID lớp hành chính không được để trống")
+        Long classId
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/AuthenticationResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+import lombok.Builder;
+import java.util.Set;
+
+@Builder
+public record AuthenticationResponse(
+        String token,
+        boolean authenticated,
+        String userId,     // 🔥 Đã đổi sang String
+        String username,
+        Set<String> roles,
+        boolean isFirstLogin,
+        String studentId,  // 🔥 Đã đổi sang String
+        String teacherId   // 🔥 Đã đổi sang String
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/CourseClass.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "course_classes")
+public class CourseClass extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "code", nullable = false, unique = true, length = 30)
+    private String code;
+
+    @Column(name = "semester", nullable = false, length = 20)
+    private String semester;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "subject_id", nullable = false)
+    private Subject subject;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "teacher_id")
+    private Teacher teacher;
+
+    @Builder.Default
+    @Column(name = "max_students", nullable = false)
+    private Integer maxStudents = 60;
+
+    @Column(name = "schedule", length = 120)
+    private String schedule;
+
+    @Builder.Default
+    @Column(name = "is_open", nullable = false)
+    private boolean openForRegistration = false;
+
+    @Transient
+    private long registeredStudents;
 }
 </file>
 
@@ -3835,23 +4936,8 @@ public interface ClassRepository extends JpaRepository<Class, Long> {
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/CourseClassRepository.java">
 package com.dangdepzaivaio.StudentManagement.repository;
 
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassStatResponse;
 import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-import java.util.List;
-
-@Repository
-public interface CourseClassRepository extends JpaRepository<CourseClass, Long> {
-    List<CourseClass> findBySemester(String semester);
-    boolean existsByCode(String code);
-    boolean existsBySubjectId(Long subjectId);
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/StudentRepository.java">
-package com.dangdepzaivaio.StudentManagement.repository;
-
-import com.dangdepzaivaio.StudentManagement.entity.Student;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -3861,26 +4947,48 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface StudentRepository extends JpaRepository<Student, Long> {
-    Optional<Student> findByStudentCode(String studentCode);
-    boolean existsByStudentCode(String studentCode);
-    boolean existsByStudentClassId(Long classId);
+public interface CourseClassRepository extends JpaRepository<CourseClass, Long> {
+    boolean existsByCode(String code);
+    boolean existsBySubjectId(Long subjectId);
 
-    Optional<Student> findByUserId(Long userId); // 🔥 BỔ SUNG DÒNG NÀY ĐỂ TÌM THEO USER ID
+    @Query("SELECT cc FROM CourseClass cc " +
+            "JOIN FETCH cc.subject s " +
+            "LEFT JOIN FETCH cc.teacher t " +
+            "LEFT JOIN FETCH t.user")
+    List<CourseClass> findAllWithSubjectAndTeacher();
 
-    @Query("SELECT s FROM Student s " +
-            "JOIN FETCH s.user u " +
-            "JOIN FETCH s.studentClass c " +
-            "WHERE s.isActive = true")
-    List<Student> findAllActiveStudentsWithJoinFetch();
+    @Query("SELECT cc FROM CourseClass cc " +
+            "JOIN FETCH cc.subject s " +
+            "LEFT JOIN FETCH cc.teacher t " +
+            "LEFT JOIN FETCH t.user " +
+            "WHERE cc.id = :id")
+    Optional<CourseClass> findByIdWithSubjectAndTeacher(@Param("id") Long id);
 
-    @Query("SELECT s FROM Student s " +
-            "JOIN FETCH s.user u " +
-            "JOIN FETCH s.studentClass c")
-    List<Student> findAllStudentsWithJoinFetch();
+    @Query("SELECT cc FROM CourseClass cc " +
+            "JOIN FETCH cc.subject s " +
+            "LEFT JOIN FETCH cc.teacher t " +
+            "LEFT JOIN FETCH t.user " +
+            "WHERE t.id = :teacherId")
+    List<CourseClass> findByTeacherId(@Param("teacherId") String teacherId);
 
-    @Query("SELECT s FROM Student s JOIN FETCH s.user JOIN FETCH s.studentClass WHERE s.id = :id")
-    Optional<Student> findByIdWithJoinFetch(@Param("id") Long id);
+    List<CourseClass> findBySemester(String semester);
+
+    @Query("SELECT cc FROM CourseClass cc " +
+            "JOIN FETCH cc.subject s " +
+            "LEFT JOIN FETCH cc.teacher t " +
+            "LEFT JOIN FETCH t.user " +
+            "WHERE cc.openForRegistration = true")
+    List<CourseClass> findByOpenForRegistrationTrue();
+
+    @Query("SELECT new com.dangdepzaivaio.StudentManagement.dto.response.CourseClassStatResponse(" +
+            "cc.id, cc.code, s.name, CONCAT(COALESCE(t.lastName, ''), ' ', COALESCE(t.firstName, '')), " +
+            "COUNT(g.id), cc.semester, cc.maxStudents, cc.openForRegistration) " +
+            "FROM CourseClass cc " +
+            "JOIN cc.subject s " +
+            "LEFT JOIN cc.teacher t " +
+            "LEFT JOIN Grade g ON g.courseClass.id = cc.id " +
+            "GROUP BY cc.id, cc.code, s.name, t.lastName, t.firstName, cc.semester, cc.maxStudents, cc.openForRegistration")
+    List<CourseClassStatResponse> getRegistrationStatistics();
 }
 </file>
 
@@ -3895,11 +5003,225 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByUsername(String username);
+
+    // 🔥 THÊM MỚI: Tìm kiếm tài khoản người dùng bằng Email
+    Optional<User> findByEmail(String email);
+
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
+    long countByIdStartingWith(String prefix);
+
+    // 🔥 BỔ SUNG: Hàm lấy danh sách các tài khoản đang hoạt động (isActive = true)
     List<User> findByIsActiveTrue();
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/AuthenticationService.java">
+package com.dangdepzaivaio.StudentManagement.service.impl;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.AuthenticationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.AuthenticationResponse;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
+import com.dangdepzaivaio.StudentManagement.repository.TeacherRepository;
+import com.nimbusds.jose.*;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jwt.JWTClaimsSet;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Date;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class AuthenticationService {
+
+    private final UserRepository userRepository;
+    private final StudentRepository studentRepository;
+    private final TeacherRepository teacherRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    @Value("${jwt.signer-key}")
+    private String SIGNER_KEY;
+
+    public AuthenticationResponse authenticate(AuthenticationRequest request) {
+        // 🔥 THAY ĐỔI: Tìm kiếm bằng Email thay vì Username (Mã số) cũ
+        User user = userRepository.findByEmail(request.username())
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+
+        if (!user.isActive()) {
+            throw new AppException(ErrorCode.ACCOUNT_LOCKED);
+        }
+
+        boolean authenticated = passwordEncoder.matches(request.password(), user.getPassword());
+        if (!authenticated) throw new AppException(ErrorCode.UNAUTHENTICATED);
+
+        String token = generateToken(user);
+        Set<String> roles = user.getRoles().stream()
+                .map(com.dangdepzaivaio.StudentManagement.entity.Role::getName)
+                .collect(Collectors.toSet());
+
+        String studentId = null;
+        String teacherId = null;
+
+        if (roles.contains("STUDENT")) {
+            studentId = studentRepository.findById(user.getId())
+                    .map(com.dangdepzaivaio.StudentManagement.entity.Student::getId).orElse(null);
+        } else if (roles.contains("TEACHER")) {
+            teacherId = teacherRepository.findById(user.getId())
+                    .map(com.dangdepzaivaio.StudentManagement.entity.Teacher::getId).orElse(null);
+        }
+
+        return AuthenticationResponse.builder()
+                .token(token)
+                .authenticated(true)
+                .userId(user.getId())
+                .username(user.getEmail()) // Trả về email làm thông tin hiển thị sau đăng nhập
+                .roles(roles)
+                .isFirstLogin(user.isFirstLogin())
+                .studentId(studentId)
+                .teacherId(teacherId)
+                .build();
+    }
+
+    private String generateToken(User user) {
+        JWSHeader header = new JWSHeader(JWSAlgorithm.HS256);
+        String rolesScope = user.getRoles().stream()
+                .map(com.dangdepzaivaio.StudentManagement.entity.Role::getName)
+                .collect(Collectors.joining(" "));
+
+        JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
+                .subject(user.getEmail()) // 🔥 THAY ĐỔI: Lưu Email vào subject của JWT thay vì username
+                .issuer("dangdepzaivaio.com")
+                .issueTime(new Date())
+                .expirationTime(new Date(Instant.now().plus(2, ChronoUnit.HOURS).toEpochMilli()))
+                .claim("userId", user.getId())
+                .claim("scope", rolesScope)
+                .build();
+
+        Payload payload = new Payload(jwtClaimsSet.toJSONObject());
+        JWSObject jwsObject = new JWSObject(header, payload);
+        try {
+            jwsObject.sign(new MACSigner(SIGNER_KEY.getBytes()));
+            return jwsObject.serialize();
+        } catch (JOSEException e) {
+            throw new RuntimeException("Không thể tạo token", e);
+        }
+    }
+
+    // 🔥 SỬA CHỮA: Cập nhật dùng findByEmail để khớp với luồng giao diện React
+    public void changePasswordFirstLogin(String username, String newPassword) {
+        User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (!user.isFirstLogin()) {
+            throw new AppException(ErrorCode.VALIDATION_ERROR);
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setFirstLogin(false);
+        userRepository.save(user);
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/ClassServiceImpl.java">
+package com.dangdepzaivaio.StudentManagement.service.impl;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.ClassRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ClassResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Class;
+import com.dangdepzaivaio.StudentManagement.entity.Department;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.ClassMapper;
+import com.dangdepzaivaio.StudentManagement.repository.ClassRepository;
+import com.dangdepzaivaio.StudentManagement.repository.DepartmentRepository;
+import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
+import com.dangdepzaivaio.StudentManagement.service.ClassService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class ClassServiceImpl implements ClassService {
+    // 🔥 ĐÃ GOM TOÀN BỘ KHAI BÁO LÊN ĐẦU CLASS THEO ĐÚNG CHUẨN LOMBOK
+    private final ClassRepository classRepository;
+    private final DepartmentRepository departmentRepository;
+    private final StudentRepository studentRepository;
+    private final ClassMapper classMapper;
+
+    @Override
+    @Transactional
+    public ClassResponse createClass(ClassRequest request) {
+        if (classRepository.existsByName(request.name())) {
+            throw new AppException(ErrorCode.CLASS_EXISTED);
+        }
+        Department department = departmentRepository.findById(request.departmentId())
+                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
+
+        Class studentClass = classMapper.toEntity(request);
+        studentClass.setDepartment(department);
+        return classMapper.toResponse(classRepository.save(studentClass));
+    }
+
+    @Override
+    public List<ClassResponse> getAllClasses() {
+        return classRepository.findAllClassesWithJoinFetch().stream()
+                .map(classMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public ClassResponse updateClass(Long id, ClassRequest request) {
+        Class studentClass = classRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+
+        if (!studentClass.getName().equals(request.name()) && classRepository.existsByName(request.name())) {
+            throw new AppException(ErrorCode.CLASS_EXISTED);
+        }
+
+        Department department = departmentRepository.findById(request.departmentId())
+                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
+
+        classMapper.updateEntityFromRequest(request, studentClass);
+        studentClass.setDepartment(department);
+        return classMapper.toResponse(classRepository.save(studentClass));
+    }
+
+    @Override
+    @Transactional
+    public void deleteClass(Long id) {
+        Class studentClass = classRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+
+        if (studentRepository.existsByStudentClassId(id)) {
+            throw new AppException(ErrorCode.CLASS_HAS_STUDENTS);
+        }
+
+        classRepository.delete(studentClass);
+    }
+
+    @Override
+    public ClassResponse getClassById(Long id) {
+        Class adminClass = classRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+        return classMapper.toResponse(adminClass);
+    }
 }
 </file>
 
@@ -3910,12 +5232,14 @@ import com.dangdepzaivaio.StudentManagement.dto.request.CourseClassRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
 import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
 import com.dangdepzaivaio.StudentManagement.entity.Subject;
+import com.dangdepzaivaio.StudentManagement.entity.Teacher;
 import com.dangdepzaivaio.StudentManagement.exception.AppException;
 import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
 import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
 import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
 import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
 import com.dangdepzaivaio.StudentManagement.repository.SubjectRepository;
+import com.dangdepzaivaio.StudentManagement.repository.TeacherRepository;
 import com.dangdepzaivaio.StudentManagement.service.CourseClassService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -3929,6 +5253,7 @@ public class CourseClassServiceImpl implements CourseClassService {
 
     private final CourseClassRepository courseClassRepository;
     private final SubjectRepository subjectRepository;
+    private final TeacherRepository teacherRepository;
     private final CourseClassMapper courseClassMapper;
     private final GradeRepository gradeRepository;
 
@@ -3944,28 +5269,29 @@ public class CourseClassServiceImpl implements CourseClassService {
 
         CourseClass courseClass = courseClassMapper.toEntity(request);
         courseClass.setSubject(subject);
+        applyTeacherAndDefaults(courseClass, request);
 
-        return courseClassMapper.toResponse(courseClassRepository.save(courseClass));
+        return toResponseWithCount(courseClassRepository.save(courseClass));
     }
 
     @Override
     public List<CourseClassResponse> getAllCourseClasses() {
-        return courseClassRepository.findAll().stream()
-                .map(courseClassMapper::toResponse)
+        return courseClassRepository.findAllWithSubjectAndTeacher().stream()
+                .map(this::toResponseWithCount)
                 .toList();
     }
 
     @Override
     public CourseClassResponse getCourseClassById(Long id) {
-        return courseClassRepository.findById(id)
-                .map(courseClassMapper::toResponse)
+        CourseClass courseClass = courseClassRepository.findByIdWithSubjectAndTeacher(id)
                 .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
+        return toResponseWithCount(courseClass);
     }
 
     @Override
     @Transactional
     public CourseClassResponse updateCourseClass(Long id, CourseClassRequest request) {
-        CourseClass courseClass = courseClassRepository.findById(id)
+        CourseClass courseClass = courseClassRepository.findByIdWithSubjectAndTeacher(id)
                 .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
 
         if (!courseClass.getCode().equals(request.code()) && courseClassRepository.existsByCode(request.code())) {
@@ -3977,8 +5303,9 @@ public class CourseClassServiceImpl implements CourseClassService {
 
         courseClassMapper.updateEntityFromRequest(request, courseClass);
         courseClass.setSubject(subject);
+        applyTeacherAndDefaults(courseClass, request);
 
-        return courseClassMapper.toResponse(courseClassRepository.save(courseClass));
+        return toResponseWithCount(courseClassRepository.save(courseClass));
     }
 
     @Override
@@ -3993,6 +5320,29 @@ public class CourseClassServiceImpl implements CourseClassService {
 
         courseClassRepository.delete(courseClass);
     }
+
+    private void applyTeacherAndDefaults(CourseClass courseClass, CourseClassRequest request) {
+        if (request.teacherId() == null || request.teacherId().isBlank()) {
+            courseClass.setTeacher(null);
+        } else {
+            Teacher teacher = teacherRepository.findById(request.teacherId())
+                    .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
+            courseClass.setTeacher(teacher);
+        }
+
+        if (courseClass.getMaxStudents() == null || courseClass.getMaxStudents() < 1) {
+            courseClass.setMaxStudents(60);
+        }
+
+        if (request.openForRegistration() != null) {
+            courseClass.setOpenForRegistration(request.openForRegistration());
+        }
+    }
+
+    private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
+        courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
+        return courseClassMapper.toResponse(courseClass);
+    }
 }
 </file>
 
@@ -4005,14 +5355,18 @@ import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryR
 import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
 import com.dangdepzaivaio.StudentManagement.entity.Grade;
 import com.dangdepzaivaio.StudentManagement.entity.Student;
+import com.dangdepzaivaio.StudentManagement.entity.User;
 import com.dangdepzaivaio.StudentManagement.exception.AppException;
 import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
 import com.dangdepzaivaio.StudentManagement.mapper.GradeMapper;
 import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
 import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
 import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
 import com.dangdepzaivaio.StudentManagement.service.GradeService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -4025,45 +5379,18 @@ public class GradeServiceImpl implements GradeService {
     private final GradeRepository gradeRepository;
     private final StudentRepository studentRepository;
     private final CourseClassRepository courseClassRepository;
+    private final UserRepository userRepository;
     private final GradeMapper gradeMapper;
 
     @Override
     @Transactional
     public GradeResponse inputGrade(GradeRequest request) {
-        if (gradeRepository.existsByStudentIdAndCourseClassId(request.studentId(), request.courseClassId())) {
-            throw new AppException(ErrorCode.GRADE_EXISTED);
-        }
-
-        Student student = studentRepository.findById(request.studentId())
-                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
-
-        CourseClass courseClass = courseClassRepository.findById(request.courseClassId())
+        CourseClass courseClass = courseClassRepository.findByIdWithSubjectAndTeacher(request.courseClassId())
                 .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
+        assertTeacherAssigned(courseClass);
 
-        Grade grade = gradeMapper.toEntity(request);
-        grade.setStudent(student);
-        grade.setCourseClass(courseClass);
-
-        calculateAndConvertGrade(grade);
-
-        return gradeMapper.toResponse(gradeRepository.save(grade));
-    }
-
-    @Override
-    public List<GradeResponse> getGradesByStudent(Long studentId) {
-        if (!studentRepository.existsById(studentId)) {
-            throw new AppException(ErrorCode.STUDENT_NOT_FOUND);
-        }
-        return gradeRepository.findByStudentId(studentId).stream()
-                .map(gradeMapper::toResponse)
-                .toList();
-    }
-
-    @Override
-    @Transactional
-    public GradeResponse updateGrade(Long id, GradeRequest request) {
-        Grade grade = gradeRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.GRADE_NOT_FOUND));
+        Grade grade = gradeRepository.findByStudentIdAndCourseClassId(request.studentId(), request.courseClassId())
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_ENROLLED));
 
         gradeMapper.updateEntityFromRequest(request, grade);
         calculateAndConvertGrade(grade);
@@ -4072,49 +5399,73 @@ public class GradeServiceImpl implements GradeService {
     }
 
     @Override
-    public StudentAcademicSummaryResponse getAcademicSummary(Long studentId) {
-        Student student = studentRepository.findById(studentId)
+    public List<GradeResponse> getGradesByStudent(String studentId) {
+        if (!studentRepository.existsById(studentId)) {
+            throw new AppException(ErrorCode.STUDENT_NOT_FOUND);
+        }
+
+        Authentication authentication = currentAuthentication();
+        if (hasRole(authentication, "ROLE_STUDENT") && !currentUser().getId().equals(studentId)) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        return gradeRepository.findByStudentId(studentId).stream()
+                .filter(grade -> !hasRole(authentication, "ROLE_TEACHER") || isAssignedTeacher(grade.getCourseClass(), authentication.getName()))
+                .map(gradeMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public GradeResponse updateGrade(Long id, GradeRequest request) {
+        Grade grade = gradeRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new AppException(ErrorCode.GRADE_NOT_FOUND));
+        assertTeacherAssigned(grade.getCourseClass());
+
+        gradeMapper.updateEntityFromRequest(request, grade);
+        calculateAndConvertGrade(grade);
+        return gradeMapper.toResponse(gradeRepository.save(grade));
+    }
+
+    @Override
+    public StudentAcademicSummaryResponse getAcademicSummary(String studentId) {
+        Authentication authentication = currentAuthentication();
+        Student student = studentRepository.findByIdWithJoinFetch(studentId)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
 
-        List<Grade> grades = gradeRepository.findByStudentId(studentId);
+        if (hasRole(authentication, "ROLE_STUDENT") && !student.getUser().getEmail().equalsIgnoreCase(authentication.getName())) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        List<Grade> grades = gradeRepository.findByStudentId(studentId).stream()
+                .filter(grade -> !hasRole(authentication, "ROLE_TEACHER") || isAssignedTeacher(grade.getCourseClass(), authentication.getName()))
+                .toList();
 
         int totalCredits = 0;
         double totalWeightedGrade10 = 0.0;
-        double serverWeightedGrade4 = 0.0;
+        double totalWeightedGrade4 = 0.0;
 
         for (Grade grade : grades) {
-            // Kiểm tra an toàn: Nếu môn học chưa có điểm tổng kết (Null) -> Bỏ qua không cộng vào tích lũy GPA
             if (grade.getOverallGrade() == null || grade.getGrade4() == null) {
                 continue;
             }
-
-            // Đảm bảo dữ liệu liên kết không rỗng
             if (grade.getCourseClass() != null && grade.getCourseClass().getSubject() != null) {
                 int credits = grade.getCourseClass().getSubject().getCredits();
                 totalCredits += credits;
-                totalWeightedGrade10 += (grade.getOverallGrade() * credits);
-                serverWeightedGrade4 += (grade.getGrade4() * credits);
+                totalWeightedGrade10 += grade.getOverallGrade() * credits;
+                totalWeightedGrade4 += grade.getGrade4() * credits;
             }
         }
 
-        double gpa10 = 0.0;
-        double gpa4 = 0.0;
-        if (totalCredits > 0) {
-            gpa10 = totalWeightedGrade10 / totalCredits;
-            gpa4 = serverWeightedGrade4 / totalCredits;
-            gpa10 = Math.round(gpa10 * 100.0) / 100.0;
-            gpa4 = Math.round(gpa4 * 100.0) / 100.0;
-        }
+        double gpa10 = totalCredits == 0 ? 0.0 : Math.round((totalWeightedGrade10 / totalCredits) * 100.0) / 100.0;
+        double gpa4 = totalCredits == 0 ? 0.0 : Math.round((totalWeightedGrade4 / totalCredits) * 100.0) / 100.0;
 
-        List<GradeResponse> details = grades.stream()
-                .map(gradeMapper::toResponse)
-                .toList();
-
+        List<GradeResponse> details = grades.stream().map(gradeMapper::toResponse).toList();
         return new StudentAcademicSummaryResponse(
                 student.getId(),
                 student.getStudentCode(),
                 student.getFirstName() + " " + student.getLastName(),
-                student.getStudentClass() != null ? student.getStudentClass().getName() : "Chưa xếp lớp",
+                student.getStudentClass() != null ? student.getStudentClass().getName() : "Chua xep lop",
                 details,
                 totalCredits,
                 gpa10,
@@ -4122,42 +5473,86 @@ public class GradeServiceImpl implements GradeService {
         );
     }
 
-    // ==================== LẤY TOÀN BỘ ĐIỂM HỆ THỐNG (GET ALL) ====================
     @Override
     public List<GradeResponse> getAllGrades() {
-        return gradeRepository.findAll().stream()
-                .map(gradeMapper::toResponse)
-                .toList();
+        Authentication authentication = currentAuthentication();
+
+        if (hasRole(authentication, "ROLE_ADMIN")) {
+            return gradeRepository.findAllGradesWithJoinFetch().stream().map(gradeMapper::toResponse).toList();
+        }
+
+        if (hasRole(authentication, "ROLE_TEACHER")) {
+            return gradeRepository.findByCourseClassTeacherUserEmail(authentication.getName()).stream()
+                    .map(gradeMapper::toResponse)
+                    .toList();
+        }
+
+        if (hasRole(authentication, "ROLE_STUDENT")) {
+            User user = currentUser();
+            return gradeRepository.findByStudentId(user.getId()).stream().map(gradeMapper::toResponse).toList();
+        }
+
+        throw new AppException(ErrorCode.UNAUTHENTICATED);
     }
 
-    // ==================== LẤY CHI TIẾT 1 ĐẦU ĐIỂM (GET BY ID) ====================
     @Override
     public GradeResponse getGradeById(Long id) {
-        Grade grade = gradeRepository.findById(id)
+        Grade grade = gradeRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new AppException(ErrorCode.GRADE_NOT_FOUND));
+
+        Authentication authentication = currentAuthentication();
+        if (hasRole(authentication, "ROLE_STUDENT") && !grade.getStudent().getUser().getEmail().equalsIgnoreCase(authentication.getName())) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+        if (hasRole(authentication, "ROLE_TEACHER") && !isAssignedTeacher(grade.getCourseClass(), authentication.getName())) {
+            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
+        }
+
         return gradeMapper.toResponse(grade);
     }
 
-    // ==================== XÓA ĐẦU ĐIỂM (DELETE) ====================
     @Override
     @Transactional
     public void deleteGrade(Long id) {
-        Grade grade = gradeRepository.findById(id)
+        Grade grade = gradeRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new AppException(ErrorCode.GRADE_NOT_FOUND));
+        assertTeacherAssigned(grade.getCourseClass());
         gradeRepository.delete(grade);
     }
 
-    // Thuật toán tính điểm ngầm
-    // Thuật toán tính điểm ngầm an toàn tuyệt đối
+    private void assertTeacherAssigned(CourseClass courseClass) {
+        Authentication authentication = currentAuthentication();
+        if (hasRole(authentication, "ROLE_TEACHER") && !isAssignedTeacher(courseClass, authentication.getName())) {
+            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
+        }
+    }
+
+    private boolean isAssignedTeacher(CourseClass courseClass, String email) {
+        return courseClass != null
+                && courseClass.getTeacher() != null
+                && courseClass.getTeacher().getUser() != null
+                && email.equalsIgnoreCase(courseClass.getTeacher().getUser().getEmail());
+    }
+
+    private Authentication currentAuthentication() {
+        return SecurityContextHolder.getContext().getAuthentication();
+    }
+
+    private User currentUser() {
+        String email = currentAuthentication().getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+    }
+
+    private boolean hasRole(Authentication authentication, String role) {
+        return authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals(role));
+    }
+
     private void calculateAndConvertGrade(Grade grade) {
-        // 🔥 Bảo vệ toán học: Nếu Frontend gửi null (ô input để trống), tự động hiểu là 0.0
         double attendance = grade.getAttendanceGrade() != null ? grade.getAttendanceGrade() : 0.0;
         double midterm = grade.getMidtermGrade() != null ? grade.getMidtermGrade() : 0.0;
         double finalG = grade.getFinalGrade() != null ? grade.getFinalGrade() : 0.0;
-
-        double overall = (attendance * 0.1) + (midterm * 0.3) + (finalG * 0.6);
-
-        overall = Math.round(overall * 100.0) / 100.0;
+        double overall = Math.round(((attendance * 0.1) + (midterm * 0.3) + (finalG * 0.6)) * 100.0) / 100.0;
         grade.setOverallGrade(overall);
 
         if (overall >= 8.5) {
@@ -4224,423 +5619,20 @@ public class StudentManagementApplication {
 }
 </file>
 
-<file path="student_management.sql">
--- MySQL dump 10.13  Distrib 8.0.46, for Win64 (x86_64)
---
--- Host: 127.0.0.1    Database: student_management
--- ------------------------------------------------------
--- Server version	8.0.46
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8 */;
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-
---
--- Table structure for table `classes`
---
-
-DROP TABLE IF EXISTS `classes`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `classes` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `department_id` bigint NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UKpgs3gcxax70h9jugbt24ugwcg` (`name`),
-  KEY `FKeerjjltjmtwpjo3jlr7037vxt` (`department_id`),
-  CONSTRAINT `FKeerjjltjmtwpjo3jlr7037vxt` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `classes`
---
-
-LOCK TABLES `classes` WRITE;
-/*!40000 ALTER TABLE `classes` DISABLE KEYS */;
-INSERT INTO `classes` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','D21CNPM1',1),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','D22KHMT1',2),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','D21DTVT2',3),(4,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','D22ATTT1',4),(5,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','D21HTTT1',5);
-/*!40000 ALTER TABLE `classes` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `course_classes`
---
-
-DROP TABLE IF EXISTS `course_classes`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `course_classes` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `code` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `semester` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `subject_id` bigint NOT NULL,
-  `teacher_id` bigint DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UKmdeewqfqfih9ft75b0gbp9nrc` (`code`),
-  KEY `FKpxijwa2w0cvst789igk5x2fpu` (`subject_id`),
-  KEY `FK_course_class_teacher` (`teacher_id`),
-  CONSTRAINT `FK_course_class_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`),
-  CONSTRAINT `FKpxijwa2w0cvst789igk5x2fpu` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `course_classes`
---
-
-LOCK TABLES `course_classes` WRITE;
-/*!40000 ALTER TABLE `course_classes` DISABLE KEYS */;
-INSERT INTO `course_classes` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','CPP_CLASS_01','HK1-2026',1,1),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','DSA_CLASS_01','HK1-2026',2,2),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','JAVA_CLASS_01','HK1-2026',3,3),(4,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','NET_CLASS_01','HK1-2026',4,4),(5,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','OS_CLASS_01','HK1-2026',5,5);
-/*!40000 ALTER TABLE `course_classes` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `departments`
---
-
-DROP TABLE IF EXISTS `departments`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `departments` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UKl7tivi5261wxdnvo6cct9gg6t` (`code`),
-  UNIQUE KEY `UKj6cwks7xecs5jov19ro8ge3qk` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `departments`
---
-
-LOCK TABLES `departments` WRITE;
-/*!40000 ALTER TABLE `departments` DISABLE KEYS */;
-INSERT INTO `departments` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','CNTT','Công nghệ thông tin'),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','KHMT','Khoa học máy tính'),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','DTVT','Điện tử viễn thông'),(4,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','ATTT','An toàn thông tin'),(5,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','HTTT','Hệ thống thông tin');
-/*!40000 ALTER TABLE `departments` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `grades`
---
-
-DROP TABLE IF EXISTS `grades`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `grades` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `attendance_grade` double DEFAULT NULL,
-  `final_grade` double DEFAULT NULL,
-  `letter_grade` varchar(5) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `midterm_grade` double DEFAULT NULL,
-  `overall_grade` double DEFAULT NULL,
-  `course_class_id` bigint NOT NULL,
-  `student_id` bigint NOT NULL,
-  `grade_4` double DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UKko1u7sub9pfixo5kagdclh8sj` (`student_id`,`course_class_id`),
-  KEY `FK5c6jpjp7bty7q1flkpcc6pi4a` (`course_class_id`),
-  CONSTRAINT `FK13a16545m7vvrcspc999r15s9` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
-  CONSTRAINT `FK5c6jpjp7bty7q1flkpcc6pi4a` FOREIGN KEY (`course_class_id`) REFERENCES `course_classes` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `grades`
---
-
-LOCK TABLES `grades` WRITE;
-/*!40000 ALTER TABLE `grades` DISABLE KEYS */;
-INSERT INTO `grades` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000',9,9,'A',8.5,8.85,1,1,4),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000',8,8.5,'B+',8,8.3,2,2,3.5),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000',10,9.5,'A',9,9.4,3,3,4),(4,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000',7.5,8,'B',7,7.65,4,4,3),(5,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000',6,7,'C+',6.5,6.75,5,5,2.5);
-/*!40000 ALTER TABLE `grades` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `roles`
---
-
-DROP TABLE IF EXISTS `roles`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `roles` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UKofx66keruapi6vyqpv6f2or37` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `roles`
---
-
-LOCK TABLES `roles` WRITE;
-/*!40000 ALTER TABLE `roles` DISABLE KEYS */;
-INSERT INTO `roles` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','ADMIN'),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','STUDENT'),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','TEACHER');
-/*!40000 ALTER TABLE `roles` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `students`
---
-
-DROP TABLE IF EXISTS `students`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `students` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `date_of_birth` date DEFAULT NULL,
-  `first_name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `gender` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `last_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `phone_number` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `student_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `class_id` bigint NOT NULL,
-  `user_id` bigint NOT NULL,
-  `is_active` bit(1) NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UKcgcf3r5xk73o0etbduc1qxnol` (`student_code`),
-  UNIQUE KEY `UKg4fwvutq09fjdlb4bb0byp7t` (`user_id`),
-  KEY `FKhnslh0rm5bthlble8vjunbnwe` (`class_id`),
-  CONSTRAINT `FKdt1cjx5ve5bdabmuuf3ibrwaq` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
-  CONSTRAINT `FKhnslh0rm5bthlble8vjunbnwe` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `students`
---
-
-LOCK TABLES `students` WRITE;
-/*!40000 ALTER TABLE `students` DISABLE KEYS */;
-INSERT INTO `students` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','2003-04-05','Anh','Nam','Nguyễn Đình','0987654321','B21CNPM001',1,2,_binary ''),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','2004-05-23','Đăng','Nam','Trần Minh','0987654322','B21CNPM002',2,3,_binary ''),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','2004-10-15','Hải','Nam','Nguyễn Hoàng','0987654323','B21CNPM003',3,4,_binary ''),(4,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','2004-05-20','Linh','Nữ','Phạm Khánh','0987654324','B21CNPM004',4,5,_binary ''),(5,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','2004-12-01','Tùng','Nam','Vũ Sơn','0987654325','B21CNPM005',5,6,_binary '');
-/*!40000 ALTER TABLE `students` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `subjects`
---
-
-DROP TABLE IF EXISTS `subjects`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `subjects` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `credits` int NOT NULL,
-  `name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UKrg7x1lyii7kdyycw98d45vep5` (`code`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `subjects`
---
-
-LOCK TABLES `subjects` WRITE;
-/*!40000 ALTER TABLE `subjects` DISABLE KEYS */;
-INSERT INTO `subjects` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','C_PLUS_BASE',3,'Lập trình C++ cơ bản'),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','DSA_STRUCTURE',4,'Cấu trúc dữ liệu & Giải thuật'),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','JAVA_WEB_DEV',3,'Lập trình Web nâng cao với Java'),(4,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','NET_COMPUTER',3,'Cơ sở mạng máy tính'),(5,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','OS_OPERATION',3,'Hệ điều hành máy tính');
-/*!40000 ALTER TABLE `subjects` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `teachers`
---
-
-DROP TABLE IF EXISTS `teachers`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `teachers` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `teacher_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `first_name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `last_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `date_of_birth` date DEFAULT NULL,
-  `gender` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `phone_number` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `is_active` bit(1) NOT NULL DEFAULT b'1',
-  `user_id` bigint NOT NULL,
-  `department_id` bigint NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UK_teacher_code` (`teacher_code`),
-  UNIQUE KEY `UK_teacher_user` (`user_id`),
-  KEY `FK_teacher_department` (`department_id`),
-  CONSTRAINT `FK_teacher_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
-  CONSTRAINT `FK_teacher_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `teachers`
---
-
-LOCK TABLES `teachers` WRITE;
-/*!40000 ALTER TABLE `teachers` DISABLE KEYS */;
-INSERT INTO `teachers` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','GV2026_01','Tuấn','Trần Quốc','1985-04-12','Nam','0912111222',_binary '',7,1),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','GV2026_02','Minh','Nguyễn Thị','1988-08-24','Nữ','0912333444',_binary '',8,2),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','GV2026_03','Nam','Lê Hoàng','1982-11-05','Nam','0912555666',_binary '',9,3),(4,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','GV2026_04','Hải','Phạm Văn','1979-02-18','Nam','0912777888',_binary '',10,4),(5,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','GV2026_05','Linh','Vũ Khánh','1991-06-30','Nữ','0912999000',_binary '',11,5);
-/*!40000 ALTER TABLE `teachers` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `user_roles`
---
-
-DROP TABLE IF EXISTS `user_roles`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `user_roles` (
-  `user_id` bigint NOT NULL,
-  `role_id` bigint NOT NULL,
-  PRIMARY KEY (`user_id`,`role_id`),
-  KEY `FKh8ciramu9cc9q3qcqiv4ue8a6` (`role_id`),
-  CONSTRAINT `FKh8ciramu9cc9q3qcqiv4ue8a6` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`),
-  CONSTRAINT `FKhfh9dx7w3ubf1co1vdev94g3f` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `user_roles`
---
-
-LOCK TABLES `user_roles` WRITE;
-/*!40000 ALTER TABLE `user_roles` DISABLE KEYS */;
-INSERT INTO `user_roles` VALUES (1,1),(2,2),(3,2),(4,2),(5,2),(6,2),(7,3),(8,3),(9,3),(10,3),(11,3);
-/*!40000 ALTER TABLE `user_roles` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `users`
---
-
-DROP TABLE IF EXISTS `users`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `users` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `username` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `is_active` bit(1) NOT NULL,
-  `is_first_login` bit(1) NOT NULL DEFAULT b'1',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UK6dotkott2kjsp8vw4d0m25fb7` (`email`),
-  UNIQUE KEY `UKr43af9ap4edm43mmtq01oddj6` (`username`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `users`
---
-
-LOCK TABLES `users` WRITE;
-/*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 18:10:10.935037','admin@open.edu.vn','$2a$10$Nuln0JaFYxBJ92H8tcenfOS7il02iWjIQHp4BoNV.lsHJwiTAHqtu','admin',_binary '',_binary '\0'),(2,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.044169','b21cnpm001@open.edu.vn','$2a$10$Yms/lS91daUUygnYFTouHeLFaQtzuj8FwbGdiODj7DqZYeGMkOtbu','B21CNPM001',_binary '',_binary '\0'),(3,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.155671','b21cnpm002@open.edu.vn','$2a$10$MARRm1W43sRk4jf5Xr8s7eLhT4U8/FwF93UJ2ZlmcyP72XTVfr/Ky','B21CNPM002',_binary '',_binary ''),(4,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.262629','b21cnpm003@open.edu.vn','$2a$10$Ty4oV7qRla7JBxfPNDWU7O/PGZl8rbwQdWnKLm.mddVzZOyt2ey4G','B21CNPM003',_binary '',_binary ''),(5,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.366777','b21cnpm004@open.edu.vn','$2a$10$NRwrvdYgyRlrnHriPdOfQ.cOfeDE9sIeDMkCLZ9f8xpTb3YwEpCDa','B21CNPM004',_binary '',_binary ''),(6,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.483766','b21cnpm005@open.edu.vn','$2a$10$5ap5383vHtSQISzx5Ghn7.nNy2GfthpKk7mBCea1Vum26WEfXtSR2','B21CNPM005',_binary '',_binary ''),(7,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.594227','tuan.tq@teacher.open.edu.vn','$2a$10$aMbmK8V8gTKPiaWvBbVH4e1y/q3PvQjdN9EoZItZLLJrvg4GpGr9i','GV2026_01',_binary '',_binary ''),(8,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.719566','minh.nt@teacher.open.edu.vn','$2a$10$rWpDKdQvXp6X4ftwMH4PNeDIozCUOuqhzORMQtg.dLcTGD3sfOVJu','GV2026_02',_binary '',_binary ''),(9,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.832910','nam.lh@teacher.open.edu.vn','$2a$10$RD1rSRZoix4QBI1rNOrXMegIKrJOtroS7ufrRMRYaIvzBT0Z19wDK','GV2026_03',_binary '',_binary ''),(10,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.947974','hai.pv@teacher.open.edu.vn','$2a$10$cvqnA2diirlOFBgqsWd/wuApEUXh/WGu/a9Q5SQqYlYVADRzkMh8S','GV2026_04',_binary '',_binary ''),(11,'2026-06-09 17:11:49.000000','2026-06-09 18:10:12.056122','linh.vk@teacher.open.edu.vn','$2a$10$mR6GbQbKiBuDzQEXpXaQgeV00eCNhHBPyLUIYx51q8apmAhuw5YCm','GV2026_05',_binary '',_binary '');
-/*!40000 ALTER TABLE `users` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
--- Dump completed on 2026-06-10  1:12:14
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/StudentController.java">
-package com.dangdepzaivaio.StudentManagement.controller;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.StudentUpdateRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
-import com.dangdepzaivaio.StudentManagement.service.StudentService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-
-@RestController
-@RequestMapping("/students")
-@RequiredArgsConstructor
-public class StudentController {
-
-    private final StudentService studentService;
-
-    @PostMapping
-    public ApiResponse<StudentResponse> createStudent(@RequestBody @Valid StudentCreationRequest request) {
-        return new ApiResponse<>(1000, "Tạo hồ sơ sinh viên thành công!", studentService.createStudent(request));
-    }
-
-    @GetMapping
-    public ApiResponse<List<StudentResponse>> getAllStudents(
-            @RequestParam(required = false, defaultValue = "false") boolean includeInactive) {
-        return new ApiResponse<>(1000, "Lấy danh sách sinh viên thành công!", studentService.getAllStudents(includeInactive));
-    }
-
-    @GetMapping("/{studentId}")
-    public ApiResponse<StudentResponse> getStudent(@PathVariable Long studentId) {
-        return new ApiResponse<>(1000, "Lấy chi tiết sinh viên thành công!", studentService.getStudentById(studentId));
-    }
-
-    @PutMapping("/{studentId}")
-    public ApiResponse<StudentResponse> updateStudent(@PathVariable Long studentId, @RequestBody @Valid StudentUpdateRequest request) {
-        return new ApiResponse<>(1000, "Cập nhật thông tin sinh viên thành công!", studentService.updateStudent(studentId, request));
-    }
-
-    @DeleteMapping("/{studentId}")
-    public ApiResponse<String> deleteStudent(@PathVariable Long studentId) {
-        studentService.disableStudent(studentId);
-        return new ApiResponse<>(1000, "Xóa hồ sơ sinh viên thành công!", "Hồ sơ sinh viên có ID " + studentId + " và tài khoản liên kết đã bị vô hiệu hóa.");
-    }
-}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/UserController.java">
 package com.dangdepzaivaio.StudentManagement.controller;
 
 import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest; // Thêm import này
+import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
 import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
-import com.dangdepzaivaio.StudentManagement.entity.User;
 import com.dangdepzaivaio.StudentManagement.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List; // Thêm import này
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/users")
@@ -4650,29 +5642,40 @@ public class UserController {
 
     @PostMapping
     public ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request) {
-        return new ApiResponse<>(1000, "Tạo người dùng thành công", userService.createUser(request));
+        return new ApiResponse<>(1000, "Tao nguoi dung thanh cong", userService.createUser(request));
     }
 
     @GetMapping
     public ApiResponse<List<UserResponse>> getAllUsers() {
-        return new ApiResponse<>(1000, "Lấy danh sách thành công", userService.getAllUsers());
+        return new ApiResponse<>(1000, "Lay danh sach tai khoan thanh cong", userService.getAllUsers());
     }
 
     @GetMapping("/{userId}")
-    public ApiResponse<UserResponse> getUser(@PathVariable Long userId) {
-        return new ApiResponse<>(1000, "Lấy chi tiết người dùng thành công", userService.getUserById(userId));
+    public ApiResponse<UserResponse> getUser(@PathVariable String userId) {
+        return new ApiResponse<>(1000, "Lay chi tiet tai khoan thanh cong", userService.getUserById(userId));
     }
 
     @PutMapping("/{userId}")
-    public ApiResponse<UserResponse> updateUser(@PathVariable Long userId, @RequestBody @Valid UserUpdateRequest request) {
-        return new ApiResponse<>(1000, "Cập nhật thông tin thành công", userService.updateUser(userId, request));
-    }
-    @DeleteMapping("/{userId}")
-    public ApiResponse<String> deleteUser(@PathVariable Long userId) {
-        userService.disableUser(userId); // Gọi hàm chuyển trạng thái xuống tầng Service
-        return new ApiResponse<>(1000, "Xóa tài khoản người dùng thành công!", "Tài khoản có ID " + userId + " đã bị vô hiệu hóa.");
+    public ApiResponse<UserResponse> updateUser(@PathVariable String userId, @RequestBody @Valid UserUpdateRequest request) {
+        return new ApiResponse<>(1000, "Cap nhat tai khoan thanh cong", userService.updateUser(userId, request));
     }
 
+    @PutMapping("/{userId}/enable")
+    public ApiResponse<UserResponse> enableUser(@PathVariable String userId) {
+        return new ApiResponse<>(1000, "Mo khoa tai khoan thanh cong", userService.enableUser(userId));
+    }
+
+    @PutMapping("/{userId}/reset-password")
+    public ApiResponse<UserResponse> resetPassword(@PathVariable String userId, @RequestBody(required = false) Map<String, String> request) {
+        String newPassword = request == null ? null : request.get("newPassword");
+        return new ApiResponse<>(1000, "Reset mat khau thanh cong", userService.resetPassword(userId, newPassword));
+    }
+
+    @DeleteMapping("/{userId}")
+    public ApiResponse<String> deleteUser(@PathVariable String userId) {
+        userService.disableUser(userId);
+        return new ApiResponse<>(1000, "Khoa tai khoan thanh cong", "ID " + userId + " da bi khoa");
+    }
 }
 </file>
 
@@ -4693,17 +5696,17 @@ import java.time.LocalDate;
 public class Student extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id", length = 20)
+    private String id; // 🔥 Khóa chính kiểu Chuỗi
 
     @Column(name = "student_code", nullable = false, unique = true, length = 20)
-    private String studentCode; // Mã sinh viên (Ví dụ: B21DCCN001)
+    private String studentCode;
 
     @Column(name = "first_name", nullable = false, length = 50)
-    private String firstName; // Tên (Ví dụ: Anh)
+    private String firstName;
 
     @Column(name = "last_name", nullable = false, length = 100)
-    private String lastName; // Họ và đệm (Ví dụ: Nguyễn Đình)
+    private String lastName;
 
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
@@ -4715,93 +5718,17 @@ public class Student extends BaseEntity {
     private String phoneNumber;
 
     @Builder.Default
-    @Column(name = "is_active", nullable = false, columnDefinition = "TINYINT(1)")
+    @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
-    // Mỗi sinh viên sở hữu duy nhất 1 tài khoản hệ thống
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    @MapsId // 🔥 ĐỒNG BỘ: Ép ID của bảng Student khớp hoàn toàn với ID của User
+    @JoinColumn(name = "id")
     private User user;
 
-    // Nhiều sinh viên học chung 1 lớp hành chính
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "class_id", nullable = false)
     private Class studentClass;
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/User.java">
-package com.dangdepzaivaio.StudentManagement.entity;
-
-import jakarta.persistence.*;
-import lombok.*;
-import java.util.Set;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Entity
-@Table(name = "users")
-public class User extends BaseEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "username", nullable = false, unique = true)
-    private String username;
-
-    @Column(name = "password", nullable = false)
-    private String password;
-
-    @Column(name = "email", nullable = false, unique = true)
-    private String email;
-
-    @Builder.Default
-    @Column(name = "is_active", nullable = false, columnDefinition = "TINYINT(1)")
-    private boolean isActive = true;
-
-    @Column(name = "is_first_login", nullable = false)
-    @Builder.Default
-    private boolean isFirstLogin = true; // 🔥 Cờ ép buộc đổi mật khẩu lần đầu
-
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
-    private Set<Role> roles;
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/StudentMapper.java">
-package com.dangdepzaivaio.StudentManagement.mapper;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
-import com.dangdepzaivaio.StudentManagement.entity.Student;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
-
-@Mapper(componentModel = "spring")
-public interface StudentMapper {
-    StudentMapper INSTANCE = Mappers.getMapper(StudentMapper.class);
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "studentClass", ignore = true)
-    @Mapping(target = "user", ignore = true) // 🔥 ĐỔI THÀNH IGNORE = TRUE: Vì request giờ đã phẳng, không bọc object user nữa
-    Student toEntity(StudentCreationRequest request);
-
-    // Hàm toUserEntity cũ đã xóa bỏ vì hệ thống đã chuyển sang tạo tài khoản tự động bằng User.builder()
-
-    @Mapping(target = "username", source = "user.username")
-    @Mapping(target = "email", source = "user.email")
-    @Mapping(target = "className", source = "studentClass.name")
-    StudentResponse toResponse(Student student);
 }
 </file>
 
@@ -4813,26 +5740,111 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface GradeRepository extends JpaRepository<Grade, Long> {
 
-    // Sử dụng JOIN FETCH để lôi toàn bộ dữ liệu Lớp học phần và Môn học lên cùng 1 lúc trong 1 câu SQL duy nhất
     @Query("SELECT g FROM Grade g " +
             "JOIN FETCH g.courseClass cc " +
-            "JOIN FETCH cc.subject s " +
+            "JOIN FETCH cc.subject " +
+            "LEFT JOIN FETCH cc.teacher t " +
+            "LEFT JOIN FETCH t.user " +
+            "JOIN FETCH g.student s " +
+            "JOIN FETCH s.user " +
+            "JOIN FETCH s.studentClass " +
             "WHERE g.student.id = :studentId")
-    List<Grade> findByStudentId(@Param("studentId") Long studentId);
+    List<Grade> findByStudentId(@Param("studentId") String studentId);
 
-    List<Grade> findByCourseClassId(Long courseClassId);
-    boolean existsByStudentIdAndCourseClassId(Long studentId, Long courseClassId);
     @Query("SELECT g FROM Grade g " +
             "JOIN FETCH g.student s " +
+            "JOIN FETCH s.user " +
+            "JOIN FETCH s.studentClass " +
             "JOIN FETCH g.courseClass cc " +
-            "JOIN FETCH cc.subject sub")
-    List<Grade> findAllGradesWithJoinFetch();
+            "JOIN FETCH cc.subject " +
+            "LEFT JOIN FETCH cc.teacher t " +
+            "LEFT JOIN FETCH t.user " +
+            "WHERE cc.id = :courseClassId")
+    List<Grade> findByCourseClassId(@Param("courseClassId") Long courseClassId);
+
+    @Query("SELECT g FROM Grade g " +
+            "JOIN FETCH g.student s " +
+            "JOIN FETCH s.user " +
+            "JOIN FETCH s.studentClass " +
+            "JOIN FETCH g.courseClass cc " +
+            "JOIN FETCH cc.subject " +
+            "LEFT JOIN FETCH cc.teacher t " +
+            "LEFT JOIN FETCH t.user " +
+            "WHERE s.id = :studentId AND cc.id = :courseClassId")
+    Optional<Grade> findByStudentIdAndCourseClassId(
+            @Param("studentId") String studentId,
+            @Param("courseClassId") Long courseClassId
+    );
+
+    @Query("SELECT g FROM Grade g " +
+            "JOIN FETCH g.student s " +
+            "JOIN FETCH s.user " +
+            "JOIN FETCH s.studentClass " +
+            "JOIN FETCH g.courseClass cc " +
+            "JOIN FETCH cc.subject " +
+            "LEFT JOIN FETCH cc.teacher t " +
+            "LEFT JOIN FETCH t.user " +
+            "WHERE g.id = :id")
+    Optional<Grade> findByIdWithDetails(@Param("id") Long id);
+
+    boolean existsByStudentIdAndCourseClassId(String studentId, Long courseClassId);
     boolean existsByCourseClassId(Long courseClassId);
+    long countByCourseClassId(Long courseClassId);
+
+    @Query("SELECT g FROM Grade g " +
+            "JOIN FETCH g.student s " +
+            "JOIN FETCH s.user " +
+            "JOIN FETCH s.studentClass " +
+            "JOIN FETCH g.courseClass cc " +
+            "JOIN FETCH cc.subject " +
+            "LEFT JOIN FETCH cc.teacher t " +
+            "LEFT JOIN FETCH t.user")
+    List<Grade> findAllGradesWithJoinFetch();
+
+    @Query("SELECT g FROM Grade g " +
+            "JOIN FETCH g.student s " +
+            "JOIN FETCH s.user " +
+            "JOIN FETCH s.studentClass " +
+            "JOIN FETCH g.courseClass cc " +
+            "JOIN FETCH cc.subject " +
+            "JOIN FETCH cc.teacher t " +
+            "JOIN FETCH t.user " +
+            "WHERE t.user.email = :email")
+    List<Grade> findByCourseClassTeacherUserEmail(@Param("email") String email);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/StudentRepository.java">
+package com.dangdepzaivaio.StudentManagement.repository;
+
+import com.dangdepzaivaio.StudentManagement.entity.Student;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface StudentRepository extends JpaRepository<Student, String> { // 🔥 Khóa String
+    boolean existsByStudentCode(String studentCode);
+    boolean existsByStudentClassId(Long classId);
+
+    @Query("SELECT s FROM Student s JOIN FETCH s.user u JOIN FETCH s.studentClass c WHERE s.isActive = true")
+    List<Student> findAllActiveStudentsWithJoinFetch();
+
+    @Query("SELECT s FROM Student s JOIN FETCH s.user u JOIN FETCH s.studentClass c")
+    List<Student> findAllStudentsWithJoinFetch();
+
+    @Query("SELECT s FROM Student s JOIN FETCH s.user JOIN FETCH s.studentClass WHERE s.id = :id")
+    Optional<Student> findByIdWithJoinFetch(@Param("id") String id); // 🔥 Đổi sang tham số String id
 }
 </file>
 
@@ -4915,23 +5927,6 @@ public class SubjectServiceImpl implements SubjectService {
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/StudentService.java">
-package com.dangdepzaivaio.StudentManagement.service;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.StudentUpdateRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
-import java.util.List;
-
-public interface StudentService {
-    StudentResponse createStudent(StudentCreationRequest request);
-    List<StudentResponse> getAllStudents(boolean includeInactive);
-    StudentResponse getStudentById(Long id);
-    StudentResponse updateStudent(Long id, StudentUpdateRequest request);
-    void disableStudent(Long id);
-}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/UserService.java">
 package com.dangdepzaivaio.StudentManagement.service;
 
@@ -4944,10 +5939,362 @@ import java.util.List;
 public interface UserService {
     UserResponse createUser(UserCreationRequest request);
     List<UserResponse> getAllUsers();
-    UserResponse getUserById(Long id);
-    UserResponse updateUser(Long id, UserUpdateRequest request);
-    void disableUser(Long id);
+    UserResponse getUserById(String id);
+    UserResponse updateUser(String id, UserUpdateRequest request);
+    UserResponse enableUser(String id);
+    UserResponse resetPassword(String id, String newPassword);
+    void disableUser(String id);
 }
+</file>
+
+<file path="student_management.sql">
+-- MySQL dump 10.13  Distrib 8.0.46, for Win64 (x86_64)
+--
+-- Host: 127.0.0.1    Database: student_management
+-- ------------------------------------------------------
+-- Server version	8.0.46
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Table structure for table `classes`
+--
+
+DROP TABLE IF EXISTS `classes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `classes` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `department_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_classes_name` (`name`),
+  KEY `FK_classes_department` (`department_id`),
+  CONSTRAINT `FK_classes_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `classes`
+--
+
+LOCK TABLES `classes` WRITE;
+/*!40000 ALTER TABLE `classes` DISABLE KEYS */;
+INSERT INTO `classes` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','D21CNPM1',1),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','D22KHMT1',2),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','D21DTVT2',3),(4,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','D22ATTT1',4),(5,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','D21HTTT1',5);
+/*!40000 ALTER TABLE `classes` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `course_classes`
+--
+
+DROP TABLE IF EXISTS `course_classes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `course_classes` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `code` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `semester` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject_id` bigint NOT NULL,
+  `teacher_id` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_course_classes_code` (`code`),
+  KEY `FK_course_classes_subject` (`subject_id`),
+  KEY `FK_course_classes_teacher` (`teacher_id`),
+  CONSTRAINT `FK_course_classes_subject` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`),
+  CONSTRAINT `FK_course_classes_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `course_classes`
+--
+
+LOCK TABLES `course_classes` WRITE;
+/*!40000 ALTER TABLE `course_classes` DISABLE KEYS */;
+INSERT INTO `course_classes` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','CPP_CLASS_01','HK1-2026',1,'GV_01'),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','DSA_CLASS_01','HK1-2026',2,'GV_02'),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','JAVA_CLASS_01','HK1-2026',3,'GV_03'),(4,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','NET_CLASS_01','HK1-2026',4,'GV_04'),(5,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','OS_CLASS_01','HK1-2026',5,'GV_05');
+/*!40000 ALTER TABLE `course_classes` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `departments`
+--
+
+DROP TABLE IF EXISTS `departments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `departments` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_departments_code` (`code`),
+  UNIQUE KEY `UK_departments_name` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `departments`
+--
+
+LOCK TABLES `departments` WRITE;
+/*!40000 ALTER TABLE `departments` DISABLE KEYS */;
+INSERT INTO `departments` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','CNTT','Công nghệ thông tin'),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','KHMT','Khoa học máy tính'),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','DTVT','Điện tử viễn thông'),(4,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','ATTT','An toàn thông tin'),(5,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HTTT','Hệ thống thông tin');
+/*!40000 ALTER TABLE `departments` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `grades`
+--
+
+DROP TABLE IF EXISTS `grades`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `grades` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `student_id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `course_class_id` bigint NOT NULL,
+  `attendance_grade` double DEFAULT NULL,
+  `midterm_grade` double DEFAULT NULL,
+  `final_grade` double DEFAULT NULL,
+  `overall_grade` double DEFAULT NULL,
+  `letter_grade` varchar(5) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `grade_4` double DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_grades_student_course_class` (`student_id`,`course_class_id`),
+  UNIQUE KEY `UKko1u7sub9pfixo5kagdclh8sj` (`student_id`,`course_class_id`),
+  KEY `FK_grades_course_class` (`course_class_id`),
+  CONSTRAINT `FK_grades_course_class` FOREIGN KEY (`course_class_id`) REFERENCES `course_classes` (`id`),
+  CONSTRAINT `FK_grades_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=234 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `grades`
+--
+
+LOCK TABLES `grades` WRITE;
+/*!40000 ALTER TABLE `grades` DISABLE KEYS */;
+INSERT INTO `grades` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HS_01',1,9,8.5,9,8.85,'A',4),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HS_02',2,8,8,8.5,8.3,'B+',3.5),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HS_03',3,10,9,9.5,9.4,'A',4),(4,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HS_04',4,7.5,7,8,7.65,'B',3),(5,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HS_05',5,6,6.5,7,6.75,'C+',2.5);
+/*!40000 ALTER TABLE `grades` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `roles`
+--
+
+DROP TABLE IF EXISTS `roles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `roles` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_roles_name` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `roles`
+--
+
+LOCK TABLES `roles` WRITE;
+/*!40000 ALTER TABLE `roles` DISABLE KEYS */;
+INSERT INTO `roles` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','ADMIN'),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','STUDENT'),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','TEACHER');
+/*!40000 ALTER TABLE `roles` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `students`
+--
+
+DROP TABLE IF EXISTS `students`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `students` (
+  `id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `student_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `first_name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `last_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `date_of_birth` date DEFAULT NULL,
+  `gender` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone_number` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `class_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_students_code` (`student_code`),
+  KEY `FK_students_class` (`class_id`),
+  CONSTRAINT `FK_students_class` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`),
+  CONSTRAINT `FK_students_user` FOREIGN KEY (`id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `students`
+--
+
+LOCK TABLES `students` WRITE;
+/*!40000 ALTER TABLE `students` DISABLE KEYS */;
+INSERT INTO `students` VALUES ('HS_01','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM001','Anh','Nguyễn Đình','2003-04-05','Nam','0987654321',1,1),('HS_02','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM002','Đăng','Trần Minh','2004-05-23','Nam','0987654322',1,2),('HS_03','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM003','Hải','Nguyễn Hoàng','2004-10-15','Nam','0987654323',1,3),('HS_04','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM004','Linh','Phạm Khánh','2004-05-20','Nữ','0987654324',1,4),('HS_05','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM005','Tùng','Vũ Sơn','2004-12-01','Nam','0987654325',1,5),('HS_06','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM006','Bình','Nguyễn Văn','2003-01-12','Nam','0981000006',1,1),('HS_07','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM007','Cường','Trần Mạnh','2003-02-14','Nam','0981000007',1,1),('HS_08','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM008','Dũng','Lê Hoàng','2003-03-16','Nam','0981000008',1,1),('HS_09','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM009','Đạt','Phạm Tiến','2003-04-18','Nam','0981000009',1,1),('HS_10','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM010','Giang','Vũ Trường','2003-05-20','Nam','0981000010',1,1),('HS_11','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM011','Hùng','Hoàng Minh','2003-06-22','Nam','0981000011',1,1),('HS_12','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM012','Huy','Phan Quốc','2003-07-24','Nam','0981000012',1,1),('HS_13','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM013','Khanh','Đỗ Duy','2003-08-26','Nam','0981000013',1,1),('HS_14','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM014','Linh','Đặng Nhật','2003-09-28','Nữ','0981000014',1,1),('HS_15','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM015','Minh','Bùi Quang','2003-10-30','Nam','0981000015',1,1),('HS_16','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM016','Nam','Nguyễn Hoài','2003-11-01','Nam','0981000016',1,1),('HS_17','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM017','Phong','Trần Thanh','2003-12-03','Nam','0981000017',1,1),('HS_18','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM018','Quân','Lê Anh','2003-05-05','Nam','0981000018',1,1),('HS_19','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM019','Sơn','Phạm Ngọc','2003-06-07','Nam','0981000019',1,1),('HS_20','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT001','Tâm','Vũ Đức','2004-01-10','Nam','0982000001',1,2),('HS_21','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT002','Tuấn','Hoàng Minh','2004-02-12','Nam','0982000002',1,2),('HS_22','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT003','Thành','Phan Công','2004-03-14','Nam','0982000003',1,2),('HS_23','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT004','Việt','Đỗ Quốc','2004-04-16','Nam','0982000004',1,2),('HS_24','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT005','Vy','Đặng Thu','2004-05-18','Nữ','0982000005',1,2),('HS_25','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT006','Yến','Bùi Hải','2004-06-20','Nữ','0982000006',1,2),('HS_26','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT007','Ngọc','Nguyễn Bích','2004-07-22','Nữ','0982000007',1,2),('HS_27','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT008','Long','Trần Bảo','2004-08-24','Nam','0982000008',1,2),('HS_28','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT009','Quang','Lê Minh','2004-09-26','Nam','0982000009',1,2),('HS_29','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT010','Tiến','Phạm Hồng','2004-10-28','Nam','0982000010',1,2),('HS_30','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT011','Trung','Vũ Đình','2004-11-30','Nam','0982000011',1,2),('HS_31','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT012','Tú','Hoàng Anh','2004-12-15','Nam','0982000012',1,2),('HS_32','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT013','Phước','Phan Gia','2004-08-11','Nam','0982000013',1,2),('HS_33','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT014','Hoàng','Đỗ Huy','2004-09-19','Nam','0982000014',1,2),('HS_34','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT001','An','Nguyễn Thành','2003-02-22','Nam','0983000001',1,3),('HS_35','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT002','Bách','Trần Xuân','2003-03-24','Nam','0983000002',1,3),('HS_36','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT003','Chi','Lê Linh','2003-04-26','Nữ','0983000003',1,3),('HS_37','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT004','Duy','Phạm Đức','2003-05-28','Nam','0983000004',1,3),('HS_38','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT005','Đông','Vũ Phương','2003-06-30','Nam','0983000005',1,3),('HS_39','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT006','Hà','Hoàng Thu','2003-07-12','Nữ','0983000006',1,3),('HS_40','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT007','Hiếu','Phan Trọng','2003-08-14','Nam','0983000007',1,3),('HS_41','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT008','Hoa','Đỗ Thị','2003-09-16','Nữ','0983000008',1,3),('HS_42','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT009','Hạnh','Đặng Thúy','2003-10-18','Nữ','0983000009',1,3),('HS_43','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT010','Khôi','Bùi Nguyên','2003-11-20','Nam','0983000010',1,3),('HS_44','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT011','Khoa','Nguyễn Đăng','2003-12-22','Nam','0983000011',1,3),('HS_45','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT012','Khánh','Trần Nhật','2003-01-25','Nam','0983000012',1,3),('HS_46','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT013','Kiên','Lê Trung','2003-02-27','Nam','0983000013',1,3),('HS_47','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT014','Lâm','Phạm Tùng','2003-03-29','Nam','0983000014',1,3),('HS_48','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT001','Mai','Vũ Tuyết','2004-03-11','Nữ','0984000001',1,4),('HS_49','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT002','Nghĩa','Hoàng Trọng','2004-04-13','Nam','0984000002',1,4),('HS_50','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT003','Nguyên','Phan Thảo','2004-05-15','Nữ','0984000003',1,4),('HS_51','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT004','Nhân','Đỗ Thành','2004-06-17','Nam','0984000004',1,4),('HS_52','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT005','Nhi','Đặng Thục','2004-07-19','Nữ','0984000005',1,4),('HS_53','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT006','Phát','Bùi Tấn','2004-08-21','Nam','0984000006',1,4),('HS_54','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT007','Phúc','Nguyễn Hồng','2004-09-23','Nam','0984000007',1,4),('HS_55','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT008','Phương','Trần Mai','2004-10-25','Nữ','0984000008',1,4),('HS_56','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT009','Phượng','Lê Thị','2004-11-27','Nữ','0984000009',1,4),('HS_57','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT010','Quốc','Phạm Anh','2004-12-29','Nam','0984000010',1,4),('HS_58','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT011','Quỳnh','Vũ Thúy','2004-01-05','Nữ','0984000011',1,4),('HS_59','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT012','Sang','Hoàng Tấn','2004-02-07','Nam','0984000012',1,4),('HS_60','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT013','Thảo','Phan Thu','2004-03-09','Nữ','0984000013',1,4),('HS_61','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT014','Thắng','Đỗ Đức','2004-04-11','Nam','0984000014',1,4),('HS_62','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT001','Thịnh','Đặng Hùng','2003-04-15','Nam','0985000001',1,5),('HS_63','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT002','Thư','Bùi Minh','2003-05-17','Nữ','0985000002',1,5),('HS_64','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT003','Thương','Nguyễn Hoài','2003-06-19','Nữ','0985000003',1,5),('HS_65','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT004','Trâm','Trần Ngọc','2003-07-21','Nữ','0985000004',1,5),('HS_66','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT005','Trí','Lê Minh','2003-08-23','Nam','0985000005',1,5),('HS_67','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT006','Trọng','Phạm Đức','2003-09-25','Nam','0985000006',1,5),('HS_68','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT007','Trực','Vũ Duy','2003-10-27','Nam','0985000007',1,5),('HS_69','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT008','Trường','Hoàng Xuân','2003-11-29','Nam','0985000008',1,5),('HS_70','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT009','Tường','Phan Cát','2003-12-31','Nam','0985000009',1,5),('HS_71','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT010','Vinh','Đỗ Quang','2003-01-05','Nam','0985000010',1,5),('HS_72','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT011','Vượng','Đặng Công','2003-02-07','Nam','0985000011',1,5),('HS_73','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT012','Xuyên','Bùi Hà','2003-03-09','Nữ','0985000012',1,5),('HS_74','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT013','Huy','Nguyễn Gia','2003-04-11','Nam','0985000013',1,5),('HS_75','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT014','Long','Trần Thượng','2003-05-13','Nam','0985000014',1,5);
+/*!40000 ALTER TABLE `students` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `subjects`
+--
+
+DROP TABLE IF EXISTS `subjects`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `subjects` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `credits` int NOT NULL,
+  `name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_subjects_code` (`code`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `subjects`
+--
+
+LOCK TABLES `subjects` WRITE;
+/*!40000 ALTER TABLE `subjects` DISABLE KEYS */;
+INSERT INTO `subjects` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','C_PLUS_BASE',3,'Lập trình C++ cơ bản'),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','DSA_STRUCTURE',4,'Cấu trúc dữ liệu & Giải thuật'),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','JAVA_WEB_DEV',3,'Lập trình Web nâng cao với Java'),(4,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','NET_COMPUTER',3,'Cơ sở mạng máy tính'),(5,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','OS_OPERATION',3,'Hệ điều hành máy tính');
+/*!40000 ALTER TABLE `subjects` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `teachers`
+--
+
+DROP TABLE IF EXISTS `teachers`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `teachers` (
+  `id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `teacher_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `first_name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `last_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `date_of_birth` date DEFAULT NULL,
+  `gender` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone_number` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `department_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_teachers_code` (`teacher_code`),
+  KEY `FK_teachers_department` (`department_id`),
+  CONSTRAINT `FK_teachers_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
+  CONSTRAINT `FK_teachers_user` FOREIGN KEY (`id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `teachers`
+--
+
+LOCK TABLES `teachers` WRITE;
+/*!40000 ALTER TABLE `teachers` DISABLE KEYS */;
+INSERT INTO `teachers` VALUES ('GV_01','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','GV2026_01','Tuấn','Trần Quốc','1985-04-12','Nam','0912111222',1,1),('GV_02','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','GV2026_02','Minh','Nguyễn Thị','1988-08-24','Nữ','0912333444',1,2),('GV_03','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','GV2026_03','Nam','Lê Hoàng','1982-11-05','Nam','0912555666',1,3),('GV_04','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','GV2026_04','Hải','Phạm Văn','1979-02-18','Nam','0912777888',1,4),('GV_05','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','GV2026_05','Linh','Vũ Khánh','1991-06-30','Nữ','0912999000',1,5);
+/*!40000 ALTER TABLE `teachers` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `user_roles`
+--
+
+DROP TABLE IF EXISTS `user_roles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `user_roles` (
+  `user_id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `role_id` bigint NOT NULL,
+  PRIMARY KEY (`user_id`,`role_id`),
+  KEY `FK_user_roles_role` (`role_id`),
+  CONSTRAINT `FK_user_roles_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`),
+  CONSTRAINT `FK_user_roles_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `user_roles`
+--
+
+LOCK TABLES `user_roles` WRITE;
+/*!40000 ALTER TABLE `user_roles` DISABLE KEYS */;
+INSERT INTO `user_roles` VALUES ('AD',1),('HS_01',2),('HS_02',2),('HS_03',2),('HS_04',2),('HS_05',2),('HS_06',2),('HS_07',2),('HS_08',2),('HS_09',2),('HS_10',2),('HS_11',2),('HS_12',2),('HS_13',2),('HS_14',2),('HS_15',2),('HS_16',2),('HS_17',2),('HS_18',2),('HS_19',2),('HS_20',2),('HS_21',2),('HS_22',2),('HS_23',2),('HS_24',2),('HS_25',2),('HS_26',2),('HS_27',2),('HS_28',2),('HS_29',2),('HS_30',2),('HS_31',2),('HS_32',2),('HS_33',2),('HS_34',2),('HS_35',2),('HS_36',2),('HS_37',2),('HS_38',2),('HS_39',2),('HS_40',2),('HS_41',2),('HS_42',2),('HS_43',2),('HS_44',2),('HS_45',2),('HS_46',2),('HS_47',2),('HS_48',2),('HS_49',2),('HS_50',2),('HS_51',2),('HS_52',2),('HS_53',2),('HS_54',2),('HS_55',2),('HS_56',2),('HS_57',2),('HS_58',2),('HS_59',2),('HS_60',2),('HS_61',2),('HS_62',2),('HS_63',2),('HS_64',2),('HS_65',2),('HS_66',2),('HS_67',2),('HS_68',2),('HS_69',2),('HS_70',2),('HS_71',2),('HS_72',2),('HS_73',2),('HS_74',2),('HS_75',2),('GV_01',3),('GV_02',3),('GV_03',3),('GV_04',3),('GV_05',3);
+/*!40000 ALTER TABLE `user_roles` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `users`
+--
+
+DROP TABLE IF EXISTS `users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `users` (
+  `id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `username` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `is_first_login` tinyint(1) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_users_email` (`email`),
+  UNIQUE KEY `UK_users_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `users`
+--
+
+LOCK TABLES `users` WRITE;
+/*!40000 ALTER TABLE `users` DISABLE KEYS */;
+INSERT INTO `users` VALUES ('AD','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','admin@open.edu.vn','$2a$10$Nuln0JaFYxBJ92H8tcenfOS7il02iWjIQHp4BoNV.lsHJwiTAHqtu','admin',1,0),('GV_01','2026-06-10 06:16:53.000000','2026-06-10 09:03:59.718134','gv2026_01@open.edu.vn','$2a$10$.RGawvRE0Wxz0a.tXXPESOV9OJIVvuOrhBNjpXLzvbKPRo56czjLK','GV2026_01',1,0),('GV_02','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.356486','gv2026_02@open.edu.vn','$2a$10$xVRlLbPl.wnhQ0hXfENDN./uxbLfTwyOSX7.9ADaaHgQrIFh8f14i','GV2026_02',1,1),('GV_03','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.469802','gv2026_03@open.edu.vn','$2a$10$m1oc8MxjQXER0HiuqoY1reKDBRR73dr/k7p6vy/vUji.N2f8enXPC','GV2026_03',1,1),('GV_04','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.569917','gv2026_04@open.edu.vn','$2a$10$cMKoa2WK0FetlKLRidzWX.tfC0U.39iJ0FFtx4xIXFq985hzkV7wW','GV2026_04',1,1),('GV_05','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.665974','gv2026_05@open.edu.vn','$2a$10$F4jnw/VglMPV5keV3WTm0eDHcIBgaZ6pF35zlxMVQ02vXZsZrMEXS','GV2026_05',1,1),('HS_01','2026-06-10 06:16:53.000000','2026-06-10 09:05:31.412679','b21cnpm001@open.edu.vn','$2a$10$7bkFYKJvL.OMBgeUGMw/r.GhddEa1HWNIRsLrVnoF2VE22.oYfDSC','B21CNPM001',1,0),('HS_02','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.764012','b21cnpm002@open.edu.vn','$2a$10$9YPi4NVJPRcHQuPaaGJrZeiMDbb2MSKzgIOl56WwBgrT27zct3OZG','B21CNPM002',1,1),('HS_03','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.863545','b21cnpm003@open.edu.vn','$2a$10$on5UjQGlulZu44qMfo59TORT09PqEw/ZpN9qSzSnjn3PRbZ22qw/O','B21CNPM003',1,1),('HS_04','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.960249','b21cnpm004@open.edu.vn','$2a$10$MugjdSVqlHUOQ2iIUcSkauNC9n7qSwb/HV6PBWpCnFKTaSu0oF37u','B21CNPM004',1,1),('HS_05','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.064485','b21cnpm005@open.edu.vn','$2a$10$Vg7UbDj/esMRqNeUFsm7yOadmGnL/AsyAjtSrlEziYiNG3EbmSFQa','B21CNPM005',1,1),('HS_06','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.160788','b21cnpm006@open.edu.vn','$2a$10$YEzWbW9GYwLRsioLcuBS0uUNDdTjqzU74E/qhSPEYGl32pz2ce8bC','B21CNPM006',1,1),('HS_07','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.271347','b21cnpm007@open.edu.vn','$2a$10$t4ta8IpYML38tgq3E1H9uOKuhapAPJuPSmv8MzMgL5vS.aN2XChOS','B21CNPM007',1,1),('HS_08','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.377376','b21cnpm008@open.edu.vn','$2a$10$FTFlq1mfI/qCAVMTdl70kuv85a9j7v2ReX4r8xuFYTuNEraYEp1Ey','B21CNPM008',1,1),('HS_09','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.479662','b21cnpm009@open.edu.vn','$2a$10$bsx70KVBHD8bH2lPPZ.UPOwg/bCcmUPFJrk7hFxyv.ChlSk5C8RKi','B21CNPM009',1,1),('HS_10','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.577040','b21cnpm010@open.edu.vn','$2a$10$nXtvYBuZZn.B2l2zHFtHne8gTs0j6w5jUEQWHzmMpUyUzFxXY.Q5a','B21CNPM010',1,1),('HS_11','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.673554','b21cnpm011@open.edu.vn','$2a$10$3XfvwdzFsviYrdfq2Y2FWOrsKXCVwselaoPHC09eNq126IdEwmE4O','B21CNPM011',1,1),('HS_12','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.773053','b21cnpm012@open.edu.vn','$2a$10$xKHpqd5.cns0YxYIHTT.CuHyjrJQiosEGMlEgiJeqCRkpPYYgGTgK','B21CNPM012',1,1),('HS_13','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.872714','b21cnpm013@open.edu.vn','$2a$10$pWUVa7LPRGVFYKG3fgyUv.Rd5VFb11.jrNfQEd6AXqdEE.EhCD.CG','B21CNPM013',1,1),('HS_14','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.970166','b21cnpm014@open.edu.vn','$2a$10$V46G1EQ2SyLRh/ALvtVa7u2PILB2bNSiIASbjA2rqW6cJN7zXCUjy','B21CNPM014',1,1),('HS_15','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.069406','b21cnpm015@open.edu.vn','$2a$10$AUDuzCuSr/LvyzrDsXbH/ORjkQVlt4bJLdDa5feaWpghi3I8Sr3wC','B21CNPM015',1,1),('HS_16','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.165639','b21cnpm016@open.edu.vn','$2a$10$n6BJPyCDPAxAFkDJjASY9u5X5NPFiUhPwiJaPNuoVsRFSGwJIYJoa','B21CNPM016',1,1),('HS_17','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.263094','b21cnpm017@open.edu.vn','$2a$10$Al.mDKuM4zZINQuzMBJGquWnDXQDm0ESFahm75mU5IYODIUAoq5OO','B21CNPM017',1,1),('HS_18','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.362424','b21cnpm018@open.edu.vn','$2a$10$LSbiXDRpQ6DAYxtNuV1wdO0apnKeaEmbUDMVAwuapPX/GhvazKEZu','B21CNPM018',1,1),('HS_19','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.466864','b21cnpm019@open.edu.vn','$2a$10$uM7Ao4ts8cxpZIkn5lzZFe7UlJWmXXc3bdMlsuC2Wixbi4xNsV4Pm','B21CNPM019',1,1),('HS_20','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.568504','b22khmt001@open.edu.vn','$2a$10$LHMXLaq8Ibm.zz3njXl6nuqulAi7YVzd2yjq74To0mN9hI9JxbCx6','B22KHMT001',1,1),('HS_21','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.673930','b22khmt002@open.edu.vn','$2a$10$CD0xaw6l6/FSgZHJ0woMTeVjv3Db4RXP5PmHSck8kJwZrPOgelqte','B22KHMT002',1,1),('HS_22','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.782310','b22khmt003@open.edu.vn','$2a$10$.tEMweY46IlMpVWAKFCRbOPTFE/TJ7I7c28Ranm0tGqDIkFAffXlK','B22KHMT003',1,1),('HS_23','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.886469','b22khmt004@open.edu.vn','$2a$10$GeKmCyYkIGH1uCXxfKKqseUPo0HZNbMKUQSZUp7S9Ps1qtDu3mI/6','B22KHMT004',1,1),('HS_24','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.992611','b22khmt005@open.edu.vn','$2a$10$iKbF9RzouVpms9LwzlaZsemr7Xdy8TssD1eIMhihLmx4BzdtWkpRi','B22KHMT005',1,1),('HS_25','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.091567','b22khmt006@open.edu.vn','$2a$10$mi0StUmvBzOQV/uulUuUNOT0qIE91rlWYiMB4tAiH8Uqj7abr0PIa','B22KHMT006',1,1),('HS_26','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.188505','b22khmt007@open.edu.vn','$2a$10$Qz3izIg8Hnjq/00r6nximOkRLgMZ2rnaEjEObIIjIR1LjcxkwRN4W','B22KHMT007',1,1),('HS_27','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.294118','b22khmt008@open.edu.vn','$2a$10$vmi/kjoAqS4Q7S/ehrEqteLoE26XG7xvr0hIVbIWvf9s9u5BEvVX2','B22KHMT008',1,1),('HS_28','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.399726','b22khmt009@open.edu.vn','$2a$10$az5c7ANg7QMuY4/Fg7IQMe15pqGZ5PxeDaCkhQEmoi/snAew.dybG','B22KHMT009',1,1),('HS_29','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.519372','b22khmt010@open.edu.vn','$2a$10$1LtCkPD.ZanhgXPLLeB..uvOU.opz1A0GpIWNgR.j5vHyONCZLCvC','B22KHMT010',1,1),('HS_30','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.627876','b22khmt011@open.edu.vn','$2a$10$f438q6r2Tg82j3pS5SeGTeHhIdyE7ZItvm2svKNhYmoIA8LZtiaBK','B22KHMT011',1,1),('HS_31','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.731051','b22khmt012@open.edu.vn','$2a$10$Og4syPafSgY2kE2vruTJEu2VfcD3lVqVrPYzSSUtigLOnpM3ZdQVy','B22KHMT012',1,1),('HS_32','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.830395','b22khmt013@open.edu.vn','$2a$10$MS2/DUOpIZDxH0dwVh2cX.fcsH9D/KVLBdmE0fY6gogGFUwZO/GoK','B22KHMT013',1,1),('HS_33','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.934205','b22khmt014@open.edu.vn','$2a$10$N5LNoyI9QMExBujaSl4SreOkgrAt5vK26Jj1M3UHhqjzVo/LCmo8O','B22KHMT014',1,1),('HS_34','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.039301','b21dtvt001@open.edu.vn','$2a$10$HjPFwIST.PRzZRC6/cXJoOlpxQUY3wJCMIpUcCSZ/L77NgE9ybTUG','B21DTVT001',1,1),('HS_35','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.147823','b21dtvt002@open.edu.vn','$2a$10$ZFdJ1pex5xVyXLsEGS7AheK5TJZ4oEiXysHhJhTTJUPMZjSgjERq.','B21DTVT002',1,1),('HS_36','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.252309','b21dtvt003@open.edu.vn','$2a$10$c4yMex.OZO7BbXJvCNXfx.kRXPdl.fTVFy5EMNH.y7dKtRXlnbFey','B21DTVT003',1,1),('HS_37','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.352462','b21dtvt004@open.edu.vn','$2a$10$98J3Zo6cy3DU8NUHE10yPOU4WuQT5U4Vcyi7Crogy3ZYum5hik/cm','B21DTVT004',1,1),('HS_38','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.455277','b21dtvt005@open.edu.vn','$2a$10$uPJNy/JZTeIXzWodRPQJwOJV0oe4APLllldnuHxmjkdOfQSIQIn7.','B21DTVT005',1,1),('HS_39','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.552515','b21dtvt006@open.edu.vn','$2a$10$iaUjCY3OHBBPaKfRPPKNQO0EsU4yxrceit2c8wufKZcuCqL.xMy6a','B21DTVT006',1,1),('HS_40','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.661477','b21dtvt007@open.edu.vn','$2a$10$T3/ZkOsSfw6Tr1n.zBjjBOWUMaClDnjwTY5O0lV1.N90U9/LrG0nO','B21DTVT007',1,1),('HS_41','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.759405','b21dtvt008@open.edu.vn','$2a$10$2g4wsLmKcnOHVaHTfnES1uikLj3auDywcGzpOeS41SJ0ee1eAs2jq','B21DTVT008',1,1),('HS_42','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.857100','b21dtvt009@open.edu.vn','$2a$10$Aii0QRsAC8a0s6eQxZNCNezYoAcXwqdak3C5YQYowGbe94YaxpmQC','B21DTVT009',1,1),('HS_43','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.960693','b21dtvt010@open.edu.vn','$2a$10$hwngUEV3A3RJ7tsaNoKGjek9NQqAsHv2FhOZm/XMKn3SxwVVzZKde','B21DTVT010',1,1),('HS_44','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.067755','b21dtvt011@open.edu.vn','$2a$10$/NsJowOSNpWsF8enIISHl.ogccdYIZcA8PYPq3KmQ2ziY5SOh5qem','B21DTVT011',1,1),('HS_45','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.172172','b21dtvt012@open.edu.vn','$2a$10$D2QsVIiuliEQBdLIP8GzwuoqOCVdATuQyrs5g39/hq/KGBDWKbuuC','B21DTVT012',1,1),('HS_46','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.272045','b21dtvt013@open.edu.vn','$2a$10$nxmNZN9pvnNQEIFC9KP4AOAZ1m1aILWUtUnn4Xsk9FjiYs3jaVusK','B21DTVT013',1,1),('HS_47','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.373255','b21dtvt014@open.edu.vn','$2a$10$tbbaXFtZpp1g6q5R1RaxbugMH4KtJ/ujDCVnR3CeCAPsY4JWCromi','B21DTVT014',1,1),('HS_48','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.487328','b22attt001@open.edu.vn','$2a$10$mJ4tXqhS8.8wjnVwcbHp4utmNav4PdspEBbSgkEElDLC6qLUhqGam','B22ATTT001',1,1),('HS_49','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.610425','b22attt002@open.edu.vn','$2a$10$GZMQRzf2d2BWjjVgofBbFO1f91UtrA5ijDRuluOgnMT8oHOs7IkP6','B22ATTT002',1,1),('HS_50','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.729181','b22attt003@open.edu.vn','$2a$10$ane5OIKDlAnSg9CLBi8/r.TcU4G4X1ahI.dNKEg8GKoHGa9ySocv.','B22ATTT003',1,1),('HS_51','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.844046','b22attt004@open.edu.vn','$2a$10$s0/8oztoM9djJ4wmUQ5qq.7DTfyImbXFiVIgsyBNBVt74zjBEVSdq','B22ATTT004',1,1),('HS_52','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.958703','b22attt005@open.edu.vn','$2a$10$jbhJjhyFWPVvka3MvbawbO.T/pEwXkUiXSbq0HHqpO2syrRMsMjSC','B22ATTT005',1,1),('HS_53','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.068866','b22attt006@open.edu.vn','$2a$10$e5hWKwqgfHdniSUc0/rP4.D5VsKgMuk1XgUSyJOIjvkQAJpYUIosi','B22ATTT006',1,1),('HS_54','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.176601','b22attt007@open.edu.vn','$2a$10$1D2Was7/tb4fvtPdMhBeGeAqC7qiYCww/QzkIi7fTeOXyJgEs.MEK','B22ATTT007',1,1),('HS_55','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.285418','b22attt008@open.edu.vn','$2a$10$gJ7RaVhRVe9CgatTdCzH6OqiImqWmXC0HU67N8H4L63RZVpOFWj5O','B22ATTT008',1,1),('HS_56','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.387477','b22attt009@open.edu.vn','$2a$10$dowfK62h.zr3cI.7bglGjub6LdKXPkg3iEs.HPbcAF5KiP7vW5zqq','B22ATTT009',1,1),('HS_57','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.486792','b22attt010@open.edu.vn','$2a$10$4X2Lar8AQf.CsGTT0fUXKOBN4OasdoZeWRidB5DE.aTMHfYQpBjJK','B22ATTT010',1,1),('HS_58','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.584695','b22attt011@open.edu.vn','$2a$10$Wh5zlj9ddY0F/0qNGZwP3OkvFyHdifMiqvgweeuXQLJO/LZ1x/lWm','B22ATTT011',1,1),('HS_59','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.684449','b22attt012@open.edu.vn','$2a$10$slEOhUledQkBeUtbB8YAgeqdF6ww6HDFfMzC4cwJWu0hJ59kNR09C','B22ATTT012',1,1),('HS_60','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.780955','b22attt013@open.edu.vn','$2a$10$.BVaP/GdGt5JfNPxEuZwIePyNe3p4yVV5srAbs.KKkapUQ.NrPcPm','B22ATTT013',1,1),('HS_61','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.877333','b22attt014@open.edu.vn','$2a$10$SI.uD713ltuIzgJ0VgVFVeZIYNjiUtuOKDXkGfa3pDpnPYEO7Vj7u','B22ATTT014',1,1),('HS_62','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.044317','b21httt001@open.edu.vn','$2a$10$dKjJpUS3IklssL47TPqVie34IDu7zbVWg/9sH7moRqFdurI9ufcT.','B21HTTT001',1,1),('HS_63','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.222250','b21httt002@open.edu.vn','$2a$10$mxO8aHRFQzF/3LSWVDHrb.Kp7KGJ0ID1aNgShMJqRyKmUIuGL69uy','B21HTTT002',1,1),('HS_64','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.381542','b21httt003@open.edu.vn','$2a$10$n2APctre735no2cqk4jVX.VxNsj9HVgQERteLPpEL0Mw3rPgBEV2a','B21HTTT003',1,1),('HS_65','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.539373','b21httt004@open.edu.vn','$2a$10$7HAPtw0U70LvhvdhdVSUEuavYQEIlmkTY9uVSyvnTha790uGOE.ZG','B21HTTT004',1,1),('HS_66','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.726112','b21httt005@open.edu.vn','$2a$10$DU5UH/CJisZduSrl51PdFun/nYGPC0bo.sCuux4Cj2JR0zn.rO4yK','B21HTTT005',1,1),('HS_67','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.909696','b21httt006@open.edu.vn','$2a$10$bUFVwHo0dImrsUFaOpowZ.mejsm7l0nM1hXWxzkuNJAq8NxQA1sum','B21HTTT006',1,1),('HS_68','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.080902','b21httt007@open.edu.vn','$2a$10$1l17VsDTCHxvxPMy3PUBF.21PENy3pN1qK.ThR8LTE6zZfZ2UeV0q','B21HTTT007',1,1),('HS_69','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.210738','b21httt008@open.edu.vn','$2a$10$/qww584wr00nxjkgziaIIeK4UMswu63IYOZNImuuCaAKnFIg3Dl06','B21HTTT008',1,1),('HS_70','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.378097','b21httt009@open.edu.vn','$2a$10$chC8zxi0Ws61KInLkJ98Ke/FIiEBA/uFalR9Bq2YnJdHXgSNPShiS','B21HTTT009',1,1),('HS_71','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.551319','b21httt010@open.edu.vn','$2a$10$BuND6CX58Pi3Hhe7j64R4.nSWb.CEvscaRWh4qHZjCVgCYzYcJCzC','B21HTTT010',1,1),('HS_72','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.679195','b21httt011@open.edu.vn','$2a$10$hKZBE6nKkElpKrmyELbiNOqhDVGxAjp9CJUwC876lGRV5tCQVWttq','B21HTTT011',1,1),('HS_73','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.797086','b21httt012@open.edu.vn','$2a$10$pkbLt/xwKOXMDxfA/cx4PebTdVWjzM.J.cnqobO7MKkeUnrPEGc8W','B21HTTT012',1,1),('HS_74','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.946957','b21httt013@open.edu.vn','$2a$10$rt1PV.KBcMaqsfk.DHXJbuaudcdoT.vk.yX/A7WMR/fn9apBALBdW','B21HTTT013',1,1),('HS_75','2026-06-10 06:16:53.000000','2026-06-10 10:39:32.105871','b21httt014@open.edu.vn','$2a$10$eSd.jmV261I6jqrpdELMK.NOrHoHmQI5QLi4IP.8N4DBlR7XhrWea','B21HTTT014',1,1);
+/*!40000 ALTER TABLE `users` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2026-06-10 17:56:00
 </file>
 
 <file path="pom.xml">
@@ -5106,6 +6453,368 @@ public interface UserService {
 </project>
 </file>
 
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/StudentController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.StudentUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
+import com.dangdepzaivaio.StudentManagement.service.StudentService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/students")
+@RequiredArgsConstructor
+public class StudentController {
+
+    private final StudentService studentService;
+
+    @PostMapping
+    public ApiResponse<StudentResponse> createStudent(@RequestBody @Valid StudentCreationRequest request) {
+        return new ApiResponse<>(1000, "Tạo hồ sơ sinh viên thành công!", studentService.createStudent(request));
+    }
+
+    @GetMapping
+    public ApiResponse<List<StudentResponse>> getAllStudents(@RequestParam(required = false, defaultValue = "false") boolean includeInactive) {
+        return new ApiResponse<>(1000, "Lấy danh sách sinh viên thành công!", studentService.getAllStudents(includeInactive));
+    }
+
+    @GetMapping("/{studentId}")
+    public ApiResponse<StudentResponse> getStudent(@PathVariable String studentId) { // 🔥 String
+        return new ApiResponse<>(1000, "Lấy chi tiết sinh viên thành công!", studentService.getStudentById(studentId));
+    }
+
+    @PutMapping("/{studentId}")
+    public ApiResponse<StudentResponse> updateStudent(@PathVariable String studentId, @RequestBody @Valid StudentUpdateRequest request) { // 🔥 String
+        return new ApiResponse<>(1000, "Cập nhật thông tin sinh viên thành công!", studentService.updateStudent(studentId, request));
+    }
+
+    @DeleteMapping("/{studentId}")
+    public ApiResponse<String> deleteStudent(@PathVariable String studentId) { // 🔥 String
+        studentService.disableStudent(studentId);
+        return new ApiResponse<>(1000, "Xóa hồ sơ sinh viên thành công!", "Hồ sơ sinh viên có ID " + studentId + " đã bị vô hiệu hóa.");
+    }
+
+    @PutMapping("/{studentId}/enable")
+    public ApiResponse<String> enableStudent(@PathVariable String studentId) { // 🔥 String
+        studentService.enableStudent(studentId);
+        return new ApiResponse<>(1000, "Mở khóa hồ sơ sinh viên thành công!", "Hồ sơ và tài khoản đã được tái kích hoạt.");
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/User.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.util.Set;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "users")
+public class User extends BaseEntity {
+
+    @Id
+    @Column(name = "id", length = 20) // Không còn dùng GenerationType.IDENTITY nữa
+    private String id; // 🔥 Chuyển đổi thành String ID
+
+    @Column(name = "username", nullable = false, unique = true)
+    private String username;
+
+    @Column(name = "password", nullable = false)
+    private String password;
+
+    @Column(name = "email", nullable = false, unique = true)
+    private String email;
+
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true;
+
+    @Builder.Default
+    @Column(name = "is_first_login", nullable = false)
+    private boolean isFirstLogin = true;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles;
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/StudentMapper.java">
+package com.dangdepzaivaio.StudentManagement.mapper;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Student;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.factory.Mappers;
+
+@Mapper(componentModel = "spring")
+public interface StudentMapper {
+    StudentMapper INSTANCE = Mappers.getMapper(StudentMapper.class);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "studentClass", ignore = true)
+    @Mapping(target = "user", ignore = true)
+    Student toEntity(StudentCreationRequest request);
+
+    @Mapping(target = "username", source = "user.username")
+    @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "classId", source = "studentClass.id") // 🔥 ÉP MAP: Lấy ID của Class đưa vào DTO
+    @Mapping(target = "className", source = "studentClass.name")
+    @Mapping(target = "active", source = "active")
+    StudentResponse toResponse(Student student);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/UserServiceImpl.java">
+package com.dangdepzaivaio.StudentManagement.service.impl;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Role;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.UserMapper;
+import com.dangdepzaivaio.StudentManagement.repository.RoleRepository;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import com.dangdepzaivaio.StudentManagement.service.UserService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Set;
+
+@Service
+@RequiredArgsConstructor
+public class UserServiceImpl implements UserService {
+
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
+
+    @Override
+    @Transactional
+    public UserResponse createUser(UserCreationRequest request) {
+        if (userRepository.existsByUsername(request.username())) {
+            throw new AppException(ErrorCode.USER_EXISTED);
+        }
+        if (userRepository.existsByEmail(request.email())) {
+            throw new AppException(ErrorCode.USER_EXISTED);
+        }
+
+        Role adminRole = roleRepository.findByName("ADMIN")
+                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
+
+        long nextIndex = userRepository.countByIdStartingWith("AD_") + 1;
+        String generatedId = String.format("AD_%02d", nextIndex);
+        if (nextIndex == 1 && !userRepository.existsByUsername("admin")) {
+            generatedId = "AD";
+        }
+
+        User user = User.builder()
+                .id(generatedId)
+                .username(request.username())
+                .password(passwordEncoder.encode(request.password()))
+                .email(request.email())
+                .roles(Set.of(adminRole))
+                .isActive(true)
+                .isFirstLogin(true)
+                .build();
+
+        return userMapper.toResponse(userRepository.save(user));
+    }
+
+    @Override
+    public List<UserResponse> getAllUsers() {
+        return userRepository.findAll().stream().map(userMapper::toResponse).toList();
+    }
+
+    @Override
+    public UserResponse getUserById(String id) {
+        return userRepository.findById(id)
+                .map(userMapper::toResponse)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    @Override
+    @Transactional
+    public UserResponse updateUser(String id, UserUpdateRequest request) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (request.password() != null && !request.password().isBlank()) {
+            user.setPassword(passwordEncoder.encode(request.password()));
+            user.setFirstLogin(false);
+        }
+        if (request.email() != null && !request.email().isBlank()) {
+            user.setEmail(request.email());
+        }
+
+        return userMapper.toResponse(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public UserResponse enableUser(String id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setActive(true);
+        return userMapper.toResponse(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public UserResponse resetPassword(String id, String newPassword) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        String effectivePassword = (newPassword == null || newPassword.isBlank()) ? "password1234" : newPassword;
+        user.setPassword(passwordEncoder.encode(effectivePassword));
+        user.setFirstLogin(true);
+        user.setActive(true);
+        return userMapper.toResponse(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public void disableUser(String id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setActive(false);
+        userRepository.save(user);
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/StudentService.java">
+package com.dangdepzaivaio.StudentManagement.service;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.StudentUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
+import java.util.List;
+
+public interface StudentService {
+    StudentResponse createStudent(StudentCreationRequest request);
+    List<StudentResponse> getAllStudents(boolean includeInactive);
+
+    // 🔥 ĐÃ SỬA: Chuyển toàn bộ tham số ID sang String
+    StudentResponse getStudentById(String id);
+    StudentResponse updateStudent(String id, StudentUpdateRequest request);
+    void disableStudent(String id);
+    void enableStudent(String id);
+}
+</file>
+
+<file path="src/main/resources/application.yaml">
+spring:
+  application:
+    name: StudentManagement
+  datasource:
+    url: jdbc:mysql://localhost:3306/student_management?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: dcnyuu
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false # 🔥 ĐÃ SỬA: Chuyển từ true thành false để tắt log SQL mặc định
+    properties:
+      hibernate:
+        show_sql: false # 🔥 THÊM MỚI: Khóa triệt để tính năng in log truy vấn
+        format_sql: false # 🔥 ĐÃ SỬA: Chuyển từ true thành false để ngưng định dạng câu lệnh SQL
+        dialect: org.hibernate.dialect.MySQLDialect
+        jdbc:
+          batch_size: 20
+server:
+  port: 8081
+
+jwt:
+  signer-key: "TranMinhDangDepZaiVaioSieuCapVipPro2005"
+
+# 🔥 THÊM MỚI: Cấu hình dập tắt mức độ log của Hibernate chuẩn cú pháp YAML
+logging:
+  level:
+    org:
+      hibernate:
+        SQL: OFF
+        orm:
+          jdbc:
+            bind: OFF
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/exception/ErrorCode.java">
+package com.dangdepzaivaio.StudentManagement.exception;
+
+import lombok.Getter;
+import org.springframework.http.HttpStatus;
+
+@Getter
+public enum ErrorCode {
+    UNCATEGORIZED_EXCEPTION(9999, "Loi he thong chua phan loai", HttpStatus.INTERNAL_SERVER_ERROR),
+    VALIDATION_ERROR(1001, "Du lieu khong hop le", HttpStatus.BAD_REQUEST),
+    USER_EXISTED(1002, "Tai khoan da ton tai", HttpStatus.BAD_REQUEST),
+    USER_NOT_FOUND(1003, "Khong tim thay nguoi dung", HttpStatus.NOT_FOUND),
+    UNAUTHENTICATED(1004, "Dang nhap that bai hoac khong co quyen", HttpStatus.UNAUTHORIZED),
+    STUDENT_CODE_EXISTED(1005, "Ma sinh vien da ton tai", HttpStatus.BAD_REQUEST),
+    STUDENT_NOT_FOUND(1006, "Khong tim thay sinh vien", HttpStatus.NOT_FOUND),
+    CLASS_NOT_FOUND(1007, "Khong tim thay lop hanh chinh", HttpStatus.NOT_FOUND),
+    ROLE_NOT_FOUND(1008, "Khong tim thay vai tro", HttpStatus.NOT_FOUND),
+    DEPARTMENT_NOT_FOUND(1009, "Khong tim thay khoa chuyen mon", HttpStatus.NOT_FOUND),
+    TEACHER_CODE_EXISTED(1010, "Ma giang vien da ton tai", HttpStatus.BAD_REQUEST),
+    TEACHER_NOT_FOUND(1011, "Khong tim thay giang vien", HttpStatus.NOT_FOUND),
+    GRADE_EXISTED(1012, "Sinh vien da co ban ghi dang ky/diem cho lop hoc phan nay", HttpStatus.BAD_REQUEST),
+    GRADE_NOT_FOUND(1013, "Khong tim thay ban ghi diem", HttpStatus.NOT_FOUND),
+    COURSE_CLASS_NOT_FOUND(1014, "Khong tim thay lop hoc phan", HttpStatus.NOT_FOUND),
+    COURSE_CLASS_EXISTED(1015, "Lop hoc phan da ton tai", HttpStatus.BAD_REQUEST),
+    SUBJECT_NOT_FOUND(1016, "Khong tim thay mon hoc", HttpStatus.NOT_FOUND),
+    COURSE_CLASS_HAS_GRADES(1017, "Khong the xoa vi lop hoc phan da co sinh vien dang ky hoac co diem", HttpStatus.BAD_REQUEST),
+    CLASS_EXISTED(1018, "Lop hanh chinh da ton tai", HttpStatus.BAD_REQUEST),
+    CLASS_HAS_STUDENTS(1019, "Khong the xoa vi lop hanh chinh dang co sinh vien", HttpStatus.BAD_REQUEST),
+    DEPARTMENT_EXISTED(1020, "Khoa chuyen mon da ton tai", HttpStatus.BAD_REQUEST),
+    DEPARTMENT_HAS_CLASSES(1021, "Khong the xoa vi khoa dang quan ly lop hanh chinh", HttpStatus.BAD_REQUEST),
+    SUBJECT_EXISTED(1022, "Mon hoc da ton tai", HttpStatus.BAD_REQUEST),
+    SUBJECT_HAS_CLASSES(1023, "Khong the xoa vi mon hoc dang co lop hoc phan", HttpStatus.BAD_REQUEST),
+    ACCOUNT_LOCKED(1024, "Tai khoan dang bi khoa", HttpStatus.FORBIDDEN),
+    REGISTRATION_PERIOD_CLOSED(1025, "Cong dang ky tin chi dang dong hoac da het han", HttpStatus.BAD_REQUEST),
+    COURSE_CLASS_CLOSED(1026, "Lop hoc phan chua duoc mo cho dang ky", HttpStatus.BAD_REQUEST),
+    COURSE_CLASS_FULL(1027, "Lop hoc phan da dat si so toi da", HttpStatus.BAD_REQUEST),
+    GRADE_ALREADY_ENTERED(1028, "Khong the huy dang ky vi giang vien da nhap diem", HttpStatus.BAD_REQUEST),
+    TEACHER_NOT_ASSIGNED_TO_CLASS(1029, "Giang vien chi duoc thao tac tren lop hoc phan duoc phan cong", HttpStatus.FORBIDDEN),
+    STUDENT_NOT_ENROLLED(1030, "Sinh vien chua dang ky lop hoc phan nay", HttpStatus.BAD_REQUEST);
+
+    private final int code;
+    private final String message;
+    private final HttpStatus statusCode;
+
+    ErrorCode(int code, String message, HttpStatus statusCode) {
+        this.code = code;
+        this.message = message;
+        this.statusCode = statusCode;
+    }
+}
+</file>
+
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/StudentServiceImpl.java">
 package com.dangdepzaivaio.StudentManagement.service.impl;
 
@@ -5128,7 +6837,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.Set;
 
@@ -5149,19 +6857,19 @@ public class StudentServiceImpl implements StudentService {
         if (studentRepository.existsByStudentCode(request.studentCode())) {
             throw new AppException(ErrorCode.STUDENT_CODE_EXISTED);
         }
-        // Quy tắc tự động: Tài khoản lấy theo mã sinh viên
-        if (userRepository.existsByUsername(request.studentCode())) {
-            throw new AppException(ErrorCode.USER_EXISTED);
-        }
 
         Class studentClass = classRepository.findById(request.classId())
                 .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
 
-        // Tự động khởi dựng tài khoản User hệ thống ngầm bên dưới
+        // 🔥 THUẬT TOÁN TỰ SINH CHUỖI ID LIÊN KẾT: HS_01, HS_02...
+        long nextIndex = userRepository.countByIdStartingWith("HS_") + 1;
+        String generatedId = String.format("HS_%02d", nextIndex);
+
         User user = User.builder()
+                .id(generatedId) // Gán cứng chuỗi ID tự sinh vào User
                 .username(request.studentCode())
-                .password(passwordEncoder.encode("password1234")) // Mật khẩu mặc định
-                .email(request.studentCode().toLowerCase() + "@open.edu.vn") // Tự sinh email trường học
+                .password(passwordEncoder.encode("password1234"))
+                .email(request.studentCode().toLowerCase() + "@open.edu.vn")
                 .isFirstLogin(true)
                 .isActive(true)
                 .build();
@@ -5172,8 +6880,9 @@ public class StudentServiceImpl implements StudentService {
         userRepository.save(user);
 
         Student student = studentMapper.toEntity(request);
-        student.setUser(user);
+        student.setUser(user); // JPA và @MapsId sẽ tự động copy chuỗi generatedId từ User sang Student làm PK
         student.setStudentClass(studentClass);
+        student.setActive(true);
 
         return studentMapper.toResponse(studentRepository.save(student));
     }
@@ -5184,21 +6893,19 @@ public class StudentServiceImpl implements StudentService {
                 ? studentRepository.findAllStudentsWithJoinFetch()
                 : studentRepository.findAllActiveStudentsWithJoinFetch();
 
-        return students.stream()
-                .map(studentMapper::toResponse)
-                .toList();
+        return students.stream().map(studentMapper::toResponse).toList();
     }
 
     @Override
-    public StudentResponse getStudentById(Long id) {
-        return studentRepository.findByIdWithJoinFetch(id)
+    public StudentResponse getStudentById(String id) { // Chuyển tham số sang String
+        return studentRepository.findById(id)
                 .map(studentMapper::toResponse)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
     }
 
     @Override
     @Transactional
-    public StudentResponse updateStudent(Long id, StudentUpdateRequest request) {
+    public StudentResponse updateStudent(String id, StudentUpdateRequest request) { // Chuyển tham số sang String
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
 
@@ -5213,678 +6920,164 @@ public class StudentServiceImpl implements StudentService {
         student.setDateOfBirth(request.dateOfBirth());
         student.setGender(request.gender());
         student.setPhoneNumber(request.phoneNumber());
+        if (request.active() != null) {
+            student.setActive(request.active());
+            if (student.getUser() != null) {
+                student.getUser().setActive(request.active());
+            }
+        }
 
         return studentMapper.toResponse(studentRepository.save(student));
     }
 
     @Override
     @Transactional
-    public void disableStudent(Long id) {
+    public void disableStudent(String id) { // Chuyển tham số sang String
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
-
         student.setActive(false);
+        if (student.getUser() != null) student.getUser().setActive(false);
         studentRepository.save(student);
-
-        User user = student.getUser();
-        if (user != null) {
-            user.setActive(false);
-            userRepository.save(user);
-        }
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/UserServiceImpl.java">
-package com.dangdepzaivaio.StudentManagement.service.impl;
-
-import java.util.List;
-import java.util.Set; // 🔥 Thêm import này
-
-import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
-import com.dangdepzaivaio.StudentManagement.entity.Role;
-import com.dangdepzaivaio.StudentManagement.entity.User;
-import com.dangdepzaivaio.StudentManagement.exception.AppException;
-import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.mapper.UserMapper;
-import com.dangdepzaivaio.StudentManagement.repository.RoleRepository;
-import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
-import com.dangdepzaivaio.StudentManagement.service.UserService;
-import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
-@Service
-@RequiredArgsConstructor
-public class UserServiceImpl implements UserService {
-
-    private final UserRepository userRepository;
-    private final RoleRepository roleRepository; // 🔥 Bổ sung Repository này
-    private final UserMapper userMapper;
-    private final PasswordEncoder passwordEncoder;
-
-    @Override
-    @Transactional
-    public UserResponse createUser(UserCreationRequest request) {
-        if (userRepository.existsByUsername(request.username())) {
-            throw new AppException(ErrorCode.USER_EXISTED);
-        }
-
-        // Lấy quyền ADMIN cho tài khoản quản trị viên mới
-        Role adminRole = roleRepository.findByName("ADMIN")
-                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
-
-        User user = User.builder()
-                .username(request.username())
-                .password(passwordEncoder.encode(request.password()))
-                .email(request.email())
-                .roles(Set.of(adminRole)) // 🔥 Đã bảo vệ: Tránh NullPointerException khi Login
-                .build();
-
-        return userMapper.toResponse(userRepository.save(user));
-    }
-
-    @Override
-    public List<UserResponse> getAllUsers() {
-        return userRepository.findByIsActiveTrue().stream()
-                .map(userMapper::toResponse)
-                .toList();
-    }
-
-    @Override
-    public UserResponse getUserById(Long id) {
-        return userRepository.findById(id)
-                .map(userMapper::toResponse)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
     @Override
     @Transactional
-    public UserResponse updateUser(Long id, UserUpdateRequest request) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-
-        if (request.password() != null && !request.password().isBlank()) {
-            user.setPassword(passwordEncoder.encode(request.password()));
-        }
-        if (request.email() != null && !request.email().isBlank()) {
-            user.setEmail(request.email());
-        }
-
-        return userMapper.toResponse(userRepository.save(user));
-    }
-
-    @Override
-    @Transactional
-    public void disableUser(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        user.setActive(false);
-        userRepository.save(user);
-    }
-}
-</file>
-
-<file path="src/main/resources/application.yaml">
-spring:
-  application:
-    name: StudentManagement
-  datasource:
-    url: jdbc:mysql://localhost:3306/student_management?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: root
-    password: dcnyuu
-    driver-class-name: com.mysql.cj.jdbc.Driver
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-        hibernate.dialect: org.hibernate.dialect.MySQLDialect
-        hibernate.jdbc.batch_size: 20
-server:
-  port: 8081
-
-jwt:
-  signer-key: "TranMinhDangDepZaiVaioSieuCapVipPro2005"
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/exception/ErrorCode.java">
-package com.dangdepzaivaio.StudentManagement.exception;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
-import lombok.Getter;
-
-@Getter
-public enum ErrorCode {
-    UNCATEGORIZED_EXCEPTION(9999, "Lỗi hệ thống không xác định", HttpStatus.INTERNAL_SERVER_ERROR),
-    USER_EXISTED(1001, "Tài khoản đăng nhập đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
-    ROLE_NOT_FOUND(1002, "Vai trò người dùng (Role) không tồn tại", HttpStatus.NOT_FOUND),
-    STUDENT_NOT_FOUND(1003, "Không tìm thấy thông tin sinh viên yêu cầu", HttpStatus.NOT_FOUND),
-    CLASS_NOT_FOUND(1004, "Lớp hành chính không tồn tại trên hệ thống", HttpStatus.NOT_FOUND),
-    VALIDATION_ERROR(4000, "Dữ liệu đầu vào không hợp lệ", HttpStatus.BAD_REQUEST),
-    EMAIL_EXISTED(1005, "Email này đã được sử dụng trên hệ thống", HttpStatus.BAD_REQUEST),
-    SUBJECT_EXISTED(1006, "Môn học này đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
-    SUBJECT_NOT_FOUND(1007, "Không tìm thấy thông tin môn học yêu cầu", HttpStatus.NOT_FOUND),
-    COURSE_CLASS_EXISTED(1008, "Mã lớp học phần này đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
-    COURSE_CLASS_NOT_FOUND(1009, "Không tìm thấy thông tin lớp học phần yêu cầu", HttpStatus.NOT_FOUND),
-    GRADE_EXISTED(1010, "Sinh viên này đã được nhập điểm cho lớp học phần này trước đó", HttpStatus.BAD_REQUEST),
-    GRADE_NOT_FOUND(1011, "Không tìm thấy thông tin đầu điểm yêu cầu", HttpStatus.NOT_FOUND),
-    DEPARTMENT_NOT_FOUND(1012, "Không tìm thấy thông tin khoa/viện yêu cầu", HttpStatus.NOT_FOUND),
-    UNAUTHENTICATED(1013, "Tên đăng nhập hoặc mật khẩu không chính xác", HttpStatus.UNAUTHORIZED),
-    CLASS_EXISTED(1014, "Tên lớp hành chính này đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
-    DEPARTMENT_EXISTED(1015, "Mã khoa/viện đào tạo này đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
-    STUDENT_CODE_EXISTED(1016, "Mã số sinh viên này đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
-    DEPARTMENT_HAS_CLASSES(1017, "Không thể xóa khoa này vì đang có lớp hành chính thuộc về khoa", HttpStatus.BAD_REQUEST),
-    CLASS_HAS_STUDENTS(1018, "Không thể xóa lớp hành chính này vì đang có sinh viên thuộc về lớp", HttpStatus.BAD_REQUEST),
-    USER_NOT_FOUND(1019, "Không tìm thấy thông tin tài khoản yêu cầu", HttpStatus.NOT_FOUND),
-    SUBJECT_HAS_CLASSES(1020, "Không thể xóa môn học này vì đang có lớp học phần trực thuộc", HttpStatus.BAD_REQUEST),
-    COURSE_CLASS_HAS_GRADES(1021, "Không thể xóa lớp học phần này vì đã có sinh viên nhận đầu điểm", HttpStatus.BAD_REQUEST);
-
-    private final int code;
-    private final String message;
-    private final HttpStatusCode statusCode;
-
-    ErrorCode(int code, String message, HttpStatusCode statusCode) {
-        this.code = code;
-        this.message = message;
-        this.statusCode = statusCode;
+    public void enableStudent(String id) { // Chuyển tham số sang String
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
+        student.setActive(true);
+        if (student.getUser() != null) student.getUser().setActive(true);
+        studentRepository.save(student);
     }
 }
 </file>
 
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/README.md">
-# Student Management System (Hệ thống Quản lý Sinh viên)
+# 🎓 Hệ thống Quản trị Đào tạo & Điểm số Sinh viên (Student Management System)
 
-Hệ thống Backend RESTful API quản lý đào tạo và điểm số cấp bậc đại học, được xây dựng dựa trên kiến trúc phân tầng chuyên nghiệp (Layered Architecture) với các công nghệ tối tân nhất hiện nay.
+Dự án Hệ thống Quản lý Sinh viên toàn diện được thiết kế theo kiến trúc **Layered Architecture** sát với nghiệp vụ thực tế của các trường Đại học. Hệ thống áp dụng mô hình phân quyền chặt chẽ (RBAC) với 3 vai trò: Quản trị viên (ADMIN), Giảng viên (TEACHER) và Sinh viên (STUDENT).
 
----
+## 🛠 Công nghệ sử dụng (Tech Stack)
 
-## 🛠 1. Công nghệ Sử dụng (Tech Stack)
-* **Core Language:** Java 26 (Tận dụng tối đa Java Records, Pattern Matching)
-* **Framework:** Spring Boot 4.0.6 (Bản phát hành mới nhất)
-* **Database Layer:** MySQL 8.0, Spring Data JPA (Hibernate 7.x)
-* **Security & Auth:** Spring Security, JWT (JSON Web Token) qua Nimbus JOSE + JWT 9.37.3 (Đã kích hoạt toàn diện kèm phân hệ CORS)
-* **Data Mapping & Utilities:** MapStruct 1.6.3, Lombok, Jakarta Validation
-* **Build Tool:** Maven Wrapper (`./mvnw`)
+### ⚙️ Backend
+* **Ngôn ngữ:** Java 26
+* **Framework:** Spring Boot 4.0.6
+* **Cơ sở dữ liệu:** MySQL 8.0 & Spring Data JPA (Hibernate)
+* **Bảo mật:** Spring Security & JSON Web Token (JWT) qua Nimbus JOSE
+* **Tiện ích:** MapStruct 1.6.3 (Mapper), Lombok, Jakarta Validation
 
----
+### 🎨 Frontend
+* **Core:** React 19 & Vite
+* **Routing:** React Router v7
+* **HTTP Client:** Axios (Tích hợp tự động gắn Token)
+* **Styling:** CSS Design Tokens thuần (Tối ưu Dark Theme bảo vệ mắt)
 
-## 🏗 2. Kiến trúc Hệ thống (Layered Architecture)
-Dự án được phân chia thư mục nghiêm ngặt theo các tầng độc lập để đảm bảo tính dễ mở rộng và bảo trì:
-* `entity`: Ánh xạ các bảng trong cơ sở dữ liệu với chiến lược tối ưu `FetchType.LAZY` để kiểm soát hiệu năng.
-* `repository`: Tầng giao tiếp dữ liệu trực tiếp với MySQL thông qua JpaRepository, tích hợp các truy vấn tùy chỉnh với `JOIN FETCH` để tối ưu hóa hiệu năng truy vấn.
-* `dto`: Đối tượng truyền tải dữ liệu, sử dụng **Java Records** bất biến (Immutable) siêu nhẹ kèm bộ lọc Validation đầu vào.
-* `mapper`: Chuyển đổi tự động hiệu năng cao giữa Entity <-> DTO bằng MapStruct phẳng hóa dữ liệu lồng nhau.
-* `exception`: Bộ lọc quản lý và bắt lỗi tập trung toàn hệ thống (`@RestControllerAdvice`).
-* `service`: Nơi xử lý logic nghiệp vụ cốt lõi và các thuật toán tính toán phức tạp.
-* `controller`: Định nghĩa các RESTful API Endpoint phục vụ Client.
+## ✨ Tính năng nổi bật (Key Features)
+1. **Phân quyền 3 tầng (RBAC):**
+  * **ADMIN:** Quản lý cơ cấu phòng ban, lớp học, môn học, khởi tạo và cấp tài khoản tự động. Không được phép can thiệp sửa điểm sinh viên.
+  * **TEACHER:** Đặc quyền nhập điểm, sửa điểm cho các lớp học phần và tra cứu tổng quan bảng điểm toàn trường.
+  * **STUDENT:** Chỉ được phép tra cứu kết quả học tập cá nhân của chính mình.
+2. **Thuật toán GPA Tín chỉ:** Tự động tính điểm tổng kết (10% CC - 30% GK - 60% CK), quy đổi tự động sang Điểm chữ (A, B, C, D, F) và hệ 4 (4.0, 3.5...). Tính toán GPA bình quân gia quyền.
+3. **Bảo mật Vòng đời Tài khoản:** Mọi tài khoản cấp mới có mật khẩu mặc định được băm BCrypt. Người dùng bị ép buộc đổi mật khẩu mới trong lần đăng nhập đầu tiên. Tích hợp UI ẩn/hiện mật khẩu thông minh.
+4. **An toàn Dữ liệu:** Áp dụng Cascading Soft Delete (Xóa mềm), bảo vệ toàn vẹn khóa ngoại. Auto-map chính xác định danh tài khoản thông qua liên kết `user_id` chống sai lệch dữ liệu.
 
----
+## 🚀 Hướng dẫn cài đặt & Chạy dự án (How to run)
 
-## 📌 3. Mô tả Chi tiết các Phân hệ Chức năng (Functional Modules)
+### 1. Chuẩn bị Cơ sở dữ liệu
+* Tạo một database trong MySQL có tên là: `student_management`.
+* Thông tin kết nối mặc định (Sửa trong `src/main/resources/application.yaml`):
+  * Username: `root`
+  * Password: `dcnyuu`
+* Import file `student_management.sql` đi kèm để có ngay bộ dữ liệu mẫu chuẩn hóa. (Lưu ý: Hệ thống đã tích hợp `DatabaseInitializer` tự động reset mật khẩu toàn bộ Database về chuẩn `password1234` khi khởi động Spring Boot để chống sai lệch chuỗi băm BCrypt).
 
-### 🔐 3.1. Phân hệ Xác thực & Tài khoản (Auth & User Module)
-* **Xác thực an toàn:** API Đăng nhập (`POST /auth/login`) tiếp nhận thông tin, kiểm tra tính hợp lệ bằng PasswordEncoder (BCrypt) và sinh chuỗi mã hóa bảo mật JWT Token có thời hạn hoạt động 2 giờ.
-* **Mở rộng Payload dữ liệu:** Payload trả về cho Client được bổ sung đầy đủ các trường thiết yếu bao gồm `userId`, `username`, và chuỗi quyền hạn `roles` để hỗ trợ hiển thị thông tin và phân quyền giao diện phía Client.
-* **Quản trị tài khoản:** Quản trị viên hệ thống có toàn quyền quản lý danh mục tài khoản người dùng (`User`). Khi một tài khoản mới được khởi tạo thông qua API độc lập, hệ thống sẽ tự động liên kết gán vai trò `ADMIN` cho người dùng đó.
+### 2. Khởi chạy Backend (Spring Boot)
+Di chuyển vào thư mục gốc của dự án và chạy:
+\`\`\`bash
+./mvnw spring-boot:run
+\`\`\`
+*Backend sẽ khởi chạy ở cổng: `http://localhost:8081`*
 
-### 🏢 3.2. Phân hệ Quản lý Hành chính (Administrative Module)
-* **Danh mục Khoa/Viện đào tạo (`Department`):** Hỗ trợ lưu trữ thông tin mã khoa (bắt trùng lặp) và tên khoa chuyên môn. Tích hợp logic ràng buộc khóa ngoại nghiêm ngặt: Tuyệt đối chặn đứng hành vi xóa Khoa nếu như tồn tại các lớp hành chính đang trực thuộc phân hệ Khoa đó.
-* **Lớp hành chính sinh viên (`Class`):** Quản lý tên lớp sinh viên và liên kết khóa ngoại với Khoa chủ quản. Áp dụng cơ chế phòng vệ dữ liệu: Không cho phép xóa lớp hành chính nếu lớp đó đang chứa hồ sơ sinh viên học tập bên dưới.
+### 3. Khởi chạy Frontend (ReactJS)
+Mở một Terminal mới, di chuyển vào thư mục giao diện và chạy:
+\`\`\`bash
+cd student-management-ui
+npm install
+npm run dev
+\`\`\`
+*Frontend sẽ khởi chạy ở cổng: `http://localhost:5173`*
 
-### 📚 3.3. Phân hệ Nghiệp vụ Đào tạo (Academic Module)
-* **Môn học gốc (`Subject`):** Quản lý mã môn học, tên môn học và định mức số tín chỉ tích lũy đào tạo. Hệ thống tự động chặn hành vi xóa môn học nếu môn học đó đã được dùng để lên lịch mở các lớp học phần.
-* **Lớp học phần mở theo kỳ (`CourseClass`):** Quản lý mã lớp học phần, học kỳ tổ chức giảng dạy và liên kết với môn học gốc. Hệ thống tích hợp hàm chặn xóa lớp học phần nếu như đã phát sinh dữ liệu nhập điểm thành phần của sinh viên.
+## 🔑 Tài khoản thử nghiệm (Test Accounts)
+Sau khi Backend khởi động, toàn bộ mật khẩu mặc định là: **`password1234`**.
 
-### 👥 3.4. Phân hệ Hồ sơ Sinh viên (Student Module)
-* **Nested JSON Creation:** API tạo mới sinh viên cho phép tiếp nhận một cấu trúc JSON lồng nhau, xử lý tạo đồng thời hồ sơ lý lịch và tài khoản User đăng nhập hệ thống đi kèm mượt mà, tự động gán vai trò `STUDENT` dưới sự bảo vệ của tầng giao dịch `@Transactional`.
-* **Cascading Soft Delete:** Khi thực hiện xóa hồ sơ sinh viên, hệ thống thực hiện cơ chế xóa mềm: Chuyển cờ trạng thái `is_active = false` đồng thời trên cả thực thể Sinh viên lẫn thực thể tài khoản User liên kết, đảm bảo an toàn dữ liệu lịch sử.
-
-### 🎯 3.5. Phân hệ Điểm số & GPA Tín chỉ (Grade Module)
-* **Nhập liệu an toàn (Null-Safe):** Hệ thống hỗ trợ nhập các đầu điểm thành phần hệ 10. Thuật toán xử lý ngầm tích hợp cơ chế phòng vệ toán học: Nếu giảng viên bỏ trống đầu điểm (giá trị gửi lên từ Client là `null`), hệ thống tự động quy đổi thành `0.0` để tiếp tục tính toán mà không gây lỗi hệ thống.
-* **Tự động quy đổi quy chế:** Hệ thống tự động tính điểm tổng kết dựa trên trọng số chuẩn `10% Chuyên cần - 30% Giữa kỳ - 60% Cuối kỳ`, đồng thời tự động ánh xạ sang Điểm chữ (`A`, `B+`, `B`...) và Điểm số hệ 4 (`4.0`, `3.5`, `3.0`...).
-* **Thuật toán GPA tích lũy nghiệp vụ lõi:** Endpoint tính tổng kết học tập hỗ trợ bóc tách, tự động tính toán tổng số tín chỉ tích lũy đạt chuẩn và điểm trung bình tích lũy GPA (cả hệ 10 và hệ 4) theo phương pháp tính **bình quân gia quyền** với số tín chỉ của từng môn học cụ thể.
-
----
-
-## ✅ 4. Tiến độ Dự án (Project Progress)
-
-### 🔹 Giai đoạn 1: Khởi tạo và Cấu hình Nền tảng
-* Khởi tạo thành công dự án Spring Boot 4.0.6 phối hợp Java 26 trên hệ thống Maven.
-* Cấu hình đồng bộ tệp kết nối `application.yaml` tới MySQL, xử lý triệt để các cảnh báo bảo mật JDBC.
-
-### 🔹 Giai đoạn 2: Thiết kế Hệ thống Thực thể (Entities)
-Dựng hoàn thiện cấu trúc quan hệ lồng nhau giữa 8 thực thể lõi, kế thừa tự động hóa mốc thời gian từ `BaseEntity` (JPA Auditing):
-1. **`Role`**: Danh mục vai trò hệ thống (ADMIN, STUDENT).
-2. **`User`**: Định danh tài khoản hệ thống (Quan hệ `@ManyToMany` tự sinh bảng trung gian `user_roles`).
-3. **`Department`**: Quản lý các Khoa/Viện đào tạo.
-4. **`Class`**: Lớp hành chính gốc của sinh viên (`@ManyToOne` thuộc về Department).
-5. **`Subject`**: Danh mục môn học và số tín chỉ tương ứng.
-6. **`Student`**: Hồ sơ lý lịch sinh viên (Liên kết `@OneToOne` với User và `@ManyToOne` với Class).
-7. **`CourseClass`**: Lớp học phần mở theo từng học kỳ (Liên kết `@ManyToOne` với Subject).
-8. **`Grade`**: Bảng điểm số thành phần của sinh viên (Ràng buộc `@UniqueConstraint` kép giữa `student_id` và `course_class_id`).
-
-### 🔹 Giai đoạn 3: Phân hệ Quản lý Tài khoản & Hồ sơ Sinh viên (CRUD & Soft Delete Kép)
-* **API lồng nhau phức tạp (Nested JSON):** Xây dựng bộ hàm tạo mới sinh viên đi kèm tài khoản hệ thống cùng lúc, tự động map cấu trúc qua MapStruct dưới sự bảo vệ của `@Transactional`.
-* **Xóa mềm liên kết hai tầng (Cascading Soft Delete):** Triển khai hàm `disableStudent` và `disableUser` nhằm vô hiệu hóa đồng thời trạng thái hoạt động của cả hồ sơ Sinh viên lẫn tài khoản Người dùng (`User`) thông qua cờ trạng thái `is_active`.
-
-### 🔹 Giai đoạn 4: Nghiệp vụ Đào tạo & Thuật toán Tính Điểm Tín chỉ (Core Business Completed)
-* **CRUD Môn học (`Subject`):** Hoàn thành trọn gói phân hệ môn học, áp dụng `SubjectResponse` bảo mật dữ liệu đầu ra phẳng lỳ, lọc sạch các thuộc tính thời gian hệ thống.
-* **CRUD Lớp học phần (`CourseClass`):** Hoàn thiện đầy đủ bộ 5 API mở lớp học phần theo từng học kỳ (Ví dụ: `HK1-2026`), liên kết chặt chẽ khóa ngoại mượt mà.
-* **CRUD Điểm số & Thuật toán Quy đổi (`Grade`):** * API nhập/sửa điểm thành phần (`attendanceGrade`, `midtermGrade`, `finalGrade`) kiểm soát chặt chẽ giá trị đầu vào từ `0` đến `10`.
-  * Logic tự động tính toán Điểm tổng kết hệ 10 theo trọng số tiêu chuẩn: `10% Chuyên cần - 30% Giữa kỳ - 60% Cuối kỳ`.
-  * Thuật toán tự động quy đổi từ hệ điểm 10 sang Điểm chữ (`A, B+, B, C+, C, D+, D, F`) và Điểm số hệ 4 (`4.0, 3.5, 3.0, 2.5, 2.0, 1.5, 1.0, 0.0`) chuẩn quy chế tín chỉ Đại học.
-* **API Tổng hợp học tập & Tính GPA tích lũy:** Triển khai thuật toán tính tổng số tín chỉ tích lũy và điểm trung bình tích lũy (GPA) theo công thức **bình quân gia quyền** của số tín chỉ môn học.
-* **Tối ưu hóa Hiệu năng (Performance Optimization):** Áp dụng kỹ thuật `JOIN FETCH` trong `GradeRepository` xử lý triệt để lỗi truy vấn **N+1**, giúp gom toàn bộ dữ liệu lồng nhau phức tạp về duy nhất một câu lệnh SQL.
+* **ADMIN:** Tên đăng nhập: `admin`
+* **TEACHER:** Tên đăng nhập: `GV2026_01` (đến `GV2026_05`)
+* **STUDENT:** Tên đăng nhập: `B21CNPM001` (đến `B21CNPM005`)
 
 ---
 
-## 🚀 5. Lộ trình Triển khai Tiếp theo (Roadmap)
+## ✅ Tiến độ Dự án (Project Progress)
 
-### ☑️ Giai đoạn 5: Hoàn thiện Phân hệ Quản lý Hành chính (ĐÃ HOÀN THÀNH)
-* [x] Xây dựng trọn bộ API CRUD hoàn chỉnh cho phân hệ Khoa/Viện (`Department`) và Lớp hành chính (`Class`) nhằm khép kín hoàn toàn quy trình nạp dữ liệu hệ thống, loại bỏ việc viết lệnh SQL thủ công.
-* [x] Tích hợp logic bảo vệ toàn vẹn dữ liệu khóa ngoại (`existsBy...`), tự động ném mã lỗi nghiệp vụ tương ứng (`1017`, `1018`) ra ngoài Client khi dính ràng buộc.
+### ☑️ Giai đoạn 1 đến 6: Hoàn thiện Kiến trúc & Nghiệp vụ Backend (ĐÃ HOÀN THÀNH)
+* Xây dựng trọn bộ API CRUD liên kết lồng nhau 8 thực thể nền tảng.
+* Xử lý triệt để truy vấn N+1 bằng `JOIN FETCH`. Tích hợp Cascading Soft Delete.
+* Cấu hình Spring Security, JWT Auth, CORS toàn cục và Auto-Reset Password cốt lõi.
 
-### ☑️ Giai đoạn 6: Tích hợp Hệ thống Bảo mật Chuyên sâu & CORS (ĐÃ HOÀN THÀNH)
-* [x] Kích hoạt và cấu hình lớp bảo vệ tự động Spring Security, vô hiệu hóa lỗ hổng CSRF.
-* [x] Thực hiện mã hóa một chiều mật khẩu tài khoản người dùng bằng thuật toán mạnh `BCryptPasswordEncoder`.
-* [x] Hoàn thiện API Đăng nhập (`POST /auth/login`), tự động kiểm tra thông tin tài khoản và cấp phát chuỗi mã hóa bảo mật Token JWT chuẩn thuật toán HS256.
-* [x] **Cấu hình CORS toàn cục:** Cấu hình bộ lọc chia sẻ tài nguyên nguồn gốc chéo (CORS) trực tiếp trong cấu hình Security, cấp phép tường minh cho môi trường chạy Frontend (`http://localhost:3000` và `http://localhost:5173`) được phép gọi đầy đủ các phương thức HTTP và đính kèm Credentials an toàn.
-* [x] Mở bộ lọc chấp nhận vô điều kiện các request thăm dò trình duyệt `HttpMethod.OPTIONS` (Preflight Request) để chống kẹt lỗi CORS khi Frontend tích hợp.
-
-### 🔲 Giai đoạn 7: Đóng gói và Triển khai hệ thống (Dockerize)
-* [ ] Viết file cấu hình `Dockerfile` đóng gói mã nguồn ứng dụng Java sử dụng cơ chế Multi-stage build nhằm tối ưu hóa dung lượng file Image đầu ra.
-* [ ] Viết file liên kết đồng bộ `docker-compose.yml` để thiết lập mạng ảo độc lập, vận hành cùng lúc Container ứng dụng Spring Boot và Container cơ sở dữ liệu MySQL một cách tự động chỉ bằng một lệnh duy nhất.
-
-### 🔲 Giai đoạn 8: Thiết lập và Phát triển Phân hệ UI Client (Frontend Roadmap)
-* [ ] Khởi tạo dự án Single Page Application (SPA) bằng công nghệ React.js thế hệ 19 phối hợp với bộ đóng gói siêu tốc **Vite**.
-* [ ] Cài đặt các thư viện kết nối cốt lõi bao gồm `axios` phục vụ gọi API và `react-router-dom` xử lý điều hướng trang điều khiển.
-* [ ] Thiết lập cấu hình **Axios Client tập trung** (`src/api/axiosClient.js`):
-  * Tích hợp Request Interceptor tự động quét và lôi Token bảo mật từ `localStorage` để gắn vào Header dạng `Authorization: Bearer <Token>`.
-  * Tích hợp Response Interceptor tự động giải nén cấu trúc bọc `ApiResponse` của Spring Boot để trả thẳng cục dữ liệu sạch `result` cho các thành phần UI tiêu thụ, đồng thời bắt tập trung mã code nghiệp vụ để hiển thị Toast thông báo lỗi trực quan.
-* [ ] Xây dựng màn hình Đăng nhập (`LoginPage.jsx`) thu thập form dữ liệu, lưu giữ thông tin định danh và phân phối quyền hạn.
-* [ ] Phát triển hệ thống View dữ liệu dạng bảng (Data Table) và các Form nhập liệu động phục vụ đầy đủ phân hệ CRUD hành chính đào tạo và bảng tổng hợp GPA của sinh viên.
+### ☑️ Giai đoạn 7: Thiết lập và Phát triển Phân hệ UI Client (ĐÃ HOÀN THÀNH)
+* [x] Khởi tạo dự án Single Page Application (SPA) bằng công nghệ React 19 + Vite.
+* [x] Thiết lập cấu hình **Axios Client tập trung** xử lý gắn Token ngầm và bóc tách `ApiResponse`.
+* [x] Xây dựng màn hình Đăng nhập (`LoginPage.jsx`) tích hợp tính năng ẩn/hiện mật khẩu (👁️) và luồng ép đổi mật khẩu lần đầu.
+* [x] Phát triển hệ thống View dữ liệu phân cấp nghiêm ngặt: Admin quản lý tài khoản, Teacher nhập điểm, Student xem điểm cá nhân.
+* [x] Tích hợp tính năng Tra cứu điểm toàn trường (System-wide Grades) chuyên nghiệp dành riêng cho Ban giáo vụ và Giảng viên.
 
 ---
 
-## 🔗 6. Quy trình Quản lý Mã nguồn (Git Workflow)
-Dự án tuân thủ chặt chẽ quy trình Git Workflow chuyên nghiệp nhằm quản lý lịch sử commit và tích hợp tính năng an toàn:
-* **`main`**: Nhánh Production lưu trữ các phiên bản mã nguồn đã đạt trạng thái ổn định tuyệt đối và có thể đem đi chạy thực tế.
-* **`develop`**: Nhánh tích hợp (nơi gom các tính năng mới hoàn thiện để kiểm thử trước khi merge vào main).
-* **`feature/<tên-tính-năng>`**: Nhánh phát triển các chức năng riêng lẻ tách biệt từ nhánh `develop`.
-* *Quy tắc đặt tên commit:* `type: message` (Ví dụ: `feat: add global cors configuration`, `fix: resolve grade service null pointer check`).
+## 🚀 Lộ trình Triển khai Tiếp theo (Roadmap)
+
+### 🔲 Giai đoạn 8: Nâng cấp Nghiệp vụ Nâng cao
+* [ ] Tích hợp tính năng Xuất/Nhập danh sách sinh viên và bảng điểm bằng file Excel (Apache POI).
+* [ ] Thiết kế Dashboard vẽ biểu đồ thống kê học lực sinh viên trực quan bằng Chart.js hoặc Recharts.
+* [ ] Tính năng Quên mật khẩu qua Email (Java Mail Sender).
+
+### 🔲 Giai đoạn 9: Đóng gói và Triển khai hệ thống (DevOps)
+* [ ] Viết file cấu hình `Dockerfile` đóng gói mã nguồn ứng dụng Java (Multi-stage build).
+* [ ] Viết file `docker-compose.yml` để thiết lập mạng ảo vận hành đồng bộ Spring Boot và MySQL.
+* [ ] Triển khai (Deploy) Backend lên Cloud (Render/Railway) và Frontend lên Vercel.
 
 ---
 
-### 📜 7. Nhật ký hành trình (Project Changelog)
+## 🔗 Quy trình Quản lý Mã nguồn (Git Workflow)
+* **`main`**: Nhánh Production lưu trữ các phiên bản mã nguồn đã đạt trạng thái ổn định tuyệt đối.
+* **`develop`**: Nhánh tích hợp (nơi gom các tính năng mới hoàn thiện để kiểm thử).
+* **`feature/<tên-tính-năng>`**: Nhánh phát triển các chức năng riêng lẻ tách biệt.
+
+---
+
+### 📜 Nhật ký hành trình (Project Changelog)
 | Thời gian | Nhánh | Thao tác | Mô tả chi tiết |
 | :--- | :--- | :--- | :--- |
-| 06/06/2026 | `feature/setup-entities` | **Khởi tạo** | Tạo dự án, cấu hình Spring Boot, kết nối MySQL và khởi dựng thành công 8 thực thể nền tảng. |
-| 06/06/2026 | `develop` | **Cập nhật** | Hoàn thành bộ API CRUD User & Nâng cấp bộ chẩn đoán lỗi chi tiết trực tiếp trên Postman (Loại bỏ lỗi kẹt cổng 401). |
-| 07/06/2026 | `develop` | **Cập nhật** | Hoàn thành toàn diện bộ API CRUD Student, xử lý giao dịch cô lập tài khoản `@Transactional`, tự động phân quyền hệ thống và cơ chế Xóa mềm (Soft Delete) kép liên kết. |
-| 07/06/2026 | `develop` | **Cập nhật** | Hoàn thành trọn gói Nghiệp vụ Môn học (`Subject`), Lớp học phần (`CourseClass`), phân hệ Điểm số (`Grade`), thuật toán quy đổi GPA tín chỉ và tối ưu hóa loại bỏ hoàn toàn lỗi truy vấn N+1. |
-| 08/06/2026 | `develop` | **Cập nhật** | Hoàn thiện toàn phân hệ CRUD danh mục hành chính Khoa/Viện (`Department`) và Lớp hành chính (`Class`) kèm cơ chế `JOIN FETCH` chống lỗi N+1. |
-| 09/06/2026 | `develop` | **Cập nhật** | Cấu hình CORS toàn cục mở đường kết nối ReactJS, làm giàu Payload phản hồi Login, vá triệt để lỗ hổng sập luồng `NullPointerException` tại `GradeServiceImpl` và `UserServiceImpl`. |
+| 06/06/2026 | `feature/setup` | **Khởi tạo** | Tạo dự án, cấu hình Spring Boot, kết nối MySQL và khởi dựng thành công 8 thực thể nền tảng. |
+| 06/06/2026 | `develop` | **Cập nhật** | Hoàn thành bộ API CRUD User & Nâng cấp bộ chẩn đoán lỗi chi tiết trực tiếp trên Postman. |
+| 07/06/2026 | `develop` | **Cập nhật** | Hoàn thành toàn diện bộ API CRUD Student, xử lý giao dịch cô lập tài khoản `@Transactional` và cơ chế Xóa mềm. |
+| 07/06/2026 | `develop` | **Cập nhật** | Hoàn thành trọn gói Nghiệp vụ Môn học, Lớp học phần, phân hệ Điểm số, thuật toán quy đổi GPA tín chỉ và chống lỗi N+1. |
+| 08/06/2026 | `develop` | **Cập nhật** | Hoàn thiện toàn phân hệ CRUD danh mục hành chính Khoa/Viện và Lớp hành chính. |
+| 09/06/2026 | `develop` | **Cập nhật** | Cấu hình CORS toàn cục, làm giàu Payload phản hồi Login, vá triệt để lỗ hổng `NullPointerException`. |
+| 10/06/2026 | `develop` | **Push Code**| Vá lỗi định danh `studentId/teacherId`, tước quyền can thiệp điểm của Admin giao cho Teacher. Hoàn thiện UI tra cứu điểm toàn trường, nút ẩn/hiện mật khẩu và kích hoạt Auto-Reset Password. |
 
----
+## 📝 Hướng dẫn cập nhật tài liệu & Push Code (Cheatsheet)
 
-### 📜 8. SQL
--- MySQL dump 10.13  Distrib 8.0.46, for Win64 (x86_64)
---
--- Host: 127.0.0.1    Database: student_management
--- ------------------------------------------------------
--- Server version	8.0.46
+### 1. Quy tắc cấu trúc cập nhật README (Bắt buộc tuân thủ)
+Để đảm bảo tệp tài liệu luôn ngăn nắp và không bị mất các thông tin cốt lõi khi nâng cấp hệ thống, quy trình cập nhật tệp `README.md` phải tuân theo nguyên tắc phân tách nội dung sau:
 
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8 */;
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-
---
--- Table structure for table `classes`
---
-
-DROP TABLE IF EXISTS `classes`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `classes` (
-`id` bigint NOT NULL AUTO_INCREMENT,
-`created_at` datetime(6) DEFAULT NULL,
-`updated_at` datetime(6) DEFAULT NULL,
-`name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-`department_id` bigint NOT NULL,
-PRIMARY KEY (`id`),
-UNIQUE KEY `UKpgs3gcxax70h9jugbt24ugwcg` (`name`),
-KEY `FKeerjjltjmtwpjo3jlr7037vxt` (`department_id`),
-CONSTRAINT `FKeerjjltjmtwpjo3jlr7037vxt` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `classes`
---
-
-LOCK TABLES `classes` WRITE;
-/*!40000 ALTER TABLE `classes` DISABLE KEYS */;
-INSERT INTO `classes` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','D21CNPM1',1),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','D22KHMT1',2),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','D21DTVT2',3),(4,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','D22ATTT1',4),(5,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','D21HTTT1',5);
-/*!40000 ALTER TABLE `classes` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `course_classes`
---
-
-DROP TABLE IF EXISTS `course_classes`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `course_classes` (
-`id` bigint NOT NULL AUTO_INCREMENT,
-`created_at` datetime(6) DEFAULT NULL,
-`updated_at` datetime(6) DEFAULT NULL,
-`code` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
-`semester` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-`subject_id` bigint NOT NULL,
-`teacher_id` bigint DEFAULT NULL,
-PRIMARY KEY (`id`),
-UNIQUE KEY `UKmdeewqfqfih9ft75b0gbp9nrc` (`code`),
-KEY `FKpxijwa2w0cvst789igk5x2fpu` (`subject_id`),
-KEY `FK_course_class_teacher` (`teacher_id`),
-CONSTRAINT `FK_course_class_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`),
-CONSTRAINT `FKpxijwa2w0cvst789igk5x2fpu` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `course_classes`
---
-
-LOCK TABLES `course_classes` WRITE;
-/*!40000 ALTER TABLE `course_classes` DISABLE KEYS */;
-INSERT INTO `course_classes` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','CPP_CLASS_01','HK1-2026',1,1),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','DSA_CLASS_01','HK1-2026',2,2),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','JAVA_CLASS_01','HK1-2026',3,3),(4,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','NET_CLASS_01','HK1-2026',4,4),(5,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','OS_CLASS_01','HK1-2026',5,5);
-/*!40000 ALTER TABLE `course_classes` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `departments`
---
-
-DROP TABLE IF EXISTS `departments`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `departments` (
-`id` bigint NOT NULL AUTO_INCREMENT,
-`created_at` datetime(6) DEFAULT NULL,
-`updated_at` datetime(6) DEFAULT NULL,
-`code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-`name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-PRIMARY KEY (`id`),
-UNIQUE KEY `UKl7tivi5261wxdnvo6cct9gg6t` (`code`),
-UNIQUE KEY `UKj6cwks7xecs5jov19ro8ge3qk` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `departments`
---
-
-LOCK TABLES `departments` WRITE;
-/*!40000 ALTER TABLE `departments` DISABLE KEYS */;
-INSERT INTO `departments` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','CNTT','Công nghệ thông tin'),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','KHMT','Khoa học máy tính'),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','DTVT','Điện tử viễn thông'),(4,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','ATTT','An toàn thông tin'),(5,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','HTTT','Hệ thống thông tin');
-/*!40000 ALTER TABLE `departments` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `grades`
---
-
-DROP TABLE IF EXISTS `grades`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `grades` (
-`id` bigint NOT NULL AUTO_INCREMENT,
-`created_at` datetime(6) DEFAULT NULL,
-`updated_at` datetime(6) DEFAULT NULL,
-`attendance_grade` double DEFAULT NULL,
-`final_grade` double DEFAULT NULL,
-`letter_grade` varchar(5) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-`midterm_grade` double DEFAULT NULL,
-`overall_grade` double DEFAULT NULL,
-`course_class_id` bigint NOT NULL,
-`student_id` bigint NOT NULL,
-`grade_4` double DEFAULT NULL,
-PRIMARY KEY (`id`),
-UNIQUE KEY `UKko1u7sub9pfixo5kagdclh8sj` (`student_id`,`course_class_id`),
-KEY `FK5c6jpjp7bty7q1flkpcc6pi4a` (`course_class_id`),
-CONSTRAINT `FK13a16545m7vvrcspc999r15s9` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
-CONSTRAINT `FK5c6jpjp7bty7q1flkpcc6pi4a` FOREIGN KEY (`course_class_id`) REFERENCES `course_classes` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `grades`
---
-
-LOCK TABLES `grades` WRITE;
-/*!40000 ALTER TABLE `grades` DISABLE KEYS */;
-INSERT INTO `grades` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000',9,9,'A',8.5,8.85,1,1,4),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000',8,8.5,'B+',8,8.3,2,2,3.5),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000',10,9.5,'A',9,9.4,3,3,4),(4,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000',7.5,8,'B',7,7.65,4,4,3),(5,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000',6,7,'C+',6.5,6.75,5,5,2.5);
-/*!40000 ALTER TABLE `grades` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `roles`
---
-
-DROP TABLE IF EXISTS `roles`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `roles` (
-`id` bigint NOT NULL AUTO_INCREMENT,
-`created_at` datetime(6) DEFAULT NULL,
-`updated_at` datetime(6) DEFAULT NULL,
-`name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-PRIMARY KEY (`id`),
-UNIQUE KEY `UKofx66keruapi6vyqpv6f2or37` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `roles`
---
-
-LOCK TABLES `roles` WRITE;
-/*!40000 ALTER TABLE `roles` DISABLE KEYS */;
-INSERT INTO `roles` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','ADMIN'),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','STUDENT'),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','TEACHER');
-/*!40000 ALTER TABLE `roles` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `students`
---
-
-DROP TABLE IF EXISTS `students`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `students` (
-`id` bigint NOT NULL AUTO_INCREMENT,
-`created_at` datetime(6) DEFAULT NULL,
-`updated_at` datetime(6) DEFAULT NULL,
-`date_of_birth` date DEFAULT NULL,
-`first_name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-`gender` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-`last_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-`phone_number` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-`student_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-`class_id` bigint NOT NULL,
-`user_id` bigint NOT NULL,
-`is_active` bit(1) NOT NULL,
-PRIMARY KEY (`id`),
-UNIQUE KEY `UKcgcf3r5xk73o0etbduc1qxnol` (`student_code`),
-UNIQUE KEY `UKg4fwvutq09fjdlb4bb0byp7t` (`user_id`),
-KEY `FKhnslh0rm5bthlble8vjunbnwe` (`class_id`),
-CONSTRAINT `FKdt1cjx5ve5bdabmuuf3ibrwaq` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
-CONSTRAINT `FKhnslh0rm5bthlble8vjunbnwe` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `students`
---
-
-LOCK TABLES `students` WRITE;
-/*!40000 ALTER TABLE `students` DISABLE KEYS */;
-INSERT INTO `students` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','2003-04-05','Anh','Nam','Nguyễn Đình','0987654321','B21CNPM001',1,2,_binary ''),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','2004-05-23','Đăng','Nam','Trần Minh','0987654322','B21CNPM002',2,3,_binary ''),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','2004-10-15','Hải','Nam','Nguyễn Hoàng','0987654323','B21CNPM003',3,4,_binary ''),(4,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','2004-05-20','Linh','Nữ','Phạm Khánh','0987654324','B21CNPM004',4,5,_binary ''),(5,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','2004-12-01','Tùng','Nam','Vũ Sơn','0987654325','B21CNPM005',5,6,_binary '');
-/*!40000 ALTER TABLE `students` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `subjects`
---
-
-DROP TABLE IF EXISTS `subjects`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `subjects` (
-`id` bigint NOT NULL AUTO_INCREMENT,
-`created_at` datetime(6) DEFAULT NULL,
-`updated_at` datetime(6) DEFAULT NULL,
-`code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-`credits` int NOT NULL,
-`name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
-PRIMARY KEY (`id`),
-UNIQUE KEY `UKrg7x1lyii7kdyycw98d45vep5` (`code`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `subjects`
---
-
-LOCK TABLES `subjects` WRITE;
-/*!40000 ALTER TABLE `subjects` DISABLE KEYS */;
-INSERT INTO `subjects` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','C_PLUS_BASE',3,'Lập trình C++ cơ bản'),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','DSA_STRUCTURE',4,'Cấu trúc dữ liệu & Giải thuật'),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','JAVA_WEB_DEV',3,'Lập trình Web nâng cao với Java'),(4,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','NET_COMPUTER',3,'Cơ sở mạng máy tính'),(5,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','OS_OPERATION',3,'Hệ điều hành máy tính');
-/*!40000 ALTER TABLE `subjects` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `teachers`
---
-
-DROP TABLE IF EXISTS `teachers`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `teachers` (
-`id` bigint NOT NULL AUTO_INCREMENT,
-`created_at` datetime(6) DEFAULT NULL,
-`updated_at` datetime(6) DEFAULT NULL,
-`teacher_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-`first_name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-`last_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-`date_of_birth` date DEFAULT NULL,
-`gender` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-`phone_number` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-`is_active` bit(1) NOT NULL DEFAULT b'1',
-`user_id` bigint NOT NULL,
-`department_id` bigint NOT NULL,
-PRIMARY KEY (`id`),
-UNIQUE KEY `UK_teacher_code` (`teacher_code`),
-UNIQUE KEY `UK_teacher_user` (`user_id`),
-KEY `FK_teacher_department` (`department_id`),
-CONSTRAINT `FK_teacher_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
-CONSTRAINT `FK_teacher_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `teachers`
---
-
-LOCK TABLES `teachers` WRITE;
-/*!40000 ALTER TABLE `teachers` DISABLE KEYS */;
-INSERT INTO `teachers` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','GV2026_01','Tuấn','Trần Quốc','1985-04-12','Nam','0912111222',_binary '',7,1),(2,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','GV2026_02','Minh','Nguyễn Thị','1988-08-24','Nữ','0912333444',_binary '',8,2),(3,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','GV2026_03','Nam','Lê Hoàng','1982-11-05','Nam','0912555666',_binary '',9,3),(4,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','GV2026_04','Hải','Phạm Văn','1979-02-18','Nam','0912777888',_binary '',10,4),(5,'2026-06-09 17:11:49.000000','2026-06-09 17:11:49.000000','GV2026_05','Linh','Vũ Khánh','1991-06-30','Nữ','0912999000',_binary '',11,5);
-/*!40000 ALTER TABLE `teachers` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `user_roles`
---
-
-DROP TABLE IF EXISTS `user_roles`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `user_roles` (
-`user_id` bigint NOT NULL,
-`role_id` bigint NOT NULL,
-PRIMARY KEY (`user_id`,`role_id`),
-KEY `FKh8ciramu9cc9q3qcqiv4ue8a6` (`role_id`),
-CONSTRAINT `FKh8ciramu9cc9q3qcqiv4ue8a6` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`),
-CONSTRAINT `FKhfh9dx7w3ubf1co1vdev94g3f` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `user_roles`
---
-
-LOCK TABLES `user_roles` WRITE;
-/*!40000 ALTER TABLE `user_roles` DISABLE KEYS */;
-INSERT INTO `user_roles` VALUES (1,1),(2,2),(3,2),(4,2),(5,2),(6,2),(7,3),(8,3),(9,3),(10,3),(11,3);
-/*!40000 ALTER TABLE `user_roles` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `users`
---
-
-DROP TABLE IF EXISTS `users`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `users` (
-`id` bigint NOT NULL AUTO_INCREMENT,
-`created_at` datetime(6) DEFAULT NULL,
-`updated_at` datetime(6) DEFAULT NULL,
-`email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-`password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-`username` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-`is_active` bit(1) NOT NULL,
-`is_first_login` bit(1) NOT NULL DEFAULT b'1',
-PRIMARY KEY (`id`),
-UNIQUE KEY `UK6dotkott2kjsp8vw4d0m25fb7` (`email`),
-UNIQUE KEY `UKr43af9ap4edm43mmtq01oddj6` (`username`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `users`
---
-
-LOCK TABLES `users` WRITE;
-/*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'2026-06-09 17:11:49.000000','2026-06-09 18:10:10.935037','admin@open.edu.vn','$2a$10$Nuln0JaFYxBJ92H8tcenfOS7il02iWjIQHp4BoNV.lsHJwiTAHqtu','admin',_binary '',_binary '\0'),(2,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.044169','b21cnpm001@open.edu.vn','$2a$10$Yms/lS91daUUygnYFTouHeLFaQtzuj8FwbGdiODj7DqZYeGMkOtbu','B21CNPM001',_binary '',_binary '\0'),(3,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.155671','b21cnpm002@open.edu.vn','$2a$10$MARRm1W43sRk4jf5Xr8s7eLhT4U8/FwF93UJ2ZlmcyP72XTVfr/Ky','B21CNPM002',_binary '',_binary ''),(4,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.262629','b21cnpm003@open.edu.vn','$2a$10$Ty4oV7qRla7JBxfPNDWU7O/PGZl8rbwQdWnKLm.mddVzZOyt2ey4G','B21CNPM003',_binary '',_binary ''),(5,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.366777','b21cnpm004@open.edu.vn','$2a$10$NRwrvdYgyRlrnHriPdOfQ.cOfeDE9sIeDMkCLZ9f8xpTb3YwEpCDa','B21CNPM004',_binary '',_binary ''),(6,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.483766','b21cnpm005@open.edu.vn','$2a$10$5ap5383vHtSQISzx5Ghn7.nNy2GfthpKk7mBCea1Vum26WEfXtSR2','B21CNPM005',_binary '',_binary ''),(7,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.594227','tuan.tq@teacher.open.edu.vn','$2a$10$aMbmK8V8gTKPiaWvBbVH4e1y/q3PvQjdN9EoZItZLLJrvg4GpGr9i','GV2026_01',_binary '',_binary ''),(8,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.719566','minh.nt@teacher.open.edu.vn','$2a$10$rWpDKdQvXp6X4ftwMH4PNeDIozCUOuqhzORMQtg.dLcTGD3sfOVJu','GV2026_02',_binary '',_binary ''),(9,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.832910','nam.lh@teacher.open.edu.vn','$2a$10$RD1rSRZoix4QBI1rNOrXMegIKrJOtroS7ufrRMRYaIvzBT0Z19wDK','GV2026_03',_binary '',_binary ''),(10,'2026-06-09 17:11:49.000000','2026-06-09 18:10:11.947974','hai.pv@teacher.open.edu.vn','$2a$10$cvqnA2diirlOFBgqsWd/wuApEUXh/WGu/a9Q5SQqYlYVADRzkMh8S','GV2026_04',_binary '',_binary ''),(11,'2026-06-09 17:11:49.000000','2026-06-09 18:10:12.056122','linh.vk@teacher.open.edu.vn','$2a$10$mR6GbQbKiBuDzQEXpXaQgeV00eCNhHBPyLUIYx51q8apmAhuw5YCm','GV2026_05',_binary '',_binary '');
-/*!40000 ALTER TABLE `users` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
--- Dump completed on 2026-06-10  1:12:14
+* **🚫 GIỮ NGUYÊN T TUYỆT ĐỐI (Không chỉnh sửa cấu trúc gốc):**
+  * Tiêu đề dự án và mô tả tổng quan.
+  * Danh mục công nghệ sử dụng (**Tech Stack** - Backend & Frontend).
+  * Danh sách tính năng nổi bật (**Key Features**).
+  * Hướng dẫn cài đặt & Khởi chạy dự án (**How to run**).
+  * Thông tin tài khoản thử nghiệm (**Test Accounts**).
+* **🔄 CHỈ SỬA ĐỔI / CẬP NHẬT 3 PHẦN ĐỘNG SAU:**
+  1.  **Tiến độ Dự án (Project Progress):** Khi một tính năng ở mục Lộ trình được hoàn thiện, chuyển tính năng đó lên mục này và đánh dấu tích chọn `- [x]`.
+  2.  **Lộ trình Tiếp theo (Roadmap):** Bổ sung hoặc loại bỏ các đầu việc, tính năng nâng cao dự kiến phát triển tiếp theo dưới dạng ô trống `- [ ]`.
+  3.  **Nhật ký hành trình (Project Changelog):** Mỗi khi push code thành công, bắt buộc thêm 1 dòng mới vào cuối bảng theo cấu trúc: `| Ngày/Tháng/Năm | Nhánh | Thao tác | Mô tả chi tiết các file đã sửa và tính năng vừa vá |`.
 </file>
 
 </files>

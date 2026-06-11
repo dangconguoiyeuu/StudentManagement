@@ -25,22 +25,38 @@ public class DatabaseInitializer {
     @Bean
     ApplicationRunner initRolesAndResetPasswords() {
         return args -> {
-            // 1. Giữ nguyên logic khởi tạo Role
+            // 1. Khởi tạo các Role mặc định nếu chưa có
             if (roleRepository.findByName("ADMIN").isEmpty()) {
                 roleRepository.save(Role.builder().name("ADMIN").build());
+                log.info("Đã khởi tạo Role: ADMIN");
             }
             if (roleRepository.findByName("TEACHER").isEmpty()) {
                 roleRepository.save(Role.builder().name("TEACHER").build());
+                log.info("Đã khởi tạo Role: TEACHER");
             }
             if (roleRepository.findByName("STUDENT").isEmpty()) {
                 roleRepository.save(Role.builder().name("STUDENT").build());
+                log.info("Đã khởi tạo Role: STUDENT");
             }
 
-            // 2. 🔥 AUTO RESET: Lấy tất cả user ra và ép mật khẩu về đúng chữ "password1234" bằng lõi mã hóa của Java
+            // 2. ✅ FIX: Chỉ reset mật khẩu về mặc định cho những tài khoản CHƯA TỪNG đăng nhập
+            // (isFirstLogin = true). Điều này vẫn có thể reset pass của user chưa đổi khi restart,
+            // nhưng đây là hành vi cố ý để đảm bảo pass mặc định luôn đúng khi deploy mới.
+            //
+            // ⚠️  LƯU Ý PRODUCTION: Nếu không muốn reset pass mỗi lần restart,
+            //     hãy comment toàn bộ block bên dưới sau lần deploy đầu tiên.
             List<User> users = userRepository.findAll();
+            int resetCount = 0;
             for (User user : users) {
-                user.setPassword(passwordEncoder.encode("password1234"));
-                userRepository.save(user);
+                if (user.isFirstLogin()) {
+                    user.setPassword(passwordEncoder.encode("password1234"));
+                    userRepository.save(user);
+                    resetCount++;
+                }
+            }
+            if (resetCount > 0) {
+                log.warn("DatabaseInitializer: Đã reset mật khẩu mặc định cho {} tài khoản chưa đổi pass. " +
+                        "Xem xét tắt tính năng này sau khi deploy production.", resetCount);
             }
         };
     }

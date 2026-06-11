@@ -1,16 +1,16 @@
 package com.dangdepzaivaio.StudentManagement.controller;
 
 import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest; // Thêm import này
+import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
 import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
-import com.dangdepzaivaio.StudentManagement.entity.User;
 import com.dangdepzaivaio.StudentManagement.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List; // Thêm import này
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/users")
@@ -20,27 +20,38 @@ public class UserController {
 
     @PostMapping
     public ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request) {
-        return new ApiResponse<>(1000, "Tạo người dùng thành công", userService.createUser(request));
+        return new ApiResponse<>(1000, "Tao nguoi dung thanh cong", userService.createUser(request));
     }
 
     @GetMapping
     public ApiResponse<List<UserResponse>> getAllUsers() {
-        return new ApiResponse<>(1000, "Lấy danh sách thành công", userService.getAllUsers());
+        return new ApiResponse<>(1000, "Lay danh sach tai khoan thanh cong", userService.getAllUsers());
     }
 
     @GetMapping("/{userId}")
-    public ApiResponse<UserResponse> getUser(@PathVariable Long userId) {
-        return new ApiResponse<>(1000, "Lấy chi tiết người dùng thành công", userService.getUserById(userId));
+    public ApiResponse<UserResponse> getUser(@PathVariable String userId) {
+        return new ApiResponse<>(1000, "Lay chi tiet tai khoan thanh cong", userService.getUserById(userId));
     }
 
     @PutMapping("/{userId}")
-    public ApiResponse<UserResponse> updateUser(@PathVariable Long userId, @RequestBody @Valid UserUpdateRequest request) {
-        return new ApiResponse<>(1000, "Cập nhật thông tin thành công", userService.updateUser(userId, request));
-    }
-    @DeleteMapping("/{userId}")
-    public ApiResponse<String> deleteUser(@PathVariable Long userId) {
-        userService.disableUser(userId); // Gọi hàm chuyển trạng thái xuống tầng Service
-        return new ApiResponse<>(1000, "Xóa tài khoản người dùng thành công!", "Tài khoản có ID " + userId + " đã bị vô hiệu hóa.");
+    public ApiResponse<UserResponse> updateUser(@PathVariable String userId, @RequestBody @Valid UserUpdateRequest request) {
+        return new ApiResponse<>(1000, "Cap nhat tai khoan thanh cong", userService.updateUser(userId, request));
     }
 
+    @PutMapping("/{userId}/enable")
+    public ApiResponse<UserResponse> enableUser(@PathVariable String userId) {
+        return new ApiResponse<>(1000, "Mo khoa tai khoan thanh cong", userService.enableUser(userId));
+    }
+
+    @PutMapping("/{userId}/reset-password")
+    public ApiResponse<UserResponse> resetPassword(@PathVariable String userId, @RequestBody(required = false) Map<String, String> request) {
+        String newPassword = request == null ? null : request.get("newPassword");
+        return new ApiResponse<>(1000, "Reset mat khau thanh cong", userService.resetPassword(userId, newPassword));
+    }
+
+    @DeleteMapping("/{userId}")
+    public ApiResponse<String> deleteUser(@PathVariable String userId) {
+        userService.disableUser(userId);
+        return new ApiResponse<>(1000, "Khoa tai khoan thanh cong", "ID " + userId + " da bi khoa");
+    }
 }

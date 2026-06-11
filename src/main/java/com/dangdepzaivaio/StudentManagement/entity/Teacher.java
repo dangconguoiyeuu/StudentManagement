@@ -14,11 +14,11 @@ import java.time.LocalDate;
 public class Teacher extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id", length = 20)
+    private String id; // 🔥 Khóa chính kiểu Chuỗi đồng bộ với User
 
     @Column(name = "teacher_code", nullable = false, unique = true, length = 20)
-    private String teacherCode; // Mã giảng viên (Ví dụ: GV2026_01)
+    private String teacherCode;
 
     @Column(name = "first_name", nullable = false, length = 50)
     private String firstName;
@@ -40,10 +40,11 @@ public class Teacher extends BaseEntity {
     private boolean isActive = true;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    @MapsId // 🔥 Ép khóa chính trùng vẹn với User liên kết
+    @JoinColumn(name = "id")
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id", nullable = false)
-    private Department department; // Thuộc khoa chủ quản nào
+    private Department department;
 }

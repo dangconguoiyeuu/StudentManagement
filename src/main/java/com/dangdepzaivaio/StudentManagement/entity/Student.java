@@ -14,17 +14,17 @@ import java.time.LocalDate;
 public class Student extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id", length = 20)
+    private String id; // 🔥 Khóa chính kiểu Chuỗi
 
     @Column(name = "student_code", nullable = false, unique = true, length = 20)
-    private String studentCode; // Mã sinh viên (Ví dụ: B21DCCN001)
+    private String studentCode;
 
     @Column(name = "first_name", nullable = false, length = 50)
-    private String firstName; // Tên (Ví dụ: Anh)
+    private String firstName;
 
     @Column(name = "last_name", nullable = false, length = 100)
-    private String lastName; // Họ và đệm (Ví dụ: Nguyễn Đình)
+    private String lastName;
 
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
@@ -36,15 +36,14 @@ public class Student extends BaseEntity {
     private String phoneNumber;
 
     @Builder.Default
-    @Column(name = "is_active", nullable = false, columnDefinition = "TINYINT(1)")
+    @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
-    // Mỗi sinh viên sở hữu duy nhất 1 tài khoản hệ thống
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    @MapsId // 🔥 ĐỒNG BỘ: Ép ID của bảng Student khớp hoàn toàn với ID của User
+    @JoinColumn(name = "id")
     private User user;
 
-    // Nhiều sinh viên học chung 1 lớp hành chính
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "class_id", nullable = false)
     private Class studentClass;

@@ -1,40 +1,47 @@
 package com.dangdepzaivaio.StudentManagement.exception;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import lombok.Getter;
+import org.springframework.http.HttpStatus;
 
 @Getter
 public enum ErrorCode {
-    UNCATEGORIZED_EXCEPTION(9999, "Lỗi hệ thống không xác định", HttpStatus.INTERNAL_SERVER_ERROR),
-    USER_EXISTED(1001, "Tài khoản đăng nhập đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
-    ROLE_NOT_FOUND(1002, "Vai trò người dùng (Role) không tồn tại", HttpStatus.NOT_FOUND),
-    STUDENT_NOT_FOUND(1003, "Không tìm thấy thông tin sinh viên yêu cầu", HttpStatus.NOT_FOUND),
-    CLASS_NOT_FOUND(1004, "Lớp hành chính không tồn tại trên hệ thống", HttpStatus.NOT_FOUND),
-    VALIDATION_ERROR(4000, "Dữ liệu đầu vào không hợp lệ", HttpStatus.BAD_REQUEST),
-    EMAIL_EXISTED(1005, "Email này đã được sử dụng trên hệ thống", HttpStatus.BAD_REQUEST),
-    SUBJECT_EXISTED(1006, "Môn học này đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
-    SUBJECT_NOT_FOUND(1007, "Không tìm thấy thông tin môn học yêu cầu", HttpStatus.NOT_FOUND),
-    COURSE_CLASS_EXISTED(1008, "Mã lớp học phần này đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
-    COURSE_CLASS_NOT_FOUND(1009, "Không tìm thấy thông tin lớp học phần yêu cầu", HttpStatus.NOT_FOUND),
-    GRADE_EXISTED(1010, "Sinh viên này đã được nhập điểm cho lớp học phần này trước đó", HttpStatus.BAD_REQUEST),
-    GRADE_NOT_FOUND(1011, "Không tìm thấy thông tin đầu điểm yêu cầu", HttpStatus.NOT_FOUND),
-    DEPARTMENT_NOT_FOUND(1012, "Không tìm thấy thông tin khoa/viện yêu cầu", HttpStatus.NOT_FOUND),
-    UNAUTHENTICATED(1013, "Tên đăng nhập hoặc mật khẩu không chính xác", HttpStatus.UNAUTHORIZED),
-    CLASS_EXISTED(1014, "Tên lớp hành chính này đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
-    DEPARTMENT_EXISTED(1015, "Mã khoa/viện đào tạo này đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
-    STUDENT_CODE_EXISTED(1016, "Mã số sinh viên này đã tồn tại trên hệ thống", HttpStatus.BAD_REQUEST),
-    DEPARTMENT_HAS_CLASSES(1017, "Không thể xóa khoa này vì đang có lớp hành chính thuộc về khoa", HttpStatus.BAD_REQUEST),
-    CLASS_HAS_STUDENTS(1018, "Không thể xóa lớp hành chính này vì đang có sinh viên thuộc về lớp", HttpStatus.BAD_REQUEST),
-    USER_NOT_FOUND(1019, "Không tìm thấy thông tin tài khoản yêu cầu", HttpStatus.NOT_FOUND),
-    SUBJECT_HAS_CLASSES(1020, "Không thể xóa môn học này vì đang có lớp học phần trực thuộc", HttpStatus.BAD_REQUEST),
-    COURSE_CLASS_HAS_GRADES(1021, "Không thể xóa lớp học phần này vì đã có sinh viên nhận đầu điểm", HttpStatus.BAD_REQUEST);
+    UNCATEGORIZED_EXCEPTION(9999, "Loi he thong chua phan loai", HttpStatus.INTERNAL_SERVER_ERROR),
+    VALIDATION_ERROR(1001, "Du lieu khong hop le", HttpStatus.BAD_REQUEST),
+    USER_EXISTED(1002, "Tai khoan da ton tai", HttpStatus.BAD_REQUEST),
+    USER_NOT_FOUND(1003, "Khong tim thay nguoi dung", HttpStatus.NOT_FOUND),
+    UNAUTHENTICATED(1004, "Dang nhap that bai hoac khong co quyen", HttpStatus.UNAUTHORIZED),
+    STUDENT_CODE_EXISTED(1005, "Ma sinh vien da ton tai", HttpStatus.BAD_REQUEST),
+    STUDENT_NOT_FOUND(1006, "Khong tim thay sinh vien", HttpStatus.NOT_FOUND),
+    CLASS_NOT_FOUND(1007, "Khong tim thay lop hanh chinh", HttpStatus.NOT_FOUND),
+    ROLE_NOT_FOUND(1008, "Khong tim thay vai tro", HttpStatus.NOT_FOUND),
+    DEPARTMENT_NOT_FOUND(1009, "Khong tim thay khoa chuyen mon", HttpStatus.NOT_FOUND),
+    TEACHER_CODE_EXISTED(1010, "Ma giang vien da ton tai", HttpStatus.BAD_REQUEST),
+    TEACHER_NOT_FOUND(1011, "Khong tim thay giang vien", HttpStatus.NOT_FOUND),
+    GRADE_EXISTED(1012, "Sinh vien da co ban ghi dang ky/diem cho lop hoc phan nay", HttpStatus.BAD_REQUEST),
+    GRADE_NOT_FOUND(1013, "Khong tim thay ban ghi diem", HttpStatus.NOT_FOUND),
+    COURSE_CLASS_NOT_FOUND(1014, "Khong tim thay lop hoc phan", HttpStatus.NOT_FOUND),
+    COURSE_CLASS_EXISTED(1015, "Lop hoc phan da ton tai", HttpStatus.BAD_REQUEST),
+    SUBJECT_NOT_FOUND(1016, "Khong tim thay mon hoc", HttpStatus.NOT_FOUND),
+    COURSE_CLASS_HAS_GRADES(1017, "Khong the xoa vi lop hoc phan da co sinh vien dang ky hoac co diem", HttpStatus.BAD_REQUEST),
+    CLASS_EXISTED(1018, "Lop hanh chinh da ton tai", HttpStatus.BAD_REQUEST),
+    CLASS_HAS_STUDENTS(1019, "Khong the xoa vi lop hanh chinh dang co sinh vien", HttpStatus.BAD_REQUEST),
+    DEPARTMENT_EXISTED(1020, "Khoa chuyen mon da ton tai", HttpStatus.BAD_REQUEST),
+    DEPARTMENT_HAS_CLASSES(1021, "Khong the xoa vi khoa dang quan ly lop hanh chinh", HttpStatus.BAD_REQUEST),
+    SUBJECT_EXISTED(1022, "Mon hoc da ton tai", HttpStatus.BAD_REQUEST),
+    SUBJECT_HAS_CLASSES(1023, "Khong the xoa vi mon hoc dang co lop hoc phan", HttpStatus.BAD_REQUEST),
+    ACCOUNT_LOCKED(1024, "Tai khoan dang bi khoa", HttpStatus.FORBIDDEN),
+    REGISTRATION_PERIOD_CLOSED(1025, "Cong dang ky tin chi dang dong hoac da het han", HttpStatus.BAD_REQUEST),
+    COURSE_CLASS_CLOSED(1026, "Lop hoc phan chua duoc mo cho dang ky", HttpStatus.BAD_REQUEST),
+    COURSE_CLASS_FULL(1027, "Lop hoc phan da dat si so toi da", HttpStatus.BAD_REQUEST),
+    GRADE_ALREADY_ENTERED(1028, "Khong the huy dang ky vi giang vien da nhap diem", HttpStatus.BAD_REQUEST),
+    TEACHER_NOT_ASSIGNED_TO_CLASS(1029, "Giang vien chi duoc thao tac tren lop hoc phan duoc phan cong", HttpStatus.FORBIDDEN),
+    STUDENT_NOT_ENROLLED(1030, "Sinh vien chua dang ky lop hoc phan nay", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;
-    private final HttpStatusCode statusCode;
+    private final HttpStatus statusCode;
 
-    ErrorCode(int code, String message, HttpStatusCode statusCode) {
+    ErrorCode(int code, String message, HttpStatus statusCode) {
         this.code = code;
         this.message = message;
         this.statusCode = statusCode;

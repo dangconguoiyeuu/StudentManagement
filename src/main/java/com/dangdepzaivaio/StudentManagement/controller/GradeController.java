@@ -3,11 +3,11 @@ package com.dangdepzaivaio.StudentManagement.controller;
 import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
 import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse;
 import com.dangdepzaivaio.StudentManagement.service.GradeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
 @RestController
@@ -23,7 +23,7 @@ public class GradeController {
     }
 
     @GetMapping("/student/{studentId}")
-    public ApiResponse<List<GradeResponse>> getGradesByStudent(@PathVariable Long studentId) {
+    public ApiResponse<List<GradeResponse>> getGradesByStudent(@PathVariable String studentId) { // 🔥 String
         return new ApiResponse<>(1000, "Lấy bảng điểm chi tiết của sinh viên thành công!", gradeService.getGradesByStudent(studentId));
     }
 
@@ -42,11 +42,12 @@ public class GradeController {
         gradeService.deleteGrade(id);
         return new ApiResponse<>(1000, "Xóa đầu điểm thành công!", "Đầu điểm có ID " + id + " đã bị loại bỏ hoàn toàn.");
     }
-    // ==================== ENDPOINT TỔNG HỢP HỌC TẬP & TÍNH GPA ====================
+
     @GetMapping("/student/{studentId}/summary")
-    public ApiResponse<com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse> getAcademicSummary(@PathVariable Long studentId) {
+    public ApiResponse<StudentAcademicSummaryResponse> getAcademicSummary(@PathVariable String studentId) { // 🔥 String
         return new ApiResponse<>(1000, "Tổng hợp kết quả học tập và tính GPA thành công!", gradeService.getAcademicSummary(studentId));
     }
+
     @GetMapping("/{id}")
     public ApiResponse<GradeResponse> getGradeById(@PathVariable Long id) {
         return new ApiResponse<>(1000, "Lấy chi tiết thông tin điểm số thành công!", gradeService.getGradeById(id));

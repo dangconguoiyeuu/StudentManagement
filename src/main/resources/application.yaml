@@ -9,14 +9,26 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false # 🔥 ĐÃ SỬA: Chuyển từ true thành false để tắt log SQL mặc định
     properties:
       hibernate:
-        format_sql: true
-        hibernate.dialect: org.hibernate.dialect.MySQLDialect
-        hibernate.jdbc.batch_size: 20
+        show_sql: false # 🔥 THÊM MỚI: Khóa triệt để tính năng in log truy vấn
+        format_sql: false # 🔥 ĐÃ SỬA: Chuyển từ true thành false để ngưng định dạng câu lệnh SQL
+        dialect: org.hibernate.dialect.MySQLDialect
+        jdbc:
+          batch_size: 20
 server:
   port: 8081
 
 jwt:
   signer-key: "TranMinhDangDepZaiVaioSieuCapVipPro2005"
+
+# 🔥 THÊM MỚI: Cấu hình dập tắt mức độ log của Hibernate chuẩn cú pháp YAML
+logging:
+  level:
+    org:
+      hibernate:
+        SQL: OFF
+        orm:
+          jdbc:
+            bind: OFF

@@ -28,5 +28,19 @@ public class CourseClass extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "teacher_id")
-    private Teacher teacher; // 🔥 Giảng viên nào trực tiếp đứng lớp học phần này
+    private Teacher teacher;
+
+    @Builder.Default
+    @Column(name = "max_students", nullable = false)
+    private Integer maxStudents = 60;
+
+    @Column(name = "schedule", length = 120)
+    private String schedule;
+
+    @Builder.Default
+    @Column(name = "is_open", nullable = false)
+    private boolean openForRegistration = false;
+
+    @Transient
+    private long registeredStudents;
 }

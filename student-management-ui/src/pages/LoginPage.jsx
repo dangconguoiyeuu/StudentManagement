@@ -7,7 +7,7 @@ function LoginPage() {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
-    // 🔥 Các State quản lý trạng thái ẩn/hiển thị của từng ô mật khẩu độc lập
+    // Các State quản lý trạng thái ẩn/hiển thị của từng ô mật khẩu độc lập
     const [showPassword, setShowPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -24,7 +24,8 @@ function LoginPage() {
         try {
             const data = await axiosClient.post('/auth/login', { username, password });
 
-            if (data.isFirstLogin) {
+            // ✅ FIX: Java serialize boolean field "isFirstLogin" thành "firstLogin" trong JSON
+            if (data.firstLogin) {
                 setIsFirstLoginMode(true);
                 alert("Hệ thống phát hiện đây là lần đầu bạn đăng nhập. Bạn bắt buộc phải đổi mật khẩu để bảo mật tài khoản!");
             } else {
@@ -39,7 +40,7 @@ function LoginPage() {
                 window.location.href = '/';
             }
         } catch (err) {
-            setError(err || 'Tên đăng nhập hoặc mật khẩu không chính xác!');
+            setError(err || 'Email hoặc mật khẩu không chính xác!');
         } finally {
             setLoading(false);
         }
@@ -129,7 +130,8 @@ function LoginPage() {
                     {error && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>{error}</div>}
 
                     <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Tên đăng nhập (Mã số):</label>
+                        {/* 🔥 SỬA: Đổi nhãn từ Tên đăng nhập thành Email */}
+                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Email đăng nhập (@open.edu.vn):</label>
                         <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required style={inputStyleForUsername} />
                     </div>
 
@@ -158,11 +160,11 @@ function LoginPage() {
     );
 }
 
-// 🎨 Cấu hình Style dùng chung cho các trường ô nhập Mật khẩu (Có chừa khoảng trống phải 40px cho nút mắt)
+// Style dùng chung cho ô nhập Mật khẩu (Có chừa khoảng trống phải 40px cho nút mắt)
 const inputStyle = {
     width: '100%',
     padding: 'var(--spacing-sm)',
-    paddingRight: '40px', // 🔥 Chống tràn đè chữ lên icon mắt
+    paddingRight: '40px', // Chống tràn đè chữ lên icon mắt
     borderRadius: '4px',
     border: '1px solid var(--color-border)',
     backgroundColor: 'var(--color-surface-hover)',
@@ -183,7 +185,7 @@ const inputStyleForUsername = {
     outline: 'none'
 };
 
-// 🎨 Cấu hình định vị nút Icon Mắt tuyệt đối nằm đè gọn gàng bên phải ô Input
+// Định vị nút Icon Mắt tuyệt đối nằm đè gọn gàng bên phải ô Input
 const eyeButtonStyle = {
     position: 'absolute',
     right: '10px',

@@ -19,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.Set;
 
@@ -40,19 +39,19 @@ public class StudentServiceImpl implements StudentService {
         if (studentRepository.existsByStudentCode(request.studentCode())) {
             throw new AppException(ErrorCode.STUDENT_CODE_EXISTED);
         }
-        // Quy tắc tự động: Tài khoản lấy theo mã sinh viên
-        if (userRepository.existsByUsername(request.studentCode())) {
-            throw new AppException(ErrorCode.USER_EXISTED);
-        }
 
         Class studentClass = classRepository.findById(request.classId())
                 .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
 
-        // Tự động khởi dựng tài khoản User hệ thống ngầm bên dưới
+        // 🔥 THUẬT TOÁN TỰ SINH CHUỖI ID LIÊN KẾT: HS_01, HS_02...
+        long nextIndex = userRepository.countByIdStartingWith("HS_") + 1;
+        String generatedId = String.format("HS_%02d", nextIndex);
+
         User user = User.builder()
+                .id(generatedId) // Gán cứng chuỗi ID tự sinh vào User
                 .username(request.studentCode())
-                .password(passwordEncoder.encode("password1234")) // Mật khẩu mặc định
-                .email(request.studentCode().toLowerCase() + "@open.edu.vn") // Tự sinh email trường học
+                .password(passwordEncoder.encode("password1234"))
+                .email(request.studentCode().toLowerCase() + "@open.edu.vn")
                 .isFirstLogin(true)
                 .isActive(true)
                 .build();
@@ -63,8 +62,9 @@ public class StudentServiceImpl implements StudentService {
         userRepository.save(user);
 
         Student student = studentMapper.toEntity(request);
-        student.setUser(user);
+        student.setUser(user); // JPA và @MapsId sẽ tự động copy chuỗi generatedId từ User sang Student làm PK
         student.setStudentClass(studentClass);
+        student.setActive(true);
 
         return studentMapper.toResponse(studentRepository.save(student));
     }
@@ -75,21 +75,19 @@ public class StudentServiceImpl implements StudentService {
                 ? studentRepository.findAllStudentsWithJoinFetch()
                 : studentRepository.findAllActiveStudentsWithJoinFetch();
 
-        return students.stream()
-                .map(studentMapper::toResponse)
-                .toList();
+        return students.stream().map(studentMapper::toResponse).toList();
     }
 
     @Override
-    public StudentResponse getStudentById(Long id) {
-        return studentRepository.findByIdWithJoinFetch(id)
+    public StudentResponse getStudentById(String id) { // Chuyển tham số sang String
+        return studentRepository.findById(id)
                 .map(studentMapper::toResponse)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
     }
 
     @Override
     @Transactional
-    public StudentResponse updateStudent(Long id, StudentUpdateRequest request) {
+    public StudentResponse updateStudent(String id, StudentUpdateRequest request) { // Chuyển tham số sang String
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
 
@@ -104,23 +102,33 @@ public class StudentServiceImpl implements StudentService {
         student.setDateOfBirth(request.dateOfBirth());
         student.setGender(request.gender());
         student.setPhoneNumber(request.phoneNumber());
+        if (request.active() != null) {
+            student.setActive(request.active());
+            if (student.getUser() != null) {
+                student.getUser().setActive(request.active());
+            }
+        }
 
         return studentMapper.toResponse(studentRepository.save(student));
     }
 
     @Override
     @Transactional
-    public void disableStudent(Long id) {
+    public void disableStudent(String id) { // Chuyển tham số sang String
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
-
         student.setActive(false);
+        if (student.getUser() != null) student.getUser().setActive(false);
         studentRepository.save(student);
+    }
 
-        User user = student.getUser();
-        if (user != null) {
-            user.setActive(false);
-            userRepository.save(user);
-        }
+    @Override
+    @Transactional
+    public void enableStudent(String id) { // Chuyển tham số sang String
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
+        student.setActive(true);
+        if (student.getUser() != null) student.getUser().setActive(true);
+        studentRepository.save(student);
     }
 }

@@ -42,7 +42,7 @@ function GradePage() {
         }
     }, [selectedStudent]);
 
-    // Gọi API lấy điểm 1 Sinh Viên (Cũ)
+    // Gọi API lấy điểm 1 Sinh Viên
     const fetchAcademicSummary = async (studentId) => {
         try {
             setLoading(true);
@@ -55,7 +55,7 @@ function GradePage() {
         }
     };
 
-    // 🔥 Gọi API lấy BẢNG ĐIỂM TOÀN HỆ THỐNG (Mới)
+    // Gọi API lấy BẢNG ĐIỂM TOÀN HỆ THỐNG
     const fetchAllSystemGrades = async () => {
         try {
             setLoading(true);
@@ -77,7 +77,8 @@ function GradePage() {
         }
         try {
             await axiosClient.post('/grades', {
-                studentId: Number(selectedStudent),
+                // ✅ FIX: Giữ nguyên String "HS_01", KHÔNG ép thành Number
+                studentId: selectedStudent,
                 courseClassId: Number(courseClassId),
                 attendanceGrade: attendance !== '' ? Number(attendance) : null,
                 midtermGrade: midterm !== '' ? Number(midterm) : null,
@@ -140,7 +141,38 @@ function GradePage() {
                                     <h2 style={{ margin: '5px 0 0 0', fontSize: 'var(--font-title)' }}>{summary.gpaSystem4}</h2>
                                 </div>
                             </div>
-                            {/* ... (Render table summary.details như cũ) ... */}
+
+                            {/* Bảng chi tiết điểm từng môn */}
+                            {summary.details && summary.details.length > 0 && (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 'var(--spacing-sm)' }}>
+                                    <thead>
+                                    <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>Môn Học</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>Lớp HP</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>CC</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>GK</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>CK</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>Tổng</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>Chữ</th>
+                                        <th style={{ padding: 'var(--spacing-md)' }}>Hệ 4</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {summary.details.map((d, i) => (
+                                        <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                            <td style={{ padding: 'var(--spacing-md)' }}>{d.subjectName}</td>
+                                            <td style={{ padding: 'var(--spacing-md)', color: 'var(--color-warning)' }}>{d.courseClassCode}</td>
+                                            <td style={{ padding: 'var(--spacing-md)' }}>{d.attendanceGrade}</td>
+                                            <td style={{ padding: 'var(--spacing-md)' }}>{d.midtermGrade}</td>
+                                            <td style={{ padding: 'var(--spacing-md)' }}>{d.finalGrade}</td>
+                                            <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold' }}>{d.overallGrade}</td>
+                                            <td style={{ padding: 'var(--spacing-md)', color: d.letterGrade === 'F' ? 'var(--color-danger)' : 'var(--color-success)', fontWeight: 'bold' }}>{d.letterGrade}</td>
+                                            <td style={{ padding: 'var(--spacing-md)' }}>{d.grade4}</td>
+                                        </tr>
+                                    ))}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
                     )}
 
@@ -173,6 +205,11 @@ function GradePage() {
                                 </table>
                             )}
                         </div>
+                    )}
+
+                    {/* CHẾ ĐỘ 3: SINH VIÊN XEM ĐIỂM NHƯNG CHƯA CÓ DỮ LIỆU */}
+                    {!summary && !canViewAll && !loading && (
+                        <p style={{ color: 'var(--text-muted)' }}>Chưa có dữ liệu điểm nào được ghi nhận.</p>
                     )}
                 </div>
 

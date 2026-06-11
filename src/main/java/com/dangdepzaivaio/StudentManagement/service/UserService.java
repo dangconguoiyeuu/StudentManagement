@@ -9,7 +9,9 @@ import java.util.List;
 public interface UserService {
     UserResponse createUser(UserCreationRequest request);
     List<UserResponse> getAllUsers();
-    UserResponse getUserById(Long id);
-    UserResponse updateUser(Long id, UserUpdateRequest request);
-    void disableUser(Long id);
+    UserResponse getUserById(String id);
+    UserResponse updateUser(String id, UserUpdateRequest request);
+    UserResponse enableUser(String id);
+    UserResponse resetPassword(String id, String newPassword);
+    void disableUser(String id);
 }

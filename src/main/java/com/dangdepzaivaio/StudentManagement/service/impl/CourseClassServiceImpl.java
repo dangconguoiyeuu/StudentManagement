@@ -4,12 +4,14 @@ import com.dangdepzaivaio.StudentManagement.dto.request.CourseClassRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
 import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
 import com.dangdepzaivaio.StudentManagement.entity.Subject;
+import com.dangdepzaivaio.StudentManagement.entity.Teacher;
 import com.dangdepzaivaio.StudentManagement.exception.AppException;
 import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
 import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
 import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
 import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
 import com.dangdepzaivaio.StudentManagement.repository.SubjectRepository;
+import com.dangdepzaivaio.StudentManagement.repository.TeacherRepository;
 import com.dangdepzaivaio.StudentManagement.service.CourseClassService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,7 @@ public class CourseClassServiceImpl implements CourseClassService {
 
     private final CourseClassRepository courseClassRepository;
     private final SubjectRepository subjectRepository;
+    private final TeacherRepository teacherRepository;
     private final CourseClassMapper courseClassMapper;
     private final GradeRepository gradeRepository;
 
@@ -38,28 +41,29 @@ public class CourseClassServiceImpl implements CourseClassService {
 
         CourseClass courseClass = courseClassMapper.toEntity(request);
         courseClass.setSubject(subject);
+        applyTeacherAndDefaults(courseClass, request);
 
-        return courseClassMapper.toResponse(courseClassRepository.save(courseClass));
+        return toResponseWithCount(courseClassRepository.save(courseClass));
     }
 
     @Override
     public List<CourseClassResponse> getAllCourseClasses() {
-        return courseClassRepository.findAll().stream()
-                .map(courseClassMapper::toResponse)
+        return courseClassRepository.findAllWithSubjectAndTeacher().stream()
+                .map(this::toResponseWithCount)
                 .toList();
     }
 
     @Override
     public CourseClassResponse getCourseClassById(Long id) {
-        return courseClassRepository.findById(id)
-                .map(courseClassMapper::toResponse)
+        CourseClass courseClass = courseClassRepository.findByIdWithSubjectAndTeacher(id)
                 .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
+        return toResponseWithCount(courseClass);
     }
 
     @Override
     @Transactional
     public CourseClassResponse updateCourseClass(Long id, CourseClassRequest request) {
-        CourseClass courseClass = courseClassRepository.findById(id)
+        CourseClass courseClass = courseClassRepository.findByIdWithSubjectAndTeacher(id)
                 .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
 
         if (!courseClass.getCode().equals(request.code()) && courseClassRepository.existsByCode(request.code())) {
@@ -71,8 +75,9 @@ public class CourseClassServiceImpl implements CourseClassService {
 
         courseClassMapper.updateEntityFromRequest(request, courseClass);
         courseClass.setSubject(subject);
+        applyTeacherAndDefaults(courseClass, request);
 
-        return courseClassMapper.toResponse(courseClassRepository.save(courseClass));
+        return toResponseWithCount(courseClassRepository.save(courseClass));
     }
 
     @Override
@@ -86,5 +91,28 @@ public class CourseClassServiceImpl implements CourseClassService {
         }
 
         courseClassRepository.delete(courseClass);
+    }
+
+    private void applyTeacherAndDefaults(CourseClass courseClass, CourseClassRequest request) {
+        if (request.teacherId() == null || request.teacherId().isBlank()) {
+            courseClass.setTeacher(null);
+        } else {
+            Teacher teacher = teacherRepository.findById(request.teacherId())
+                    .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
+            courseClass.setTeacher(teacher);
+        }
+
+        if (courseClass.getMaxStudents() == null || courseClass.getMaxStudents() < 1) {
+            courseClass.setMaxStudents(60);
+        }
+
+        if (request.openForRegistration() != null) {
+            courseClass.setOpenForRegistration(request.openForRegistration());
+        }
+    }
+
+    private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
+        courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
+        return courseClassMapper.toResponse(courseClass);
     }
 }

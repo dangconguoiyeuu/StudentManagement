@@ -13,5 +13,6 @@ public record StudentUpdateRequest(
         LocalDate dateOfBirth,
         String gender,
         String phoneNumber,
-        Long classId
+        Long classId,
+        Boolean active // 🔥 THÊM TRƯỜNG NÀY: Để nhận trạng thái Đang học (true) / Khóa (false) từ form sửa
 ) {}

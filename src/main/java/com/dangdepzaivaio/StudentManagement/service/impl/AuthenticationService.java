@@ -6,8 +6,8 @@ import com.dangdepzaivaio.StudentManagement.entity.User;
 import com.dangdepzaivaio.StudentManagement.exception.AppException;
 import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
 import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
-import com.dangdepzaivaio.StudentManagement.repository.StudentRepository; // 🔥 Import thêm
-import com.dangdepzaivaio.StudentManagement.repository.TeacherRepository; // 🔥 Import thêm
+import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
+import com.dangdepzaivaio.StudentManagement.repository.TeacherRepository;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -15,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -28,64 +27,51 @@ import java.util.stream.Collectors;
 public class AuthenticationService {
 
     private final UserRepository userRepository;
-    private final StudentRepository studentRepository; // 🔥 Bổ sung để tìm ID học sinh
-    private final TeacherRepository teacherRepository; // 🔥 Bổ sung để tìm ID giảng viên
+    private final StudentRepository studentRepository;
+    private final TeacherRepository teacherRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${jwt.signer-key}")
     private String SIGNER_KEY;
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
-        User user = userRepository.findByUsername(request.username())
+        // 🔥 THAY ĐỔI: Tìm kiếm bằng Email thay vì Username (Mã số) cũ
+        User user = userRepository.findByEmail(request.username())
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
 
-        boolean authenticated = passwordEncoder.matches(request.password(), user.getPassword());
-
-        if (!authenticated) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        if (!user.isActive()) {
+            throw new AppException(ErrorCode.ACCOUNT_LOCKED);
         }
+
+        boolean authenticated = passwordEncoder.matches(request.password(), user.getPassword());
+        if (!authenticated) throw new AppException(ErrorCode.UNAUTHENTICATED);
 
         String token = generateToken(user);
         Set<String> roles = user.getRoles().stream()
                 .map(com.dangdepzaivaio.StudentManagement.entity.Role::getName)
                 .collect(Collectors.toSet());
 
-        // Logic xử lý trích xuất ID thực tế dựa theo vai trò nghiệp vụ đăng nhập
-// Logic xử lý trích xuất ID thực tế dựa theo mối quan hệ bảng thay vì so sánh chuỗi mã số
-        Long studentId = null;
-        Long teacherId = null;
+        String studentId = null;
+        String teacherId = null;
 
         if (roles.contains("STUDENT")) {
-            // 🔥 SỬA: Tìm chính xác Student thông qua User ID gốc đăng nhập thành công
-            studentId = studentRepository.findByUserId(user.getId())
-                    .map(com.dangdepzaivaio.StudentManagement.entity.Student::getId)
-                    .orElse(null);
+            studentId = studentRepository.findById(user.getId())
+                    .map(com.dangdepzaivaio.StudentManagement.entity.Student::getId).orElse(null);
         } else if (roles.contains("TEACHER")) {
-            // 🔥 SỬA: Tìm chính xác Teacher thông qua User ID gốc đăng nhập thành công
-            teacherId = teacherRepository.findByUserId(user.getId())
-                    .map(com.dangdepzaivaio.StudentManagement.entity.Teacher::getId)
-                    .orElse(null);
+            teacherId = teacherRepository.findById(user.getId())
+                    .map(com.dangdepzaivaio.StudentManagement.entity.Teacher::getId).orElse(null);
         }
+
         return AuthenticationResponse.builder()
                 .token(token)
                 .authenticated(true)
                 .userId(user.getId())
-                .username(user.getUsername())
+                .username(user.getEmail()) // Trả về email làm thông tin hiển thị sau đăng nhập
                 .roles(roles)
                 .isFirstLogin(user.isFirstLogin())
-                .studentId(studentId) // Đẩy ra ngoài giao diện
-                .teacherId(teacherId) // Đẩy ra ngoài giao diện
+                .studentId(studentId)
+                .teacherId(teacherId)
                 .build();
-    }
-
-    @Transactional
-    public void changePasswordFirstLogin(String username, String newPassword) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-
-        user.setPassword(passwordEncoder.encode(newPassword));
-        user.setFirstLogin(false);
-        userRepository.save(user);
     }
 
     private String generateToken(User user) {
@@ -95,7 +81,7 @@ public class AuthenticationService {
                 .collect(Collectors.joining(" "));
 
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
-                .subject(user.getUsername())
+                .subject(user.getEmail()) // 🔥 THAY ĐỔI: Lưu Email vào subject của JWT thay vì username
                 .issuer("dangdepzaivaio.com")
                 .issueTime(new Date())
                 .expirationTime(new Date(Instant.now().plus(2, ChronoUnit.HOURS).toEpochMilli()))
@@ -105,12 +91,25 @@ public class AuthenticationService {
 
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());
         JWSObject jwsObject = new JWSObject(header, payload);
-
         try {
             jwsObject.sign(new MACSigner(SIGNER_KEY.getBytes()));
             return jwsObject.serialize();
         } catch (JOSEException e) {
-            throw new RuntimeException("Không thể tạo Token bảo mật", e);
+            throw new RuntimeException("Không thể tạo token", e);
         }
+    }
+
+    // 🔥 SỬA CHỮA: Cập nhật dùng findByEmail để khớp với luồng giao diện React
+    public void changePasswordFirstLogin(String username, String newPassword) {
+        User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (!user.isFirstLogin()) {
+            throw new AppException(ErrorCode.VALIDATION_ERROR);
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setFirstLogin(false);
+        userRepository.save(user);
     }
 }

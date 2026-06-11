@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record GradeRequest(
         @NotNull(message = "ID sinh viên không được để trống")
-        Long studentId,
+        String studentId, // 🔥 Đã đổi sang String
 
         @NotNull(message = "ID lớp học phần không được để trống")
         Long courseClassId,

@@ -13,13 +13,13 @@ public interface StudentMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "studentClass", ignore = true)
-    @Mapping(target = "user", ignore = true) // 🔥 ĐỔI THÀNH IGNORE = TRUE: Vì request giờ đã phẳng, không bọc object user nữa
+    @Mapping(target = "user", ignore = true)
     Student toEntity(StudentCreationRequest request);
-
-    // Hàm toUserEntity cũ đã xóa bỏ vì hệ thống đã chuyển sang tạo tài khoản tự động bằng User.builder()
 
     @Mapping(target = "username", source = "user.username")
     @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "classId", source = "studentClass.id") // 🔥 ÉP MAP: Lấy ID của Class đưa vào DTO
     @Mapping(target = "className", source = "studentClass.name")
+    @Mapping(target = "active", source = "active")
     StudentResponse toResponse(Student student);
 }

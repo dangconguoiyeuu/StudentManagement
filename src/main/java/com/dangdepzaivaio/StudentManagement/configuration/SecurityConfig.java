@@ -15,6 +15,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
 import java.util.List;
 
 @Configuration
@@ -31,22 +32,34 @@ public class SecurityConfig {
 
         httpSecurity.authorizeHttpRequests(request -> request
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/auth/login", "/auth/change-password").permitAll() // Mở công khai endpoint đổi pass lần đầu
+                .requestMatchers("/auth/login", "/auth/change-password").permitAll()
 
-                // 🔒 KHÓA CHẶT: Chỉ duy nhất ADMIN được quyền tạo mới, cập nhật, xóa bỏ các đối tượng (Học sinh, Giảng viên, Khoa, Lớp)
-                .requestMatchers(HttpMethod.POST, "/students/**", "/teachers/**", "/classes/**", "/departments/**", "/subjects/**", "/users/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/students/**", "/teachers/**", "/classes/**", "/departments/**", "/subjects/**", "/users/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/students/**", "/teachers/**", "/classes/**", "/departments/**", "/subjects/**", "/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
 
-                // ADMIN và TEACHER được quyền gọi danh sách để xem
-                .requestMatchers(HttpMethod.GET, "/students/**", "/teachers/**", "/classes/**", "/departments/**", "/subjects/**").hasAnyRole("ADMIN", "TEACHER")
+                .requestMatchers(HttpMethod.GET, "/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
 
                 .requestMatchers(HttpMethod.POST, "/grades/**").hasRole("TEACHER")
                 .requestMatchers(HttpMethod.PUT, "/grades/**").hasRole("TEACHER")
                 .requestMatchers(HttpMethod.DELETE, "/grades/**").hasRole("TEACHER")
-
-                // 2. Việc Xem điểm: ADMIN (để quản lý), TEACHER (để rà soát), STUDENT (để tự xem điểm mình) đều được phép
                 .requestMatchers(HttpMethod.GET, "/grades/**").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
+
+                .requestMatchers(HttpMethod.POST, "/registration/periods").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/registration/periods/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/registration/periods").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/registration/statistics").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/registration/course-class/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/registration/teacher/**").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.GET, "/registration/classes/**").hasAnyRole("ADMIN", "TEACHER")
+                .requestMatchers(HttpMethod.GET, "/registration/open-course-classes", "/registration/my-classes").hasRole("STUDENT")
+                .requestMatchers(HttpMethod.POST, "/registration/enroll").hasRole("STUDENT")
+                .requestMatchers(HttpMethod.DELETE, "/registration/unenroll").hasRole("STUDENT")
 
                 .anyRequest().authenticated());
 
