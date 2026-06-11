@@ -12,7 +12,7 @@ function StudentPage() {
     const [includeInactive, setIncludeInactive] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
-    const [editingStudentId, setEditingStudentId] = useState(''); // 🔥 ĐÃ SỬA: Chuyển sang String trống làm mặc định
+    const [editingStudentId, setEditingStudentId] = useState('');
 
     // Form States
     const [studentCode, setStudentCode] = useState('');
@@ -23,8 +23,14 @@ function StudentPage() {
     const [phoneNumber, setPhoneNumber] = useState('');
     const [classId, setClassId] = useState('');
 
+    // 🔥 THÊM MỚI: State lưu trữ danh sách lớp hành chính phục vụ Dropdown menu
+    const [classList, setClassList] = useState([]);
+
     useEffect(() => {
         fetchStudents();
+        if (isAdmin) {
+            fetchClassList(); // Chỉ tải danh sách gợi ý lớp nếu là Admin có quyền tạo/sửa
+        }
     }, [includeInactive]);
 
     const fetchStudents = async () => {
@@ -39,8 +45,22 @@ function StudentPage() {
         }
     };
 
+    // 🔥 THÊM MỚI: Hàm tải danh sách lớp hành chính từ DB thật
+    const fetchClassList = async () => {
+        try {
+            const data = await axiosClient.get('/classes');
+            setClassList(data);
+        } catch (err) {
+            console.error("Lỗi nạp danh sách lớp gợi ý:", err);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!classId) {
+            alert("Vui lòng lựa chọn một Lớp hành chính gợi ý từ danh sách!");
+            return;
+        }
 
         if (isEditMode) {
             const payload = { firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId) };
@@ -57,7 +77,7 @@ function StudentPage() {
             const payload = { studentCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId) };
             try {
                 await axiosClient.post('/students', payload);
-                alert(`Cấp tài khoản thành công mượt mà!`);
+                alert(`Cấp tài khoản thành công mượt mà!\nTài khoản: ${studentCode}\nMật khẩu mặc định: password1234`);
                 setShowModal(false);
                 resetForm();
                 fetchStudents();
@@ -69,14 +89,14 @@ function StudentPage() {
 
     const handleOpenEdit = (student) => {
         setIsEditMode(true);
-        setEditingStudentId(student.id); // Lưu chuỗi ID dạng 'HS_01' làm đích cập nhật
+        setEditingStudentId(student.id);
         setStudentCode(student.studentCode);
         setFirstName(student.firstName);
         setLastName(student.lastName);
         setDateOfBirth(student.dateOfBirth || '');
         setGender(student.gender || 'Nam');
         setPhoneNumber(student.phoneNumber || '');
-        setClassId(student.classId || '');
+        setClassId(student.classId || ''); // Tự động chọn trúng option lớp cũ của sinh viên
         setShowModal(true);
     };
 
@@ -137,7 +157,7 @@ function StudentPage() {
                     <th style={{ padding: 'var(--spacing-md)' }}>Hệ thống ID</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Mã Sinh Viên</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Tên</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Lớp Học Phần</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Lớp Hành Chính</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Trạng thái</th>
                     {isAdmin && <th style={{ padding: 'var(--spacing-md)' }}>Hành Động Tác Vụ</th>}
@@ -146,7 +166,6 @@ function StudentPage() {
                 <tbody>
                 {students.map((student) => (
                     <tr key={student.id} style={{ borderBottom: '1px solid var(--color-border)', opacity: student.active ? 1 : 0.55 }}>
-                        {/* Hiển thị chuỗi định danh đồng bộ hóa dùng chung với User */}
                         <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--text-muted)' }}>{student.id}</td>
                         <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{student.studentCode}</td>
                         <td style={{ padding: 'var(--spacing-md)' }}>{student.lastName} {student.firstName}</td>
@@ -157,7 +176,6 @@ function StudentPage() {
                         </td>
                         {isAdmin && (
                             <td style={{ padding: 'var(--spacing-md)' }}>
-                                {/* 🔥 HÀNH ĐỘNG: Phân tách nút bấm độc lập hoàn chỉnh ra bên ngoài danh sách */}
                                 <button onClick={() => handleOpenEdit(student)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', marginRight: '5px', fontWeight: 'bold' }}>Sửa</button>
                                 {student.active ? (
                                     <button onClick={() => handleDeleteStudent(student.id, student.studentCode, student.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Khóa</button>
@@ -178,7 +196,18 @@ function StudentPage() {
                         <form onSubmit={handleSubmit}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
                                 <div><label style={{ display: 'block', marginBottom: '4px' }}>Mã Sinh Viên:</label><input type="text" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} disabled={isEditMode} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>ID Lớp Hành Chính:</label><input type="number" value={classId} onChange={(e) => setClassId(e.target.value)} required style={inputStyle} /></div>
+
+                                {/* 🔥 ĐÃ SỬA: Thay thế ô input ID Number bằng Dropdown chọn lớp chuyên nghiệp */}
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '4px' }}>Lớp Hành Chính:</label>
+                                    <select value={classId} onChange={(e) => setClassId(e.target.value)} required style={inputStyle}>
+                                        <option value="">-- Chọn lớp gợi ý --</option>
+                                        {classList.map(cls => (
+                                            <option key={cls.id} value={cls.id}>{cls.name} ({cls.code})</option>
+                                        ))}
+                                    </select>
+                                </div>
+
                                 <div><label style={{ display: 'block', marginBottom: '4px' }}>Họ Và Tên Đệm:</label><input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
                                 <div><label style={{ display: 'block', marginBottom: '4px' }}>Tên Sinh Viên:</label><input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
                                 <div><label style={{ display: 'block', marginBottom: '4px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>

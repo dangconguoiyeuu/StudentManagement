@@ -26,5 +26,8 @@ public interface GradeMapper {
     @Mapping(target = "courseClassId", source = "courseClass.id")
     @Mapping(target = "courseClassCode", source = "courseClass.code")
     @Mapping(target = "subjectName", source = "courseClass.subject.name")
+    @Mapping(target = "credits", source = "courseClass.subject.credits")
+    @Mapping(target = "teacherName", expression = "java(grade.getCourseClass().getTeacher() != null ? grade.getCourseClass().getTeacher().getLastName() + \" \" + grade.getCourseClass().getTeacher().getFirstName() : \"Chưa phân công\")")
+    @Mapping(target = "schedule", source = "courseClass.schedule")
     GradeResponse toResponse(Grade grade);
 }

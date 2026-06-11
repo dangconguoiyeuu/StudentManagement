@@ -15,8 +15,12 @@ function TeacherPage() {
     const [phoneNumber, setPhoneNumber] = useState('');
     const [departmentId, setDepartmentId] = useState('');
 
+    // 🔥 THÊM MỚI: State lưu trữ danh sách khoa chuyên môn phục vụ Dropdown menu
+    const [departmentList, setDepartmentList] = useState([]);
+
     useEffect(() => {
         fetchTeachers();
+        fetchDepartmentList(); // Nạp sẵn danh sách khoa từ DB lên
     }, []);
 
     const fetchTeachers = async () => {
@@ -31,13 +35,28 @@ function TeacherPage() {
         }
     };
 
+    // 🔥 THÊM MỚI: Hàm tải danh sách khoa viện chuyên môn thực tế từ DB
+    const fetchDepartmentList = async () => {
+        try {
+            const data = await axiosClient.get('/departments');
+            setDepartmentList(data);
+        } catch (err) {
+            console.error("Lỗi nạp danh sách khoa gợi ý:", err);
+        }
+    };
+
     const handleCreateTeacher = async (e) => {
         e.preventDefault();
         setModalError('');
+        if (!departmentId) {
+            setModalError('Vui lòng chọn Khoa/Viện chuyên môn phù hợp!');
+            return;
+        }
+
         const payload = { teacherCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, departmentId: Number(departmentId) };
         try {
             await axiosClient.post('/teachers', payload);
-            alert(`Cấp tài khoản Giảng viên thành công!\nTài khoản: ${teacherCode}\nMật khẩu: password1234`);
+            alert(`Cấp tài khoản Giảng viên thành công!\nTài khoản: ${teacherCode}\nMật khẩu mặc định: password1234`);
             setShowModal(false);
             resetForm();
             fetchTeachers();
@@ -94,7 +113,18 @@ function TeacherPage() {
                         <form onSubmit={handleCreateTeacher}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
                                 <div><label style={{ display: 'block', marginBottom: '4px' }}>Mã Giảng Viên:</label><input type="text" placeholder="GV2026_01" value={teacherCode} onChange={(e) => setTeacherCode(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>ID Khoa/Viện:</label><input type="number" placeholder="ID" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required style={inputStyle} /></div>
+
+                                {/* 🔥 ĐÃ SỬA: Thay thế ô input ID Number bằng Dropdown chọn Khoa chuyên môn chuyên nghiệp */}
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '4px' }}>Khoa Chuyên Môn:</label>
+                                    <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required style={inputStyle}>
+                                        <option value="">-- Chọn khoa giảng dạy --</option>
+                                        {departmentList.map(dept => (
+                                            <option key={dept.id} value={dept.id}>{dept.name} ({dept.code})</option>
+                                        ))}
+                                    </select>
+                                </div>
+
                                 <div><label style={{ display: 'block', marginBottom: '4px' }}>Họ Và Tên Đệm:</label><input type="text" placeholder="Trần Quốc" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
                                 <div><label style={{ display: 'block', marginBottom: '4px' }}>Tên Giảng Viên:</label><input type="text" placeholder="Tuấn" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
                                 <div><label style={{ display: 'block', marginBottom: '4px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>

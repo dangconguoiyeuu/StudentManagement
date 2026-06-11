@@ -41,12 +41,13 @@ public class RegistrationController {
     @PostMapping("/periods")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<RegistrationPeriod> createPeriod(@RequestBody RegistrationPeriod period) {
-        period.setActive(true);
+        period.setIsActive(true);
         return new ApiResponse<>(1000, "Mo cong dang ky tin chi thanh cong", periodRepository.save(period));
     }
 
     @GetMapping("/periods")
-    @PreAuthorize("hasRole('ADMIN')")
+    // 🔥 ĐÃ SỬA: Cho phép cả Học sinh và Giáo viên gọi API này để xem lịch đóng/mở cổng công khai
+    @PreAuthorize("hasAnyRole('ADMIN', 'STUDENT', 'TEACHER')")
     public ApiResponse<List<RegistrationPeriod>> getPeriods() {
         return new ApiResponse<>(1000, "Lay danh sach cong dang ky thanh cong", periodRepository.findAll());
     }
@@ -56,7 +57,7 @@ public class RegistrationController {
     public ApiResponse<RegistrationPeriod> openPeriod(@PathVariable Long id) {
         RegistrationPeriod period = periodRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
-        period.setActive(true);
+        period.setIsActive(true);
         return new ApiResponse<>(1000, "Da mo cong dang ky", periodRepository.save(period));
     }
 
@@ -65,7 +66,7 @@ public class RegistrationController {
     public ApiResponse<RegistrationPeriod> closePeriod(@PathVariable Long id) {
         RegistrationPeriod period = periodRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
-        period.setActive(false);
+        period.setIsActive(false);
         return new ApiResponse<>(1000, "Da dong cong dang ky", periodRepository.save(period));
     }
 

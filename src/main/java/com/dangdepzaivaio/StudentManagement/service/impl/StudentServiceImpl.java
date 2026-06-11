@@ -56,13 +56,20 @@ public class StudentServiceImpl implements StudentService {
                 .isActive(true)
                 .build();
 
+        // Trong file StudentServiceImpl.java:
+
         Role studentRole = roleRepository.findByName("STUDENT")
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
         user.setRoles(Set.of(studentRole));
-        userRepository.save(user);
+
+        // 🔥 SỬA DÒNG NÀY: Hứng lấy đối tượng Managed trả về từ hàm save()
+        User managedUser = userRepository.save(user);
 
         Student student = studentMapper.toEntity(request);
-        student.setUser(user); // JPA và @MapsId sẽ tự động copy chuỗi generatedId từ User sang Student làm PK
+
+        // 🔥 SỬA DÒNG NÀY: Gắn đối tượng managedUser đã an toàn vào Student
+        student.setUser(managedUser);
+
         student.setStudentClass(studentClass);
         student.setActive(true);
 

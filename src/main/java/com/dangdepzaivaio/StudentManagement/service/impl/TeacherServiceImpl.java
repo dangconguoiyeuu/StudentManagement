@@ -51,7 +51,6 @@ public class TeacherServiceImpl implements TeacherService {
                 .id(generatedId)
                 .username(request.teacherCode())
                 .password(passwordEncoder.encode("password1234"))
-                // 🔥 SỬA ĐỔI: Email trường dạng mã viết thường kết hợp @open.edu.vn
                 .email(request.teacherCode().toLowerCase() + "@open.edu.vn")
                 .isActive(true)
                 .build();
@@ -59,11 +58,15 @@ public class TeacherServiceImpl implements TeacherService {
         Role teacherRole = roleRepository.findByName("TEACHER")
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
         user.setRoles(Set.of(teacherRole));
-        userRepository.save(user);
+
+        // 🔥 SỬA DÒNG NÀY: Hứng lấy đối tượng Managed trả về từ hàm save()
+        User managedUser = userRepository.save(user);
 
         Teacher teacher = teacherMapper.toEntity(request);
-        teacher.setId(generatedId);
-        teacher.setUser(user);
+
+        // 🔥 SỬA DÒNG NÀY: Gắn đối tượng managedUser (đã an toàn) vào thay vì biến user gốc
+        teacher.setUser(managedUser);
+
         teacher.setDepartment(dept);
         teacher.setActive(true);
 

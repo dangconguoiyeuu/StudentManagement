@@ -160,6 +160,7 @@ student-management-ui/src/pages/LoginPage.jsx
 student-management-ui/src/pages/RegistrationPage.jsx
 student-management-ui/src/pages/StudentPage.jsx
 student-management-ui/src/pages/TeacherPage.jsx
+student-management-ui/src/pages/TrainingPage.jsx
 student-management-ui/vite.config.js
 StudentManagement.docx
 </directory_structure>
@@ -167,1116 +168,377 @@ StudentManagement.docx
 <files>
 This section contains the contents of the repository's files.
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/RegistrationController.java">
-package com.dangdepzaivaio.StudentManagement.controller;
-
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassStatResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
-import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
-import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
-import com.dangdepzaivaio.StudentManagement.entity.User;
-import com.dangdepzaivaio.StudentManagement.exception.AppException;
-import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
-import com.dangdepzaivaio.StudentManagement.mapper.StudentMapper;
-import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
-import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
-import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
-import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
-import com.dangdepzaivaio.StudentManagement.service.impl.RegistrationServiceImpl;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-
-@RestController
-@RequestMapping("/registration")
-@RequiredArgsConstructor
-public class RegistrationController {
-
-    private final RegistrationServiceImpl registrationService;
-    private final RegistrationPeriodRepository periodRepository;
-    private final CourseClassRepository courseClassRepository;
-    private final GradeRepository gradeRepository;
-    private final UserRepository userRepository;
-    private final CourseClassMapper courseClassMapper;
-    private final StudentMapper studentMapper;
-
-    @PostMapping("/periods")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<RegistrationPeriod> createPeriod(@RequestBody RegistrationPeriod period) {
-        period.setActive(true);
-        return new ApiResponse<>(1000, "Mo cong dang ky tin chi thanh cong", periodRepository.save(period));
-    }
-
-    @GetMapping("/periods")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<RegistrationPeriod>> getPeriods() {
-        return new ApiResponse<>(1000, "Lay danh sach cong dang ky thanh cong", periodRepository.findAll());
-    }
-
-    @PutMapping("/periods/{id}/open")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<RegistrationPeriod> openPeriod(@PathVariable Long id) {
-        RegistrationPeriod period = periodRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
-        period.setActive(true);
-        return new ApiResponse<>(1000, "Da mo cong dang ky", periodRepository.save(period));
-    }
-
-    @PutMapping("/periods/{id}/close")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<RegistrationPeriod> closePeriod(@PathVariable Long id) {
-        RegistrationPeriod period = periodRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
-        period.setActive(false);
-        return new ApiResponse<>(1000, "Da dong cong dang ky", periodRepository.save(period));
-    }
-
-    @GetMapping("/statistics")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<CourseClassStatResponse>> getStats() {
-        return new ApiResponse<>(1000, "Tai thong ke dang ky thanh cong", courseClassRepository.getRegistrationStatistics());
-    }
-
-    @PutMapping("/course-class/{id}/toggle")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<CourseClassResponse> toggleCourseClass(@PathVariable Long id) {
-        CourseClass courseClass = getCourseClass(id);
-        courseClass.setOpenForRegistration(!courseClass.isOpenForRegistration());
-        return new ApiResponse<>(1000, "Cap nhat trang thai lop hoc phan thanh cong",
-                toResponseWithCount(courseClassRepository.save(courseClass)));
-    }
-
-    @PutMapping("/course-class/{id}/open")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<CourseClassResponse> openCourseClass(@PathVariable Long id) {
-        CourseClass courseClass = getCourseClass(id);
-        courseClass.setOpenForRegistration(true);
-        return new ApiResponse<>(1000, "Da mo lop hoc phan cho dang ky",
-                toResponseWithCount(courseClassRepository.save(courseClass)));
-    }
-
-    @PutMapping("/course-class/{id}/close")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<CourseClassResponse> closeCourseClass(@PathVariable Long id) {
-        CourseClass courseClass = getCourseClass(id);
-        courseClass.setOpenForRegistration(false);
-        return new ApiResponse<>(1000, "Da dong lop hoc phan",
-                toResponseWithCount(courseClassRepository.save(courseClass)));
-    }
-
-    @GetMapping("/teacher/{teacherId}/classes")
-    @PreAuthorize("hasRole('TEACHER')")
-    public ApiResponse<List<CourseClassResponse>> getTeacherClasses(@PathVariable String teacherId) {
-        assertTeacherSelf(teacherId);
-        List<CourseClassResponse> list = courseClassRepository.findByTeacherId(teacherId).stream()
-                .map(this::toResponseWithCount)
-                .toList();
-        return new ApiResponse<>(1000, "Tai lich giang day thanh cong", list);
-    }
-
-    @GetMapping("/classes/{classId}/students")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
-    public ApiResponse<List<StudentResponse>> getStudentsInCourseClass(@PathVariable Long classId) {
-        assertTeacherAssignedIfNeeded(classId);
-        List<StudentResponse> list = gradeRepository.findByCourseClassId(classId).stream()
-                .map(g -> studentMapper.toResponse(g.getStudent()))
-                .toList();
-        return new ApiResponse<>(1000, "Tai danh sach sinh vien lop hoc phan thanh cong", list);
-    }
-
-    @GetMapping("/open-course-classes")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ApiResponse<List<CourseClassResponse>> getOpenCourseClasses() {
-        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan dang mo thanh cong",
-                registrationService.getOpenCourseClasses());
-    }
-
-    @GetMapping("/my-classes")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ApiResponse<List<GradeResponse>> getMyRegisteredClasses() {
-        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan da dang ky thanh cong",
-                registrationService.getCurrentStudentRegistrations());
-    }
-
-    @PostMapping("/enroll")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ApiResponse<String> enroll(@RequestParam Long courseClassId) {
-        registrationService.registerCourseClass(courseClassId);
-        return new ApiResponse<>(1000, "Dang ky lop hoc phan thanh cong", "OK");
-    }
-
-    @DeleteMapping("/unenroll")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ApiResponse<String> unenroll(@RequestParam Long courseClassId) {
-        registrationService.cancelRegistration(courseClassId);
-        return new ApiResponse<>(1000, "Huy dang ky lop hoc phan thanh cong", "OK");
-    }
-
-    private CourseClass getCourseClass(Long id) {
-        return courseClassRepository.findByIdWithSubjectAndTeacher(id)
-                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
-    }
-
-    private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
-        courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
-        return courseClassMapper.toResponse(courseClass);
-    }
-
-    private void assertTeacherSelf(String teacherId) {
-        User user = currentUser();
-        if (!user.getId().equals(teacherId)) {
-            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
-        }
-    }
-
-    private void assertTeacherAssignedIfNeeded(Long courseClassId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        boolean isTeacher = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_TEACHER"));
-        if (!isTeacher) {
-            return;
-        }
-
-        CourseClass courseClass = getCourseClass(courseClassId);
-        String email = authentication.getName();
-        if (courseClass.getTeacher() == null
-                || courseClass.getTeacher().getUser() == null
-                || !email.equalsIgnoreCase(courseClass.getTeacher().getUser().getEmail())) {
-            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
-        }
-    }
-
-    private User currentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/TeacherUpdateRequest.java">
-package com.dangdepzaivaio.StudentManagement.dto.request;
-
-import java.time.LocalDate;
-
-public record TeacherUpdateRequest(
-        String firstName,
-        String lastName,
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/CourseClassStatResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-public record CourseClassStatResponse(
-        Long courseClassId,
-        String courseClassCode,
-        String subjectName,
-        String teacherName,
-        long registeredStudents,
-        String semester,
-        Integer maxStudents,
-        boolean openForRegistration
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/RegistrationPeriod.java">
-package com.dangdepzaivaio.StudentManagement.entity;
-
-import jakarta.persistence.*;
-import lombok.*;
-import java.time.LocalDateTime;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Entity
-@Table(name = "registration_periods")
-public class RegistrationPeriod extends BaseEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "semester", nullable = false, length = 20)
-    private String semester; // Ví dụ: HK1-2026
-
-    @Column(name = "start_time", nullable = false)
-    private LocalDateTime startTime;
-
-    @Column(name = "end_time", nullable = false)
-    private LocalDateTime endTime;
-
-    @Column(name = "is_active", nullable = false)
-    private boolean isActive;
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/TeacherMapper.java">
-package com.dangdepzaivaio.StudentManagement.mapper;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
-import com.dangdepzaivaio.StudentManagement.entity.Teacher;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-
-@Mapper(componentModel = "spring")
-public interface TeacherMapper {
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "department", ignore = true)
-    @Mapping(target = "user", ignore = true)
-    Teacher toEntity(TeacherCreationRequest request);
-
-    // 🔥 VÁ LỖI TRỐNG DỮ LIỆU: Lấy thông tin từ các thực thể liên kết đưa vào DTO phẳng
-    @Mapping(target = "username", source = "user.username")
-    @Mapping(target = "email", source = "user.email") // Ánh xạ Email giảng dạy
-    @Mapping(target = "departmentName", source = "department.name") // Ánh xạ Tên Khoa chuyên môn
-    @Mapping(target = "active", source = "active")
-    TeacherResponse toResponse(Teacher teacher);
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/RegistrationPeriodRepository.java">
-package com.dangdepzaivaio.StudentManagement.repository;
-
-import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
-import java.time.LocalDateTime;
-import java.util.Optional;
-
-@Repository
-public interface RegistrationPeriodRepository extends JpaRepository<RegistrationPeriod, Long> {
-
-    @Query("SELECT r FROM RegistrationPeriod r WHERE r.semester = :semester AND r.isActive = true " +
-            "AND :now BETWEEN r.startTime AND r.endTime")
-    Optional<RegistrationPeriod> findActivePeriod(@Param("semester") String semester, @Param("now") LocalDateTime now);
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/RegistrationServiceImpl.java">
-package com.dangdepzaivaio.StudentManagement.service.impl;
-
-import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
-import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
-import com.dangdepzaivaio.StudentManagement.entity.Grade;
-import com.dangdepzaivaio.StudentManagement.entity.Student;
-import com.dangdepzaivaio.StudentManagement.entity.User;
-import com.dangdepzaivaio.StudentManagement.exception.AppException;
-import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
-import com.dangdepzaivaio.StudentManagement.mapper.GradeMapper;
-import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
-import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
-import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
-import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
-import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.List;
-
-@Service
-@RequiredArgsConstructor
-public class RegistrationServiceImpl {
-
-    private final RegistrationPeriodRepository periodRepository;
-    private final CourseClassRepository courseClassRepository;
-    private final StudentRepository studentRepository;
-    private final UserRepository userRepository;
-    private final GradeRepository gradeRepository;
-    private final CourseClassMapper courseClassMapper;
-    private final GradeMapper gradeMapper;
-
-    @Transactional
-    public void registerCourseClass(Long courseClassId) {
-        Student student = getCurrentStudent();
-        CourseClass courseClass = getCourseClass(courseClassId);
-
-        assertRegistrationOpen(courseClass);
-
-        if (gradeRepository.existsByStudentIdAndCourseClassId(student.getId(), courseClassId)) {
-            throw new AppException(ErrorCode.GRADE_EXISTED);
-        }
-
-        long registered = gradeRepository.countByCourseClassId(courseClassId);
-        int maxStudents = courseClass.getMaxStudents() == null ? 60 : courseClass.getMaxStudents();
-        if (registered >= maxStudents) {
-            throw new AppException(ErrorCode.COURSE_CLASS_FULL);
-        }
-
-        Grade enrollment = Grade.builder()
-                .student(student)
-                .courseClass(courseClass)
-                .build();
-
-        gradeRepository.save(enrollment);
-    }
-
-    @Transactional
-    public void cancelRegistration(Long courseClassId) {
-        Student student = getCurrentStudent();
-        CourseClass courseClass = getCourseClass(courseClassId);
-
-        assertRegistrationOpen(courseClass);
-
-        Grade grade = gradeRepository.findByStudentIdAndCourseClassId(student.getId(), courseClassId)
-                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_ENROLLED));
-
-        if (hasAnyGradeValue(grade)) {
-            throw new AppException(ErrorCode.GRADE_ALREADY_ENTERED);
-        }
-
-        gradeRepository.delete(grade);
-    }
-
-    public List<CourseClassResponse> getOpenCourseClasses() {
-        LocalDateTime now = LocalDateTime.now();
-        return courseClassRepository.findByOpenForRegistrationTrue().stream()
-                .filter(courseClass -> periodRepository.findActivePeriod(courseClass.getSemester(), now).isPresent())
-                .map(this::toResponseWithCount)
-                .toList();
-    }
-
-    public List<GradeResponse> getCurrentStudentRegistrations() {
-        Student student = getCurrentStudent();
-        return gradeRepository.findByStudentId(student.getId()).stream()
-                .map(gradeMapper::toResponse)
-                .toList();
-    }
-
-    private CourseClass getCourseClass(Long courseClassId) {
-        return courseClassRepository.findByIdWithSubjectAndTeacher(courseClassId)
-                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
-    }
-
-    private void assertRegistrationOpen(CourseClass courseClass) {
-        if (!courseClass.isOpenForRegistration()) {
-            throw new AppException(ErrorCode.COURSE_CLASS_CLOSED);
-        }
-
-        periodRepository.findActivePeriod(courseClass.getSemester(), LocalDateTime.now())
-                .orElseThrow(() -> new AppException(ErrorCode.REGISTRATION_PERIOD_CLOSED));
-    }
-
-    private Student getCurrentStudent() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
-
-        return studentRepository.findByIdWithJoinFetch(user.getId())
-                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
-    }
-
-    private boolean hasAnyGradeValue(Grade grade) {
-        return grade.getAttendanceGrade() != null
-                || grade.getMidtermGrade() != null
-                || grade.getFinalGrade() != null
-                || grade.getOverallGrade() != null
-                || grade.getLetterGrade() != null
-                || grade.getGrade4() != null;
-    }
-
-    private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
-        courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
-        return courseClassMapper.toResponse(courseClass);
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/TeacherServiceImpl.java">
-package com.dangdepzaivaio.StudentManagement.service.impl;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.TeacherUpdateRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
-import com.dangdepzaivaio.StudentManagement.entity.Department;
-import com.dangdepzaivaio.StudentManagement.entity.Role;
-import com.dangdepzaivaio.StudentManagement.entity.Teacher;
-import com.dangdepzaivaio.StudentManagement.entity.User;
-import com.dangdepzaivaio.StudentManagement.exception.AppException;
-import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.mapper.TeacherMapper;
-import com.dangdepzaivaio.StudentManagement.repository.DepartmentRepository;
-import com.dangdepzaivaio.StudentManagement.repository.RoleRepository;
-import com.dangdepzaivaio.StudentManagement.repository.TeacherRepository;
-import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
-import com.dangdepzaivaio.StudentManagement.service.TeacherService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.Set;
-
-@Service
-@RequiredArgsConstructor
-public class TeacherServiceImpl implements TeacherService {
-
-    private final TeacherRepository teacherRepository;
-    private final UserRepository userRepository;
-    private final DepartmentRepository departmentRepository;
-    private final RoleRepository roleRepository;
-    private final TeacherMapper teacherMapper;
-    private final PasswordEncoder passwordEncoder;
-
-    @Override
-    @Transactional
-    public TeacherResponse createTeacher(TeacherCreationRequest request) {
-        if (teacherRepository.existsByTeacherCode(request.teacherCode())) {
-            throw new AppException(ErrorCode.TEACHER_CODE_EXISTED);
-        }
-
-        Department dept = departmentRepository.findById(request.departmentId())
-                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
-
-        long nextIndex = userRepository.countByIdStartingWith("GV_") + 1;
-        String generatedId = String.format("GV_%02d", nextIndex);
-
-        User user = User.builder()
-                .id(generatedId)
-                .username(request.teacherCode())
-                .password(passwordEncoder.encode("password1234"))
-                // 🔥 SỬA ĐỔI: Email trường dạng mã viết thường kết hợp @open.edu.vn
-                .email(request.teacherCode().toLowerCase() + "@open.edu.vn")
-                .isActive(true)
-                .build();
-
-        Role teacherRole = roleRepository.findByName("TEACHER")
-                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
-        user.setRoles(Set.of(teacherRole));
-        userRepository.save(user);
-
-        Teacher teacher = teacherMapper.toEntity(request);
-        teacher.setId(generatedId);
-        teacher.setUser(user);
-        teacher.setDepartment(dept);
-        teacher.setActive(true);
-
-        return teacherMapper.toResponse(teacherRepository.save(teacher));
-    }
-
-    @Override
-    public List<TeacherResponse> getAllTeachers() {
-        return teacherRepository.findAllTeachersWithJoinFetch().stream()
-                .map(teacherMapper::toResponse)
-                .toList();
-    }
-
-    @Override
-    public TeacherResponse getTeacherById(String id) {
-        return teacherRepository.findById(id)
-                .map(teacherMapper::toResponse)
-                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
-    }
-
-    @Override
-    @Transactional
-    public TeacherResponse updateTeacher(String id, TeacherUpdateRequest request) {
-        Teacher teacher = teacherRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
-
-        teacher.setFirstName(request.firstName());
-        teacher.setLastName(request.lastName());
-        teacher.setDateOfBirth(request.dateOfBirth());
-        teacher.setGender(request.gender());
-        teacher.setPhoneNumber(request.phoneNumber());
-
-        return teacherMapper.toResponse(teacherRepository.save(teacher));
-    }
-
-    @Override
-    @Transactional
-    public void disableTeacher(String id) {
-        Teacher teacher = teacherRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
-        teacher.setActive(false);
-        if (teacher.getUser() != null) teacher.getUser().setActive(false);
-        teacherRepository.save(teacher);
-    }
-
-    @Override
-    @Transactional
-    public void enableTeacher(String id) {
-        Teacher teacher = teacherRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
-        teacher.setActive(true);
-        if (teacher.getUser() != null) teacher.getUser().setActive(true);
-        teacherRepository.save(teacher);
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/TeacherService.java">
-package com.dangdepzaivaio.StudentManagement.service;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.TeacherUpdateRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
-
-import java.util.List;
-
-public interface TeacherService {
-    TeacherResponse createTeacher(TeacherCreationRequest request);
-    List<TeacherResponse> getAllTeachers();
-    TeacherResponse getTeacherById(String id);
-    TeacherResponse updateTeacher(String id, TeacherUpdateRequest request);
-    void disableTeacher(String id);
-    void enableTeacher(String id);
-}
-</file>
-
-<file path="student-management-ui/src/components/CourseRegistration.jsx">
+<file path="student-management-ui/src/pages/TrainingPage.jsx">
 import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
 
-// Giả định bạn lưu thông tin người dùng trong localStorage sau khi login
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
-};
+function TrainingPage() {
+    const [subTab, setSubTab] = useState('departments');
+    const [departments, setDepartments] = useState([]);
+    const [subjects, setSubjects] = useState([]);
+    const [courseClasses, setCourseClasses] = useState([]);
+    const [teachers, setTeachers] = useState([]);
 
-export default function CourseRegistration({ userRole, userId, studentId, teacherId }) {
-    // State dùng chung
-    const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState({ text: '', isError: false });
+    // --- TRẠNG THÁI CHẾ ĐỘ SỬA (EDIT MODE STATES) ---
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingId, setEditingId] = useState(null);
 
-    // --- STATE ADMIN ---
-    const [periodForm, setPeriodForm] = useState({ semester: '', startTime: '', endTime: '' });
-    const [stats, setStats] = useState([]);
+    // Form states
+    const [deptForm, setDeptForm] = useState({ code: '', name: '' });
+    const [subjectForm, setSubjectForm] = useState({ code: '', name: '', credits: 3 });
+    const [classForm, setClassForm] = useState({ code: '', semester: 'HK1-2026', subjectId: '', teacherId: '', maxStudents: 60 });
 
-    // --- STATE TEACHER ---
-    const [teacherClasses, setTeacherClasses] = useState([]);
-    const [selectedClassId, setSelectedClassId] = useState(null);
-    const [classStudents, setClassStudents] = useState([]);
+    // Quản lý danh sách các buổi học động
+    const [scheduleSlots, setScheduleSlots] = useState([
+        { day: 'Thứ 2', shift: 'Sáng (Tiết 1-4)', room: '' }
+    ]);
 
-    // --- STATE STUDENT (Dùng chung danh sách lớp học phần mở để đăng ký) ---
-    const [availableClasses, setAvailableClasses] = useState([]);
+    const daysOfWeek = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
+    const shifts = ['Sáng (Tiết 1-4)', 'Chiều (Tiết 5-8)', 'Tối (Tiết 9-12)'];
 
     useEffect(() => {
-        if (userRole === 'ADMIN') loadAdminStats();
-        if (userRole === 'TEACHER') loadTeacherSchedule();
-        if (userRole === 'STUDENT') loadAvailableClasses();
-    }, [userRole]);
+        loadDepartments();
+        loadSubjects();
+        loadCourseClasses();
+        loadTeachers();
+    }, []);
 
-    const showMessage = (text, isError = false) => {
-        setMessage({ text, isError });
-        setTimeout(() => setMessage({ text: '', isError: false }), 4000);
+    // Mỗi khi chuyển đổi tiểu ban (subTab), tự động hủy trạng thái sửa cũ để tránh xung đột form
+    useEffect(() => {
+        resetAllForms();
+    }, [subTab]);
+
+    const loadDepartments = async () => { try { const data = await axiosClient.get('/departments'); setDepartments(data); } catch (e) { console.error(e); } };
+    const loadSubjects = async () => { try { const data = await axiosClient.get('/subjects'); setSubjects(data); } catch (e) { console.error(e); } };
+    const loadCourseClasses = async () => { try { const data = await axiosClient.get('/course-classes'); setCourseClasses(data); } catch (e) { console.error(e); } };
+    const loadTeachers = async () => { try { const data = await axiosClient.get('/teachers'); setTeachers(data); } catch (e) { console.error(e); } };
+
+    const resetAllForms = () => {
+        setIsEditMode(false);
+        setEditingId(null);
+        setDeptForm({ code: '', name: '' });
+        setSubjectForm({ code: '', name: '', credits: 3 });
+        setClassForm({ code: '', semester: 'HK1-2026', subjectId: '', teacherId: '', maxStudents: 60 });
+        setScheduleSlots([{ day: 'Thứ 2', shift: 'Sáng (Tiết 1-4)', room: '' }]);
     };
 
-    // ==================== 🛠️ LOGIC XỬ LÝ ADMIN ====================
-    const loadAdminStats = async () => {
+    // --- THUẬT TOÁN ĐỌC NGƯỢC CHUỖI LỊCH (SCHEDULE DECODER) ---
+    // Biến đổi chuỗi "Thứ 2 Sáng (Tiết 1-4) - Phòng 402 | Thứ 6 Chiều (Tiết 5-8) - Phòng 301" thành mảng Object cấu trúc ban đầu
+    const parseScheduleToSlots = (scheduleStr) => {
+        if (!scheduleStr) return [{ day: 'Thứ 2', shift: 'Sáng (Tiết 1-4)', room: '' }];
         try {
-            const res = await fetch('http://localhost:8081/registration/statistics', { headers: getAuthHeaders() });
-            const data = await res.json();
-            if (data.code === 1000) setStats(data.result);
-        } catch (err) { showMessage('Không thể tải số liệu thống kê', true); }
+            const parts = scheduleStr.split(' | ');
+            return parts.map(part => {
+                const subParts = part.split(' - ');
+                const dayShift = subParts[0]; // "Thứ 2 Sáng (Tiết 1-4)"
+                const roomPart = subParts[1] || ''; // "Phòng 402"
+
+                const roomValue = roomPart.replace('Phòng ', '').trim();
+                const foundDay = daysOfWeek.find(d => dayShift.startsWith(d)) || 'Thứ 2';
+                const shiftValue = dayShift.replace(foundDay, '').trim();
+
+                return { day: foundDay, shift: shiftValue || 'Sáng (Tiết 1-4)', room: roomValue };
+            });
+        } catch (e) {
+            return [{ day: 'Thứ 2', shift: 'Sáng (Tiết 1-4)', room: '' }];
+        }
     };
 
-    const handleCreatePeriod = async (e) => {
+    // --- TÁC VỤ CHO LỊCH ĐỘNG ---
+    const handleAddSlot = () => setScheduleSlots([...scheduleSlots, { day: 'Thứ 2', shift: 'Sáng (Tiết 1-4)', room: '' }]);
+    const handleRemoveSlot = (index) => {
+        if (scheduleSlots.length === 1) return;
+        setScheduleSlots(scheduleSlots.filter((_, i) => i !== index));
+    };
+    const handleSlotChange = (index, field, value) => {
+        const updatedSlots = [...scheduleSlots];
+        updatedSlots[index][field] = value;
+        setScheduleSlots(updatedSlots);
+    };
+
+    // ==================== 🏛️ XỬ LÝ KHỐI KHOA (DEPARTMENTS) ====================
+    const handleSaveDept = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:8081/registration/periods', {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify(periodForm)
-            });
-            const data = await res.json();
-            if (data.code === 1000) {
-                showMessage('Mở cổng đăng ký tín chỉ thành công!');
-                setPeriodForm({ semester: '', startTime: '', endTime: '' });
+            if (isEditMode) {
+                await axiosClient.put(`/departments/${editingId}`, deptForm);
+                alert('Cập nhật thông tin khoa thành công!');
             } else {
-                showMessage(data.message, true);
+                await axiosClient.post('/departments', deptForm);
+                alert('Thêm khoa chuyên môn mới thành công!');
             }
-        } catch (err) { showMessage('Lỗi kết nối Server', true); }
+            resetAllForms();
+            loadDepartments();
+        } catch (err) { alert(err || 'Có lỗi xảy ra!'); }
     };
 
-    // ==================== 💼 LOGIC XỬ LÝ TEACHER ====================
-    const loadTeacherSchedule = async () => {
-        try {
-            const res = await fetch(`http://localhost:8081/registration/teacher/${teacherId}/classes`, { headers: getAuthHeaders() });
-            const data = await res.json();
-            if (data.code === 1000) setTeacherClasses(data.result);
-        } catch (err) { showMessage('Không thể tải lịch dạy', true); }
+    const handleOpenEditDept = (dept) => {
+        setIsEditMode(true);
+        setEditingId(dept.id);
+        setDeptForm({ code: dept.code, name: dept.name });
     };
 
-    const viewClassStudents = async (classId) => {
-        setSelectedClassId(classId);
-        try {
-            const res = await fetch(`http://localhost:8081/registration/classes/${classId}/students`, { headers: getAuthHeaders() });
-            const data = await res.json();
-            if (data.code === 1000) setClassStudents(data.result);
-        } catch (err) { showMessage('Không thể tải danh sách sinh viên', true); }
+    const handleDeleteDept = async (id, name) => {
+        if (window.confirm(`⚠️ Bạn có chắc chắn muốn XÓA HOÀN TOÀN khoa [${name}] không?\nHành động này có thể ảnh hưởng đến giảng viên thuộc khoa.`)) {
+            try {
+                await axiosClient.delete(`/departments/${id}`);
+                alert('Đã xóa khoa ra khỏi hệ thống thành công!');
+                loadDepartments();
+            } catch (err) { alert(err || 'Không thể xóa khoa này do có ràng buộc dữ liệu!'); }
+        }
     };
 
-    // ==================== 🎓 LOGIC XỬ LÝ STUDENT ====================
-    const loadAvailableClasses = async () => {
-        // Trong thực tế, bạn gọi API lấy danh sách CourseClass mở thuộc Học kỳ hiện tại
+    // ==================== 📘 XỬ LÝ KHỐI MÔN HỌC (SUBJECTS) ====================
+    const handleSaveSubject = async (e) => {
+        e.preventDefault();
         try {
-            const res = await fetch('http://localhost:8081/grades', { headers: getAuthHeaders() }); // Gọi tạm endpoint để có danh sách hoặc viết riêng API getAllCourseClasses
-            // Giả lập danh sách lớp học phần hiển thị cho sinh viên đăng ký
-            setAvailableClasses([
-                { id: 1, code: 'LHP_CNPM_01', subject: { name: 'Công nghệ phần mềm', credits: 3 }, teacher: { firstName: 'Đăng', lastName: 'Trần' }, semester: 'HK1-2026' },
-                { id: 2, code: 'LHP_CSDL_02', subject: { name: 'Cơ sở dữ liệu', credits: 3 }, teacher: { firstName: 'Hải', lastName: 'Nguyễn' }, semester: 'HK1-2026' }
-            ]);
-        } catch (err) { console.error(err); }
+            if (isEditMode) {
+                await axiosClient.put(`/subjects/${editingId}`, subjectForm);
+                alert('Cập nhật thông tin môn học thành công!');
+            } else {
+                await axiosClient.post('/subjects', subjectForm);
+                alert('Thêm môn học hệ thống mới thành công!');
+            }
+            resetAllForms();
+            loadSubjects();
+        } catch (err) { alert(err || 'Có lỗi xảy ra!'); }
     };
 
-    const handleEnroll = async (courseClassId) => {
-        try {
-            const res = await fetch(`http://localhost:8081/registration/enroll?studentId=${studentId}&courseClassId=${courseClassId}`, {
-                method: 'POST',
-                headers: getAuthHeaders()
-            });
-            const data = await res.json();
-            if (data.code === 1000) showMessage('Đăng ký môn học thành công!');
-            else showMessage(data.message, true);
-        } catch (err) { showMessage('Cổng đăng ký đang đóng hoặc lỗi hệ thống', true); }
+    const handleOpenEditSubject = (sub) => {
+        setIsEditMode(true);
+        setEditingId(sub.id);
+        setSubjectForm({ code: sub.code, name: sub.name, credits: sub.credits });
     };
 
-    const handleUnenroll = async (courseClassId) => {
+    const handleDeleteSubject = async (id, name) => {
+        if (window.confirm(`⚠️ Bạn có chắc chắn muốn XÓA HOÀN TOÀN môn học [${name}] không?`)) {
+            try {
+                await axiosClient.delete(`/subjects/${id}`);
+                alert('Đã loại bỏ môn học thành công!');
+                loadSubjects();
+            } catch (err) { alert(err || 'Không thể xóa môn học này!'); }
+        }
+    };
+
+    // ==================== 📅 XỬ LÝ KHỐI LỚP HỌC PHẦN (COURSE CLASSES) ====================
+    const handleSaveClass = async (e) => {
+        e.preventDefault();
+        for (let slot of scheduleSlots) {
+            if (!slot.room.trim()) { alert('Vui lòng điền phòng học cho tất cả các buổi!'); return; }
+        }
+
+        const compiledSchedule = scheduleSlots
+            .map(slot => `${slot.day} ${slot.shift} - Phòng ${slot.room.trim()}`)
+            .join(' | ');
+
+        const payload = {
+            ...classForm,
+            subjectId: Number(classForm.subjectId),
+            maxStudents: Number(classForm.maxStudents),
+            schedule: compiledSchedule
+        };
+
         try {
-            const res = await fetch(`http://localhost:8081/registration/unenroll?studentId=${studentId}&courseClassId=${courseClassId}`, {
-                method: 'DELETE',
-                headers: getAuthHeaders()
-            });
-            const data = await res.json();
-            if (data.code === 1000) showMessage('Hủy đăng ký thành công!');
-            else showMessage(data.message, true);
-        } catch (err) { showMessage('Không thể hủy (Quá hạn hoặc đã có điểm)', true); }
+            if (isEditMode) {
+                await axiosClient.put(`/course-classes/${editingId}`, payload);
+                alert('Cập nhật lớp học phần và điều chỉnh thời khóa biểu đồng bộ thành công!');
+            } else {
+                await axiosClient.post('/course-classes', payload);
+                alert('Mở lớp học phần mới và xếp lịch biểu thành công!');
+            }
+            resetAllForms();
+            loadCourseClasses();
+        } catch (err) { alert(err || 'Có lỗi xảy ra!'); }
+    };
+
+    const handleOpenEditClass = (cls) => {
+        setIsEditMode(true);
+        setEditingId(cls.id);
+        setClassForm({
+            code: cls.code,
+            semester: cls.semester,
+            subjectId: cls.subjectId || '',
+            teacherId: cls.teacherId || '',
+            maxStudents: cls.maxStudents || 60
+        });
+        // Giải mã chuỗi schedule ngược lại thành dạng mảng ô checkbox tương tác
+        setScheduleSlots(parseScheduleToSlots(cls.schedule));
+    };
+
+    const handleDeleteClass = async (id, code) => {
+        if (window.confirm(`⚠️ Bạn có chắc chắn muốn HỦY LỚP và XÓA lớp học phần [${code}] không?\nTất cả lịch học và danh sách sinh viên đăng ký lớp này sẽ bị hủy bỏ.`)) {
+            try {
+                await axiosClient.delete(`/course-classes/${id}`);
+                alert('Đã xóa bỏ hoàn toàn lớp học phần khỏi hệ thống!');
+                loadCourseClasses();
+            } catch (err) { alert(err || 'Không thể xóa lớp học phần này!'); }
+        }
     };
 
     return (
-        <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-            <h2>Hệ Thống Quản Lý Đăng Ký Tín Chỉ</h2>
+        <div style={{ color: 'var(--text-main)' }}>
+            <h2 style={{ color: 'var(--text-cyan)', marginBottom: 'var(--spacing-xl)' }}>🏛️ TRUNG TÂM ĐIỀU PHỐI ĐÀO TẠO & LỊCH TRÌNH ĐỒNG BỘ</h2>
 
-            {message.text && (
-                <div style={{ padding: '10px', margin: '10px 0', backgroundColor: message.isError ? '#f8d7da' : '#d4edda', color: message.isError ? '#721c24' : '#155724', borderRadius: '4px' }}>
-                    {message.text}
-                </div>
-            )}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                <button onClick={() => setSubTab('departments')} style={{ ...subTabBtn, backgroundColor: subTab === 'departments' ? 'var(--color-primary)' : 'var(--color-surface)' }}>Quản Lý Khoa</button>
+                <button onClick={() => setSubTab('subjects')} style={{ ...subTabBtn, backgroundColor: subTab === 'subjects' ? 'var(--color-primary)' : 'var(--color-surface)' }}>Quản Lý Môn Học</button>
+                <button onClick={() => setSubTab('classes')} style={{ ...subTabBtn, backgroundColor: subTab === 'classes' ? 'var(--color-primary)' : 'var(--color-surface)' }}>Lớp Học Phần & Xếp Lịch</button>
+            </div>
 
-            <hr />
-
-            {/* ==================== VIEW ADMIN ==================== */}
-            {userRole === 'ADMIN' && (
-                <div>
-                    <h3>⚙️ Quyền hạn: Quản trị viên (Admin)</h3>
-                    <div style={{ display: 'flex', gap: '40px', marginTop: '20px' }}>
-                        {/* Form mở cổng */}
-                        <form onSubmit={handleCreatePeriod} style={{ width: '300px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <h4>⏰ Thiết lập lịch đăng ký mới</h4>
-                            <input type="text" placeholder="Học kỳ (VD: HK1-2026)" value={periodForm.semester} onChange={e => setPeriodForm({...periodForm, semester: e.target.value})} required style={{ padding: '8px' }} />
-                            <label>Thời gian bắt đầu:</label>
-                            <input type="datetime-local" value={periodForm.startTime} onChange={e => setPeriodForm({...periodForm, startTime: e.target.value})} required style={{ padding: '8px' }} />
-                            <label>Thời gian kết thúc:</label>
-                            <input type="datetime-local" value={periodForm.endTime} onChange={e => setPeriodForm({...periodForm, endTime: e.target.value})} required style={{ padding: '8px' }} />
-                            <button type="submit" style={{ padding: '10px', backgroundColor: '#28a745', color: '#fff', border: 'none', cursor: 'pointer' }}>Kích Hoạt Mở Cổng</button>
-                        </form>
-
-                        {/* Bảng thống kê số lượng */}
-                        <div style={{ flex: 1 }}>
-                            <h4>📊 Thống kê lượng sinh viên đăng ký theo lớp học phần</h4>
-                            <table border="1" cellPadding="8" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                                <thead style={{ backgroundColor: '#f2f2f2' }}>
-                                <tr>
-                                    <th>Mã Lớp Học Phần</th>
-                                    <th>Tên Môn Học</th>
-                                    <th>Giảng Viên</th>
-                                    <th>Số SV Đăng Ký</th>
-                                    <th>Học Kỳ</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {stats.map((stat, i) => (
-                                    <tr key={i}>
-                                        <td>{stat.courseClassCode}</td>
-                                        <td>{stat.subjectName}</td>
-                                        <td>{stat.teacherName}</td>
-                                        <td style={{ fontWeight: 'bold', color: '#0056b3' }}>{stat.registeredStudents} SV</td>
-                                        <td>{stat.semester}</td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
+            {/* PHÂN HỆ QUẢN LÝ KHOA */}
+            {subTab === 'departments' && (
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                    <form onSubmit={handleSaveDept} style={formStyle}>
+                        <h4>{isEditMode ? '📝 HIỆU CHỈNH THÔNG TIN KHOA' : '➕ THÊM KHOA CHUYÊN MÔN MỚI'}</h4>
+                        <input type="text" placeholder="Mã Khoa (VD: CNTT)" value={deptForm.code} onChange={e => setDeptForm({...deptForm, code: e.target.value})} required style={inputStyle} disabled={isEditMode} />
+                        <input type="text" placeholder="Tên Khoa (VD: Công nghệ thông tin)" value={deptForm.name} onChange={e => setDeptForm({...deptForm, name: e.target.value})} required style={inputStyle} />
+                        <div style={{display:'flex', gap:'10px'}}>
+                            <button type="submit" style={submitBtnStyle}>{isEditMode ? 'Cập Nhật' : 'Thêm Mới'}</button>
+                            {isEditMode && <button type="button" onClick={resetAllForms} style={{...submitBtnStyle, backgroundColor:'#6c757d'}}>Hủy</button>}
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ==================== VIEW TEACHER ==================== */}
-            {userRole === 'TEACHER' && (
-                <div>
-                    <h3>💼 Quyền hạn: Giảng viên</h3>
-                    <h4>📅 Lịch dạy và quản lý danh sách lớp của bạn</h4>
-                    <div style={{ display: 'flex', gap: '20px' }}>
-                        <ul style={{ width: '250px', listStyle: 'none', padding: 0 }}>
-                            {teacherClasses.map(c => (
-                                <li key={c.id} onClick={() => viewClassStudents(c.id)} style={{ padding: '10px', backgroundColor: selectedClassId === c.id ? '#007bff' : '#f8f9fa', color: selectedClassId === c.id ? '#fff' : '#000', margin: '5px 0', cursor: 'pointer', borderRadius: '4px' }}>
-                                    {c.code} - {c.semester}
-                                </li>
+                    </form>
+                    <div style={{ flex: 1, minWidth: '350px' }}>
+                        <table style={tableStyle}>
+                            <thead><tr style={thStyle}><th>ID</th><th>Mã Khoa</th><th>Tên Khoa</th><th style={{textAlign:'center'}}>Hành Động</th></tr></thead>
+                            <tbody>
+                            {departments.map(d => (
+                                <tr key={d.id} style={trStyle}>
+                                    <td>{d.id}</td><td style={{color:'var(--text-cyan)', fontWeight:'bold'}}>{d.code}</td><td>{d.name}</td>
+                                    <td style={{textAlign:'center'}}>
+                                        <button onClick={() => handleOpenEditDept(d)} style={actionBtnStyle}>Sửa</button>
+                                        <button onClick={() => handleDeleteDept(d.id, d.name)} style={{...actionBtnStyle, backgroundColor:'var(--color-danger)'}}>Xóa</button>
+                                    </td>
+                                </tr>
                             ))}
-                        </ul>
-
-                        {selectedClassId && (
-                            <div style={{ flex: 1 }}>
-                                <h4>👥 Danh sách sinh viên thuộc lớp học phần này</h4>
-                                <table border="1" cellPadding="8" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                    <thead>
-                                    <tr>
-                                        <th>Mã Sinh Viên</th>
-                                        <th>Họ Và Tên</th>
-                                        <th>Giới Tính</th>
-                                        <th>Số Điện Thoại</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {classStudents.map((sv, i) => (
-                                        <tr key={i}>
-                                            <td>{sv.studentCode}</td>
-                                            <td>{sv.firstName} {sv.lastName}</td>
-                                            <td>{sv.gender}</td>
-                                            <td>{sv.phoneNumber}</td>
-                                        </tr>
-                                    ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             )}
 
-            {/* ==================== VIEW STUDENT ==================== */}
-            {userRole === 'STUDENT' && (
-                <div>
-                    <h3>🎓 Phân hệ: Sinh viên đăng ký tín chỉ</h3>
-                    <h4>🏫 Danh sách môn học / lớp học phần đang mở</h4>
-                    <table border="1" cellPadding="10" style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-                        <thead>
-                        <tr>
-                            <th>Mã Lớp Học Phần</th>
-                            <th>Tên Môn Học</th>
-                            <th>Số Tín Chỉ</th>
-                            <th>Giảng Viên Đứng Lớp</th>
-                            <th>Học Kỳ</th>
-                            <th>Thao Tác</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {availableClasses.map(c => (
-                            <tr key={c.id}>
-                                <td>{c.code}</td>
-                                <td>{c.subject.name}</td>
-                                <td>{c.subject.credits} tín</td>
-                                <td>{c.teacher.lastName} {c.teacher.firstName}</td>
-                                <td>{c.semester}</td>
-                                <td>
-                                    <button onClick={() => handleEnroll(c.id)} style={{ padding: '6px 12px', backgroundColor: '#007bff', color: '#fff', border: 'none', marginRight: '8px', cursor: 'pointer' }}>Đăng Ký</button>
-                                    <button onClick={() => handleUnenroll(c.id)} style={{ padding: '6px 12px', backgroundColor: '#dc3545', color: '#fff', border: 'none', cursor: 'pointer' }}>Hủy Môn</button>
-                                </td>
-                            </tr>
-                        ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
-        </div>
-    );
-}
-</file>
-
-<file path="student-management-ui/src/pages/RegistrationPage.jsx">
-import React, { useState, useEffect } from 'react';
-
-export default function RegistrationPage() {
-    // Tự động lấy thông tin từ localStorage đồng bộ với hệ thống cũ của bạn
-    const token = localStorage.getItem('token');
-    const username = localStorage.getItem('username') || '';
-    const role = localStorage.getItem('roles') || '';
-
-    // Lấy studentId và teacherId đã được đồng bộ từ Backend ở các phiên trước
-    const studentId = localStorage.getItem('studentId') || '';
-    const teacherId = localStorage.getItem('teacherId') || '';
-
-    // State dùng chung để quản lý trạng thái hiển thị
-    const [message, setMessage] = useState({ text: '', isError: false });
-
-    // --- STATE PHÂN HỆ ADMIN ---
-    const [periodForm, setPeriodForm] = useState({ semester: '', startTime: '', endTime: '' });
-    const [stats, setStats] = useState([]);
-
-    // --- STATE PHÂN HỆ TEACHER ---
-    const [teacherClasses, setTeacherClasses] = useState([]);
-    const [selectedClassId, setSelectedClassId] = useState(null);
-    const [classStudents, setClassStudents] = useState([]);
-
-    // --- STATE PHÂN HỆ STUDENT ---
-    const [availableClasses, setAvailableClasses] = useState([]);
-
-    const getAuthHeaders = () => ({
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    });
-
-    useEffect(() => {
-        if (role.includes('ADMIN')) loadAdminStats();
-        if (role.includes('TEACHER')) loadTeacherSchedule();
-        if (role.includes('STUDENT')) loadAvailableClasses();
-    }, [role]);
-
-    const showMessage = (text, isError = false) => {
-        setMessage({ text, isError });
-        setTimeout(() => setMessage({ text: '', isError: false }), 4000);
-    };
-
-    // ==================== 🛠️ NGHIỆP VỤ ADMIN ====================
-    const loadAdminStats = async () => {
-        try {
-            const res = await fetch('http://localhost:8081/registration/statistics', { headers: getAuthHeaders() });
-            const data = await res.json();
-            if (data.code === 1000) setStats(data.result);
-        } catch (err) { showMessage('Không thể tải số liệu thống kê lớp học phần', true); }
-    };
-
-    const handleCreatePeriod = async (e) => {
-        e.preventDefault();
-        try {
-            const res = await fetch('http://localhost:8081/registration/periods', {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify(periodForm)
-            });
-            const data = await res.json();
-            if (data.code === 1000) {
-                showMessage('Mở cổng đăng ký tín chỉ thành công!');
-                setPeriodForm({ semester: '', startTime: '', endTime: '' });
-            } else {
-                showMessage(data.message, true);
-            }
-        } catch (err) { showMessage('Lỗi kết nối Server quản lý lịch', true); }
-    };
-
-    // ==================== 💼 NGHIỆP VỤ TEACHER ====================
-    const loadTeacherSchedule = async () => {
-        if (!teacherId) return;
-        try {
-            const res = await fetch(`http://localhost:8081/registration/teacher/${teacherId}/classes`, { headers: getAuthHeaders() });
-            const data = await res.json();
-            if (data.code === 1000) setTeacherClasses(data.result);
-        } catch (err) { showMessage('Không thể tải lịch dạy của giảng viên', true); }
-    };
-
-    const viewClassStudents = async (classId) => {
-        setSelectedClassId(classId);
-        try {
-            const res = await fetch(`http://localhost:8081/registration/classes/${classId}/students`, { headers: getAuthHeaders() });
-            const data = await res.json();
-            if (data.code === 1000) setClassStudents(data.result);
-        } catch (err) { showMessage('Không thể tải danh sách lớp học phần', true); }
-    };
-
-    // ==================== 🎓 NGHIỆP VỤ STUDENT ====================
-    const loadAvailableClasses = async () => {
-        try {
-            // Lấy danh sách lớp học phần mở tạm thời từ endpoint tổng hợp hoặc tùy biến riêng theo nghiệp vụ
-            const res = await fetch('http://localhost:8081/grades', { headers: getAuthHeaders() });
-            // Cấu hình danh sách hiển thị mẫu cho sinh viên thực hiện test chức năng
-            setAvailableClasses([
-                { id: 1, code: 'LHP_CNPM_01', subject: { name: 'Công nghệ phần mềm', credits: 3 }, teacher: { firstName: 'Anh', lastName: 'Nguyễn Đình' }, semester: 'HK1-2026' },
-                { id: 2, code: 'LHP_CSDL_02', subject: { name: 'Cơ sở dữ liệu', credits: 3 }, teacher: { firstName: 'An', lastName: 'Vương Đức' }, semester: 'HK1-2026' }
-            ]);
-        } catch (err) { console.error('Lỗi tải danh sách lớp mở: ', err); }
-    };
-
-    const handleEnroll = async (courseClassId) => {
-        if (!studentId) { showMessage('Định danh sinh viên không hợp lệ!', true); return; }
-        try {
-            const res = await fetch(`http://localhost:8081/registration/enroll?studentId=${studentId}&courseClassId=${courseClassId}`, {
-                method: 'POST',
-                headers: getAuthHeaders()
-            });
-            const data = await res.json();
-            if (data.code === 1000) {
-                showMessage('Đăng ký lớp học phần thành công!');
-                loadAdminStats();
-            } else {
-                showMessage(data.message, true);
-            }
-        } catch (err) { showMessage('Cổng đăng ký đang đóng hoặc đã hết hạn!', true); }
-    };
-
-    const handleUnenroll = async (courseClassId) => {
-        if (!studentId) return;
-        try {
-            const res = await fetch(`http://localhost:8081/registration/unenroll?studentId=${studentId}&courseClassId=${courseClassId}`, {
-                method: 'DELETE',
-                headers: getAuthHeaders()
-            });
-            const data = await res.json();
-            if (data.code === 1000) {
-                showMessage('Hủy đăng ký môn học thành công!');
-                loadAdminStats();
-            } else {
-                showMessage(data.message, true);
-            }
-        } catch (err) { showMessage('Không thể hủy (Đã quá hạn hoặc lớp học phần đã nhập điểm)', true); }
-    };
-
-    return (
-        <div style={{ padding: 'var(--spacing-md)', color: 'var(--text-main)' }}>
-            <h2 style={{ color: 'var(--text-cyan)', marginBottom: 'var(--spacing-xl)' }}>⏰ HỆ THỐNG ĐĂNG KÝ TÍN CHỈ REALTIME</h2>
-
-            {message.text && (
-                <div style={{ padding: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)', backgroundColor: message.isError ? 'var(--color-danger)' : 'var(--color-primary)', color: 'var(--text-main)', borderRadius: '4px', fontWeight: 'bold' }}>
-                    {message.text}
-                </div>
-            )}
-
-            {/* ==================== GIAO DIỆN ADMIN ==================== */}
-            {role.includes('ADMIN') && (
-                <div>
-                    <h3 style={{ color: 'var(--text-muted)', marginBottom: 'var(--spacing-lg)' }}>⚙️ Bảng Điều Khiển Quản Trị Viên (Admin)</h3>
-                    <div style={{ display: 'flex', gap: 'var(--spacing-xl)', flexWrap: 'wrap' }}>
-
-                        <form onSubmit={handleCreatePeriod} style={{ flex: '1', minWidth: '300px', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                            <h4>📅 Thiết lập lịch mở cổng đăng ký</h4>
-                            <input type="text" placeholder="Học kỳ (Ví dụ: HK1-2026)" value={periodForm.semester} onChange={e => setPeriodForm({...periodForm, semester: e.target.value})} required style={{ padding: '10px', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px' }} />
-                            <label>Thời gian mở cổng:</label>
-                            <input type="datetime-local" value={periodForm.startTime} onChange={e => setPeriodForm({...periodForm, startTime: e.target.value})} required style={{ padding: '10px', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px' }} />
-                            <label>Thời gian đóng cổng:</label>
-                            <input type="datetime-local" value={periodForm.endTime} onChange={e => setPeriodForm({...periodForm, endTime: e.target.value})} required style={{ padding: '10px', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px' }} />
-                            <button type="submit" style={{ padding: '12px', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Kích Hoạt Mở Cổng</button>
-                        </form>
-
-                        <div style={{ flex: '2', minWidth: '400px', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                            <h4>📊 Thống kê lượng sinh viên đăng ký lớp học phần</h4>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 'var(--spacing-md)', textAlign: 'left' }}>
-                                <thead style={{ borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)' }}>
-                                <tr>
-                                    <th style={{ padding: '10px' }}>Mã Lớp Học Phần</th>
-                                    <th style={{ padding: '10px' }}>Tên Môn Học</th>
-                                    <th style={{ padding: '10px' }}>Giảng Viên</th>
-                                    <th style={{ padding: '10px' }}>Sĩ Số Hiện Tại</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {stats.map((stat, i) => (
-                                    <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                        <td style={{ padding: '10px' }}>{stat.courseClassCode}</td>
-                                        <td style={{ padding: '10px' }}>{stat.subjectName}</td>
-                                        <td style={{ padding: '10px' }}>{stat.teacherName}</td>
-                                        <td style={{ padding: '10px', fontWeight: 'bold', color: 'var(--text-cyan)' }}>{stat.registeredStudents} SV</td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
+            {/* PHÂN HỆ QUẢN LÝ MÔN HỌC */}
+            {subTab === 'subjects' && (
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                    <form onSubmit={handleSaveSubject} style={formStyle}>
+                        <h4>{isEditMode ? '📝 HIỆU CHỈNH THÔNG TIN MÔN' : '➕ THÊM MÔN HỌC HỆ THỐNG'}</h4>
+                        <input type="text" placeholder="Mã Môn Học (VD: INT3110)" value={subjectForm.code} onChange={e => setSubjectForm({...subjectForm, code: e.target.value})} required style={inputStyle} disabled={isEditMode} />
+                        <input type="text" placeholder="Tên Môn Học (VD: Lập trình Spring Boot)" value={subjectForm.name} onChange={e => setSubjectForm({...subjectForm, name: e.target.value})} required style={inputStyle} />
+                        <input type="number" placeholder="Số tín chỉ" value={subjectForm.credits} onChange={e => setSubjectForm({...subjectForm, credits: e.target.value})} required style={inputStyle} />
+                        <div style={{display:'flex', gap:'10px'}}>
+                            <button type="submit" style={submitBtnStyle}>{isEditMode ? 'Cập Nhật' : 'Thêm Mới'}</button>
+                            {isEditMode && <button type="button" onClick={resetAllForms} style={{...submitBtnStyle, backgroundColor:'#6c757d'}}>Hủy</button>}
                         </div>
+                    </form>
+                    <div style={{ flex: 1, minWidth: '350px' }}>
+                        <table style={tableStyle}>
+                            <thead><tr style={thStyle}><th>ID</th><th>Mã Môn</th><th>Tên Môn Học</th><th>Tín Chỉ</th><th style={{textAlign:'center'}}>Hành Động</th></tr></thead>
+                            <tbody>
+                            {subjects.map(s => (
+                                <tr key={s.id} style={trStyle}>
+                                    <td>{s.id}</td><td style={{color:'var(--color-warning)', fontWeight:'bold'}}>{s.code}</td><td>{s.name}</td><td>{s.credits} tín</td>
+                                    <td style={{textAlign:'center'}}>
+                                        <button onClick={() => handleOpenEditSubject(s)} style={actionBtnStyle}>Sửa</button>
+                                        <button onClick={() => handleDeleteSubject(s.id, s.name)} style={{...actionBtnStyle, backgroundColor:'var(--color-danger)'}}>Xóa</button>
+                                    </td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             )}
 
-            {/* ==================== GIAO DIỆN TEACHER ==================== */}
-            {role.includes('TEACHER') && !role.includes('ADMIN') && (
-                <div>
-                    <h3 style={{ color: 'var(--text-muted)' }}>💼 Phân hệ: Giảng Viên Hướng Dẫn</h3>
-                    <p style={{ marginBottom: 'var(--spacing-lg)' }}>Chọn lớp học phần để xem danh sách sinh viên đăng ký tín chỉ:</p>
-                    <div style={{ display: 'flex', gap: 'var(--spacing-xl)' }}>
-                        <div style={{ width: '250px', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-                            {teacherClasses.map(c => (
-                                <button key={c.id} onClick={() => viewClassStudents(c.id)} style={{ padding: 'var(--spacing-md)', backgroundColor: selectedClassId === c.id ? 'var(--color-primary)' : 'var(--color-surface)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px', textAlign: 'left', cursor: 'pointer', fontWeight: 'bold' }}>
-                                    {c.code} ({c.semester})
+            {/* PHÂN HỆ LỚP HỌC PHẦN ĐAN XEN BUỔI ĐỘNG */}
+            {subTab === 'classes' && (
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                    <form onSubmit={handleSaveClass} style={{ ...formStyle, width: '460px' }}>
+                        <h4>{isEditMode ? '📝 ĐIỀU CHỈNH LỚP HỌC PHẦN & LỊCH BIỂU' : '📅 MỞ LỚP HỌC PHẦN & XẾP LỊCH TRÌNH'}</h4>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            <input type="text" placeholder="Mã Lớp HP (VD: LHP_CNPM_01)" value={classForm.code} onChange={e => setClassForm({...classForm, code: e.target.value})} required style={inputStyle} disabled={isEditMode} />
+                            <input type="text" placeholder="Học kỳ (VD: HK1-2026)" value={classForm.semester} onChange={e => setClassForm({...classForm, semester: e.target.value})} required style={inputStyle} />
+                        </div>
+
+                        <select value={classForm.subjectId} onChange={e => setClassForm({...classForm, subjectId: e.target.value})} required style={inputStyle}>
+                            <option value="">-- Chọn Môn Học --</option>
+                            {subjects.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code})</option>)}
+                        </select>
+
+                        <select value={classForm.teacherId} onChange={e => setClassForm({...classForm, teacherId: e.target.value})} required style={inputStyle}>
+                            <option value="">-- Chọn Giảng Viên Đứng Lớp --</option>
+                            {teachers.map(t => <option key={t.id} value={t.id}>{t.lastName} {t.firstName} ({t.teacherCode})</option>)}
+                        </select>
+
+                        <input type="number" placeholder="Sĩ số tối đa" value={classForm.maxStudents} onChange={e => setClassForm({...classForm, maxStudents: e.target.value})} required style={inputStyle} />
+
+                        {/* Cấu phần buổi học động */}
+                        <div style={{ padding: '12px', backgroundColor: 'var(--color-bg)', borderRadius: '6px', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <label style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-cyan)' }}>📆 Cấu hình chi tiết các buổi học:</label>
+                                <button type="button" onClick={handleAddSlot} style={{ padding: '4px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>
+                                    + Thêm buổi học
                                 </button>
+                            </div>
+
+                            {scheduleSlots.map((slot, index) => (
+                                <div key={index} style={{ display: 'flex', gap: '6px', alignItems: 'center', backgroundColor: 'var(--color-surface)', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
+                                    <select value={slot.day} onChange={e => handleSlotChange(index, 'day', e.target.value)} style={{ ...inputStyle, padding: '5px', fontSize: '12px', flex: 1 }}>
+                                        {daysOfWeek.map(d => <option key={d} value={d}>{d}</option>)}
+                                    </select>
+
+                                    <select value={slot.shift} onChange={e => handleSlotChange(index, 'shift', e.target.value)} style={{ ...inputStyle, padding: '5px', fontSize: '12px', flex: 1.5 }}>
+                                        {shifts.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+
+                                    <input type="text" placeholder="Phòng" value={slot.room} onChange={e => handleSlotChange(index, 'room', e.target.value)} required style={{ ...inputStyle, padding: '5px', fontSize: '12px', width: '80px' }} />
+
+                                    <button type="button" onClick={() => handleRemoveSlot(index)} disabled={scheduleSlots.length === 1} style={{ padding: '5px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
+                                        Xóa
+                                    </button>
+                                </div>
                             ))}
                         </div>
 
-                        {selectedClassId && (
-                            <div style={{ flex: 1, padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                                <h4>👥 Danh sách sinh viên thuộc lớp học phần</h4>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 'var(--spacing-md)', textAlign: 'left' }}>
-                                    <thead style={{ borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)' }}>
-                                    <tr>
-                                        <th style={{ padding: '10px' }}>Mã Sinh Viên</th>
-                                        <th style={{ padding: '10px' }}>Họ Và Tên</th>
-                                        <th style={{ padding: '10px' }}>Giới Tính</th>
-                                        <th style={{ padding: '10px' }}>Số Điện Thoại</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {classStudents.map((sv, i) => (
-                                        <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                            <td style={{ padding: '10px' }}>{sv.studentCode}</td>
-                                            <td style={{ padding: '10px' }}>{sv.firstName} {sv.lastName}</td>
-                                            <td style={{ padding: '10px' }}>{sv.gender}</td>
-                                            <td style={{ padding: '10px' }}>{sv.phoneNumber}</td>
-                                        </tr>
-                                    ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+                        <div style={{display:'flex', gap:'10px'}}>
+                            <button type="submit" style={submitBtnStyle}>{isEditMode ? 'Cập Nhật Lớp' : 'Mở Lớp Học Phần'}</button>
+                            {isEditMode && <button type="button" onClick={resetAllForms} style={{...submitBtnStyle, backgroundColor:'#6c757d'}}>Hủy bỏ</button>}
+                        </div>
+                    </form>
 
-            {/* ==================== GIAO DIỆN STUDENT ==================== */}
-            {role.includes('STUDENT') && !role.includes('ADMIN') && (
-                <div style={{ padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                    <h3 style={{ color: 'var(--text-cyan)', marginBottom: 'var(--spacing-md)' }}>🎓 Danh Sách Môn Học Đang Mở Đăng Ký</h3>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                        <thead style={{ borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)' }}>
-                        <tr>
-                            <th style={{ padding: '12px' }}>Mã Lớp Học Phần</th>
-                            <th style={{ padding: '12px' }}>Tên Môn Học</th>
-                            <th style={{ padding: '12px' }}>Số Tín Chỉ</th>
-                            <th style={{ padding: '12px' }}>Giảng Viên</th>
-                            <th style={{ padding: '12px' }}>Thao Tác</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {availableClasses.map(c => (
-                            <tr key={c.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                <td style={{ padding: '12px' }}>{c.code}</td>
-                                <td style={{ padding: '12px' }}>{c.subject.name}</td>
-                                <td style={{ padding: '12px' }}>{c.subject.credits} tín</td>
-                                <td style={{ padding: '12px' }}>{c.teacher.lastName} {c.teacher.firstName}</td>
-                                <td style={{ padding: '12px' }}>
-                                    <button onClick={() => handleEnroll(c.id)} style={{ padding: '6px 14px', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '8px', fontWeight: 'bold' }}>Đăng ký</button>
-                                    <button onClick={() => handleUnenroll(c.id)} style={{ padding: '6px 14px', backgroundColor: 'var(--color-danger)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Hủy môn</button>
-                                </td>
-                            </tr>
-                        ))}
-                        </tbody>
-                    </table>
+                    <div style={{ flex: 1, minWidth: '450px' }}>
+                        <table style={tableStyle}>
+                            <thead><tr style={thStyle}><th>Mã Lớp HP</th><th>Môn Học</th><th>Giảng Viên</th><th>Thời Khóa Biểu Đồng Bộ</th><th style={{textAlign:'center'}}>Hành Động</th></tr></thead>
+                            <tbody>
+                            {courseClasses.map(c => (
+                                <tr key={c.id} style={trStyle}>
+                                    <td style={{fontWeight:'bold', color:'var(--text-cyan)'}}>{c.code}</td>
+                                    <td>{c.subjectName}</td><td>{c.teacherName || 'Chưa xếp'}</td>
+                                    <td style={{color:'var(--color-warning)', fontWeight:'bold', fontSize: '12px'}}>{c.schedule || 'Chưa xếp lịch'}</td>
+                                    <td style={{textAlign:'center', display:'flex', gap:'4px', justifyContent:'center', padding:'12px 4px'}}>
+                                        <button onClick={() => handleOpenEditClass(c)} style={actionBtnStyle}>Sửa</button>
+                                        <button onClick={() => handleDeleteClass(c.id, c.code)} style={{...actionBtnStyle, backgroundColor:'var(--color-danger)'}}>Xóa</button>
+                                    </td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
         </div>
     );
 }
+
+const subTabBtn = { padding: '8px 16px', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' };
+const formStyle = { width: '320px', display: 'flex', flexDirection: 'column', gap: '12px', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)', height: 'fit-content' };
+const inputStyle = { padding: '10px', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px', outline: 'none' };
+const submitBtnStyle = { padding: '12px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', flex: 1 };
+const actionBtnStyle = { padding: '3px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' };
+const tableStyle = { width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' };
+const thStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', backgroundColor: 'var(--color-surface-hover)', textAlign: 'left', padding: '10px' };
+const trStyle = { borderBottom: '1px solid var(--color-border)', padding: '10px' };
+
+export default TrainingPage;
 </file>
 
 <file path=".gitattributes">
@@ -2028,115 +1290,198 @@ public class DepartmentController {
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/GradeController.java">
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/RegistrationController.java">
 package com.dangdepzaivaio.StudentManagement.controller;
 
-import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassStatResponse;
 import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse;
-import com.dangdepzaivaio.StudentManagement.service.GradeService;
-import jakarta.validation.Valid;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
+import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
+import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
+import com.dangdepzaivaio.StudentManagement.mapper.StudentMapper;
+import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
+import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
+import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import com.dangdepzaivaio.StudentManagement.service.impl.RegistrationServiceImpl;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
-import java.util.List;
-
-@RestController
-@RequestMapping("/grades")
-@RequiredArgsConstructor
-public class GradeController {
-
-    private final GradeService gradeService;
-
-    @PostMapping
-    public ApiResponse<GradeResponse> inputGrade(@RequestBody @Valid GradeRequest request) {
-        return new ApiResponse<>(1000, "Nhập và quy đổi điểm số thành công!", gradeService.inputGrade(request));
-    }
-
-    @GetMapping("/student/{studentId}")
-    public ApiResponse<List<GradeResponse>> getGradesByStudent(@PathVariable String studentId) { // 🔥 String
-        return new ApiResponse<>(1000, "Lấy bảng điểm chi tiết của sinh viên thành công!", gradeService.getGradesByStudent(studentId));
-    }
-
-    @PutMapping("/{id}")
-    public ApiResponse<GradeResponse> updateGrade(@PathVariable Long id, @RequestBody @Valid GradeRequest request) {
-        return new ApiResponse<>(1000, "Sửa đổi và cập nhật lại điểm số thành công!", gradeService.updateGrade(id, request));
-    }
-
-    @GetMapping
-    public ApiResponse<List<GradeResponse>> getAll() {
-        return new ApiResponse<>(1000, "Lấy toàn bộ danh sách điểm thành công!", gradeService.getAllGrades());
-    }
-
-    @DeleteMapping("/{id}")
-    public ApiResponse<String> deleteGrade(@PathVariable Long id) {
-        gradeService.deleteGrade(id);
-        return new ApiResponse<>(1000, "Xóa đầu điểm thành công!", "Đầu điểm có ID " + id + " đã bị loại bỏ hoàn toàn.");
-    }
-
-    @GetMapping("/student/{studentId}/summary")
-    public ApiResponse<StudentAcademicSummaryResponse> getAcademicSummary(@PathVariable String studentId) { // 🔥 String
-        return new ApiResponse<>(1000, "Tổng hợp kết quả học tập và tính GPA thành công!", gradeService.getAcademicSummary(studentId));
-    }
-
-    @GetMapping("/{id}")
-    public ApiResponse<GradeResponse> getGradeById(@PathVariable Long id) {
-        return new ApiResponse<>(1000, "Lấy chi tiết thông tin điểm số thành công!", gradeService.getGradeById(id));
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/TeacherController.java">
-package com.dangdepzaivaio.StudentManagement.controller;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.TeacherUpdateRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
-import com.dangdepzaivaio.StudentManagement.service.TeacherService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/teachers")
+@RequestMapping("/registration")
 @RequiredArgsConstructor
-public class TeacherController {
+public class RegistrationController {
 
-    private final TeacherService teacherService;
+    private final RegistrationServiceImpl registrationService;
+    private final RegistrationPeriodRepository periodRepository;
+    private final CourseClassRepository courseClassRepository;
+    private final GradeRepository gradeRepository;
+    private final UserRepository userRepository;
+    private final CourseClassMapper courseClassMapper;
+    private final StudentMapper studentMapper;
 
-    @PostMapping
-    public ApiResponse<TeacherResponse> createTeacher(@RequestBody @Valid TeacherCreationRequest request) {
-        return new ApiResponse<>(1000, "Cap tai khoan giang vien thanh cong", teacherService.createTeacher(request));
+    @PostMapping("/periods")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<RegistrationPeriod> createPeriod(@RequestBody RegistrationPeriod period) {
+        period.setIsActive(true);
+        return new ApiResponse<>(1000, "Mo cong dang ky tin chi thanh cong", periodRepository.save(period));
     }
 
-    @GetMapping
-    public ApiResponse<List<TeacherResponse>> getAll() {
-        return new ApiResponse<>(1000, "Lay danh sach giang vien thanh cong", teacherService.getAllTeachers());
+    @GetMapping("/periods")
+    // 🔥 ĐÃ SỬA: Cho phép cả Học sinh và Giáo viên gọi API này để xem lịch đóng/mở cổng công khai
+    @PreAuthorize("hasAnyRole('ADMIN', 'STUDENT', 'TEACHER')")
+    public ApiResponse<List<RegistrationPeriod>> getPeriods() {
+        return new ApiResponse<>(1000, "Lay danh sach cong dang ky thanh cong", periodRepository.findAll());
     }
 
-    @GetMapping("/{teacherId}")
-    public ApiResponse<TeacherResponse> getTeacher(@PathVariable String teacherId) {
-        return new ApiResponse<>(1000, "Lay chi tiet giang vien thanh cong", teacherService.getTeacherById(teacherId));
+    @PutMapping("/periods/{id}/open")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<RegistrationPeriod> openPeriod(@PathVariable Long id) {
+        RegistrationPeriod period = periodRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
+        period.setIsActive(true);
+        return new ApiResponse<>(1000, "Da mo cong dang ky", periodRepository.save(period));
     }
 
-    @PutMapping("/{teacherId}")
-    public ApiResponse<TeacherResponse> updateTeacher(@PathVariable String teacherId, @RequestBody @Valid TeacherUpdateRequest request) {
-        return new ApiResponse<>(1000, "Cap nhat giang vien thanh cong", teacherService.updateTeacher(teacherId, request));
+    @PutMapping("/periods/{id}/close")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<RegistrationPeriod> closePeriod(@PathVariable Long id) {
+        RegistrationPeriod period = periodRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
+        period.setIsActive(false);
+        return new ApiResponse<>(1000, "Da dong cong dang ky", periodRepository.save(period));
     }
 
-    @PutMapping("/{teacherId}/enable")
-    public ApiResponse<String> enableTeacher(@PathVariable String teacherId) {
-        teacherService.enableTeacher(teacherId);
-        return new ApiResponse<>(1000, "Mo khoa tai khoan giang vien thanh cong", "ID: " + teacherId);
+    @GetMapping("/statistics")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<List<CourseClassStatResponse>> getStats() {
+        return new ApiResponse<>(1000, "Tai thong ke dang ky thanh cong", courseClassRepository.getRegistrationStatistics());
     }
 
-    @DeleteMapping("/{teacherId}")
-    public ApiResponse<String> deleteTeacher(@PathVariable String teacherId) {
-        teacherService.disableTeacher(teacherId);
-        return new ApiResponse<>(1000, "Khoa tai khoan giang vien thanh cong", "ID: " + teacherId);
+    @PutMapping("/course-class/{id}/toggle")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<CourseClassResponse> toggleCourseClass(@PathVariable Long id) {
+        CourseClass courseClass = getCourseClass(id);
+        courseClass.setOpenForRegistration(!courseClass.isOpenForRegistration());
+        return new ApiResponse<>(1000, "Cap nhat trang thai lop hoc phan thanh cong",
+                toResponseWithCount(courseClassRepository.save(courseClass)));
+    }
+
+    @PutMapping("/course-class/{id}/open")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<CourseClassResponse> openCourseClass(@PathVariable Long id) {
+        CourseClass courseClass = getCourseClass(id);
+        courseClass.setOpenForRegistration(true);
+        return new ApiResponse<>(1000, "Da mo lop hoc phan cho dang ky",
+                toResponseWithCount(courseClassRepository.save(courseClass)));
+    }
+
+    @PutMapping("/course-class/{id}/close")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<CourseClassResponse> closeCourseClass(@PathVariable Long id) {
+        CourseClass courseClass = getCourseClass(id);
+        courseClass.setOpenForRegistration(false);
+        return new ApiResponse<>(1000, "Da dong lop hoc phan",
+                toResponseWithCount(courseClassRepository.save(courseClass)));
+    }
+
+    @GetMapping("/teacher/{teacherId}/classes")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ApiResponse<List<CourseClassResponse>> getTeacherClasses(@PathVariable String teacherId) {
+        assertTeacherSelf(teacherId);
+        List<CourseClassResponse> list = courseClassRepository.findByTeacherId(teacherId).stream()
+                .map(this::toResponseWithCount)
+                .toList();
+        return new ApiResponse<>(1000, "Tai lich giang day thanh cong", list);
+    }
+
+    @GetMapping("/classes/{classId}/students")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public ApiResponse<List<StudentResponse>> getStudentsInCourseClass(@PathVariable Long classId) {
+        assertTeacherAssignedIfNeeded(classId);
+        List<StudentResponse> list = gradeRepository.findByCourseClassId(classId).stream()
+                .map(g -> studentMapper.toResponse(g.getStudent()))
+                .toList();
+        return new ApiResponse<>(1000, "Tai danh sach sinh vien lop hoc phan thanh cong", list);
+    }
+
+    @GetMapping("/open-course-classes")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<List<CourseClassResponse>> getOpenCourseClasses() {
+        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan dang mo thanh cong",
+                registrationService.getOpenCourseClasses());
+    }
+
+    @GetMapping("/my-classes")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<List<GradeResponse>> getMyRegisteredClasses() {
+        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan da dang ky thanh cong",
+                registrationService.getCurrentStudentRegistrations());
+    }
+
+    @PostMapping("/enroll")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<String> enroll(@RequestParam Long courseClassId) {
+        registrationService.registerCourseClass(courseClassId);
+        return new ApiResponse<>(1000, "Dang ky lop hoc phan thanh cong", "OK");
+    }
+
+    @DeleteMapping("/unenroll")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<String> unenroll(@RequestParam Long courseClassId) {
+        registrationService.cancelRegistration(courseClassId);
+        return new ApiResponse<>(1000, "Huy dang ky lop hoc phan thanh cong", "OK");
+    }
+
+    private CourseClass getCourseClass(Long id) {
+        return courseClassRepository.findByIdWithSubjectAndTeacher(id)
+                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
+    }
+
+    private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
+        courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
+        return courseClassMapper.toResponse(courseClass);
+    }
+
+    private void assertTeacherSelf(String teacherId) {
+        User user = currentUser();
+        if (!user.getId().equals(teacherId)) {
+            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
+        }
+    }
+
+    private void assertTeacherAssignedIfNeeded(Long courseClassId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isTeacher = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_TEACHER"));
+        if (!isTeacher) {
+            return;
+        }
+
+        CourseClass courseClass = getCourseClass(courseClassId);
+        String email = authentication.getName();
+        if (courseClass.getTeacher() == null
+                || courseClass.getTeacher().getUser() == null
+                || !email.equalsIgnoreCase(courseClass.getTeacher().getUser().getEmail())) {
+            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
+        }
+    }
+
+    private User currentUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
     }
 }
 </file>
@@ -2159,34 +1504,6 @@ public record ClassRequest(
 ) {}
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/CourseClassRequest.java">
-package com.dangdepzaivaio.StudentManagement.dto.request;
-
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-
-public record CourseClassRequest(
-        @NotBlank(message = "Ma lop hoc phan khong duoc de trong")
-        String code,
-
-        @NotBlank(message = "Hoc ky khong duoc de trong")
-        String semester,
-
-        @NotNull(message = "ID mon hoc khong duoc de trong")
-        Long subjectId,
-
-        String teacherId,
-
-        @Min(value = 1, message = "Si so toi da phai lon hon 0")
-        Integer maxStudents,
-
-        String schedule,
-
-        Boolean openForRegistration
-) {}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/DepartmentRequest.java">
 package com.dangdepzaivaio.StudentManagement.dto.request;
 
@@ -2195,55 +1512,6 @@ import jakarta.validation.constraints.NotBlank;
 public record DepartmentRequest(
         @NotBlank(message = "Mã khoa không được để trống") String code,
         @NotBlank(message = "Tên khoa không được để trống") String name
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/GradeRequest.java">
-package com.dangdepzaivaio.StudentManagement.dto.request;
-
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
-
-public record GradeRequest(
-        @NotNull(message = "ID sinh viên không được để trống")
-        String studentId, // 🔥 Đã đổi sang String
-
-        @NotNull(message = "ID lớp học phần không được để trống")
-        Long courseClassId,
-
-        @Min(value = 0, message = "Điểm chuyên cần không được nhỏ hơn 0")
-        @Max(value = 10, message = "Điểm chuyên cần không được lớn hơn 10")
-        Double attendanceGrade,
-
-        @Min(value = 0, message = "Điểm giữa kỳ không được nhỏ hơn 0")
-        @Max(value = 10, message = "Điểm giữa kỳ không được lớn hơn 10")
-        Double midtermGrade,
-
-        @Min(value = 0, message = "Điểm cuốii kỳ không được nhỏ hơn 0")
-        @Max(value = 10, message = "Điểm cuối kỳ không được lớn hơn 10")
-        Double finalGrade
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentUpdateRequest.java">
-package com.dangdepzaivaio.StudentManagement.dto.request;
-
-import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDate;
-
-public record StudentUpdateRequest(
-        @NotBlank(message = "Tên sinh viên không được để trống")
-        String firstName,
-
-        @NotBlank(message = "Họ và tên đệm không được để trống")
-        String lastName,
-
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber,
-        Long classId,
-        Boolean active // 🔥 THÊM TRƯỜNG NÀY: Để nhận trạng thái Đang học (true) / Khóa (false) từ form sửa
 ) {}
 </file>
 
@@ -2282,6 +1550,20 @@ public record TeacherCreationRequest(
         String gender,
         String phoneNumber,
         @NotNull(message = "ID khoa không được để trống") Long departmentId
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/TeacherUpdateRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import java.time.LocalDate;
+
+public record TeacherUpdateRequest(
+        String firstName,
+        String lastName,
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber
 ) {}
 </file>
 
@@ -2341,22 +1623,17 @@ package com.dangdepzaivaio.StudentManagement.dto.response;
 public record ClassResponse(Long id, String name, String departmentCode, String departmentName) {}
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/CourseClassResponse.java">
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/CourseClassStatResponse.java">
 package com.dangdepzaivaio.StudentManagement.dto.response;
 
-public record CourseClassResponse(
-        Long id,
-        String code,
-        String semester,
-        Long subjectId,
-        String subjectCode,
+public record CourseClassStatResponse(
+        Long courseClassId,
+        String courseClassCode,
         String subjectName,
-        Integer credits,
-        String teacherId,
         String teacherName,
-        Integer maxStudents,
         long registeredStudents,
-        String schedule,
+        String semester,
+        Integer maxStudents,
         boolean openForRegistration
 ) {}
 </file>
@@ -2367,64 +1644,6 @@ package com.dangdepzaivaio.StudentManagement.dto.response;
 public record DepartmentResponse(Long id, String code, String name) {}
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/GradeResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-public record GradeResponse(
-        Long id,
-        String studentId, // 🔥 Đã đổi sang String
-        String studentCode,
-        String studentName,
-        Long courseClassId,
-        String courseClassCode,
-        String subjectName,
-        Double attendanceGrade,
-        Double midtermGrade,
-        Double finalGrade,
-        Double overallGrade,
-        String letterGrade,
-        Double grade4
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentAcademicSummaryResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-import java.util.List;
-
-public record StudentAcademicSummaryResponse(
-        String studentId,        // 🔥 Đã đổi sang String
-        String studentCode,
-        String studentName,
-        String className,
-        List<GradeResponse> details,
-        Integer totalCredits,
-        Double gpaSystem10,
-        Double gpaSystem4
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-import java.time.LocalDate;
-
-public record StudentResponse(
-        String id, // 🔥 ĐÃ SỬA: Chuyển hoàn toàn sang kiểu dữ liệu String để hứng chuỗi 'HS_01'
-        String studentCode,
-        String firstName,
-        String lastName,
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber,
-        boolean active,
-        String username,
-        String email,
-        Long classId,
-        String className
-) {}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/SubjectResponse.java">
 package com.dangdepzaivaio.StudentManagement.dto.response;
 
@@ -2433,40 +1652,6 @@ public record SubjectResponse(
         String code,
         String name,
         Integer credits
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/TeacherResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-import java.time.LocalDate;
-
-public record TeacherResponse(
-        String id,          // PHẢI LÀ String
-        String teacherCode,
-        String firstName,
-        String lastName,
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber,
-        boolean active,
-        String username,
-        String email,
-        String departmentName
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/UserResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-import java.util.Set;
-
-public record UserResponse(
-        String id, // 🔥 Đã đổi sang String
-        String username,
-        String email,
-        boolean active,
-        Set<String> roles
 ) {}
 </file>
 
@@ -2556,6 +1741,40 @@ public class Department extends BaseEntity {
 }
 </file>
 
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/RegistrationPeriod.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "registration_periods")
+public class RegistrationPeriod extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "semester", nullable = false, length = 20)
+    private String semester; // Ví dụ: HK1-2026
+
+    @Column(name = "start_time", nullable = false)
+    private LocalDateTime startTime;
+
+    @Column(name = "end_time", nullable = false)
+    private LocalDateTime endTime;
+
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
+}
+</file>
+
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Role.java">
 package com.dangdepzaivaio.StudentManagement.entity;
 
@@ -2610,59 +1829,6 @@ public class Subject extends BaseEntity {
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Teacher.java">
-package com.dangdepzaivaio.StudentManagement.entity;
-
-import jakarta.persistence.*;
-import lombok.*;
-import java.time.LocalDate;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Entity
-@Table(name = "teachers")
-public class Teacher extends BaseEntity {
-
-    @Id
-    @Column(name = "id", length = 20)
-    private String id; // 🔥 Khóa chính kiểu Chuỗi đồng bộ với User
-
-    @Column(name = "teacher_code", nullable = false, unique = true, length = 20)
-    private String teacherCode;
-
-    @Column(name = "first_name", nullable = false, length = 50)
-    private String firstName;
-
-    @Column(name = "last_name", nullable = false, length = 100)
-    private String lastName;
-
-    @Column(name = "date_of_birth")
-    private LocalDate dateOfBirth;
-
-    @Column(name = "gender", length = 10)
-    private String gender;
-
-    @Column(name = "phone_number", length = 15)
-    private String phoneNumber;
-
-    @Builder.Default
-    @Column(name = "is_active", nullable = false)
-    private boolean isActive = true;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @MapsId // 🔥 Ép khóa chính trùng vẹn với User liên kết
-    @JoinColumn(name = "id")
-    private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id", nullable = false)
-    private Department department;
-}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/exception/AppException.java">
 package com.dangdepzaivaio.StudentManagement.exception;
 
@@ -2702,67 +1868,6 @@ public interface ClassMapper {
     @Mapping(target = "departmentCode", source = "department.code")
     @Mapping(target = "departmentName", source = "department.name")
     ClassResponse toResponse(Class studentClass);
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/CourseClassMapper.java">
-package com.dangdepzaivaio.StudentManagement.mapper;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.CourseClassRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
-import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
-import com.dangdepzaivaio.StudentManagement.entity.Subject;
-import com.dangdepzaivaio.StudentManagement.entity.Teacher;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.MappingTarget;
-
-@Mapper(componentModel = "spring")
-public interface CourseClassMapper {
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "subject", ignore = true)
-    @Mapping(target = "teacher", ignore = true)
-    @Mapping(target = "registeredStudents", ignore = true)
-    CourseClass toEntity(CourseClassRequest request);
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "subject", ignore = true)
-    @Mapping(target = "teacher", ignore = true)
-    @Mapping(target = "registeredStudents", ignore = true)
-    void updateEntityFromRequest(CourseClassRequest request, @MappingTarget CourseClass courseClass);
-
-    default CourseClassResponse toResponse(CourseClass courseClass) {
-        if (courseClass == null) {
-            return null;
-        }
-
-        Subject subject = courseClass.getSubject();
-        Teacher teacher = courseClass.getTeacher();
-        String teacherName = teacher == null
-                ? null
-                : (safe(teacher.getLastName()) + " " + safe(teacher.getFirstName())).trim();
-
-        return new CourseClassResponse(
-                courseClass.getId(),
-                courseClass.getCode(),
-                courseClass.getSemester(),
-                subject == null ? null : subject.getId(),
-                subject == null ? null : subject.getCode(),
-                subject == null ? null : subject.getName(),
-                subject == null ? null : subject.getCredits(),
-                teacher == null ? null : teacher.getId(),
-                teacherName == null || teacherName.isBlank() ? null : teacherName,
-                courseClass.getMaxStudents(),
-                courseClass.getRegisteredStudents(),
-                courseClass.getSchedule(),
-                courseClass.isOpenForRegistration()
-        );
-    }
-
-    private static String safe(String value) {
-        return value == null ? "" : value;
-    }
 }
 </file>
 
@@ -2817,7 +1922,36 @@ public interface GradeMapper {
     @Mapping(target = "courseClassId", source = "courseClass.id")
     @Mapping(target = "courseClassCode", source = "courseClass.code")
     @Mapping(target = "subjectName", source = "courseClass.subject.name")
+    @Mapping(target = "credits", source = "courseClass.subject.credits")
+    @Mapping(target = "teacherName", expression = "java(grade.getCourseClass().getTeacher() != null ? grade.getCourseClass().getTeacher().getLastName() + \" \" + grade.getCourseClass().getTeacher().getFirstName() : \"Chưa phân công\")")
+    @Mapping(target = "schedule", source = "courseClass.schedule")
     GradeResponse toResponse(Grade grade);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/TeacherMapper.java">
+package com.dangdepzaivaio.StudentManagement.mapper;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Teacher;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+@Mapper(componentModel = "spring")
+public interface TeacherMapper {
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "department", ignore = true)
+    @Mapping(target = "user", ignore = true)
+    Teacher toEntity(TeacherCreationRequest request);
+
+    // 🔥 VÁ LỖI TRỐNG DỮ LIỆU: Lấy thông tin từ các thực thể liên kết đưa vào DTO phẳng
+    @Mapping(target = "username", source = "user.username")
+    @Mapping(target = "email", source = "user.email") // Ánh xạ Email giảng dạy
+    @Mapping(target = "departmentName", source = "department.name") // Ánh xạ Tên Khoa chuyên môn
+    @Mapping(target = "active", source = "active")
+    TeacherResponse toResponse(Teacher teacher);
 }
 </file>
 
@@ -2831,6 +1965,26 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface DepartmentRepository extends JpaRepository<Department, Long> {
     boolean existsByCode(String code);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/RegistrationPeriodRepository.java">
+package com.dangdepzaivaio.StudentManagement.repository;
+
+import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+@Repository
+public interface RegistrationPeriodRepository extends JpaRepository<RegistrationPeriod, Long> {
+
+    @Query("SELECT r FROM RegistrationPeriod r WHERE r.semester = :semester AND r.isActive = true " +
+            "AND :now BETWEEN r.startTime AND r.endTime")
+    Optional<RegistrationPeriod> findActivePeriod(@Param("semester") String semester, @Param("now") LocalDateTime now);
 }
 </file>
 
@@ -2858,26 +2012,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface SubjectRepository extends JpaRepository<Subject, Long> {
     boolean existsByCode(String code);
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/TeacherRepository.java">
-package com.dangdepzaivaio.StudentManagement.repository;
-
-import com.dangdepzaivaio.StudentManagement.entity.Teacher;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
-import java.util.List;
-import java.util.Optional;
-
-@Repository
-public interface TeacherRepository extends JpaRepository<Teacher, String> {
-    boolean existsByTeacherCode(String teacherCode);
-    Optional<Teacher> findByTeacherCode(String teacherCode);
-
-    @Query("SELECT t FROM Teacher t JOIN FETCH t.user JOIN FETCH t.department")
-    List<Teacher> findAllTeachersWithJoinFetch();
 }
 </file>
 
@@ -2926,25 +2060,6 @@ public interface DepartmentService {
     DepartmentResponse updateDepartment(Long id, DepartmentRequest request);
     void deleteDepartment(Long id);
     DepartmentResponse getDepartmentById(Long id);
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/GradeService.java">
-package com.dangdepzaivaio.StudentManagement.service;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse;
-import java.util.List;
-
-public interface GradeService {
-    GradeResponse inputGrade(GradeRequest request);
-    List<GradeResponse> getGradesByStudent(String studentId); // 🔥 Sửa sang String
-    GradeResponse updateGrade(Long id, GradeRequest request);
-    List<GradeResponse> getAllGrades();
-    GradeResponse getGradeById(Long id);
-    void deleteGrade(Long id);
-    StudentAcademicSummaryResponse getAcademicSummary(String studentId); // 🔥 Sửa sang String
 }
 </file>
 
@@ -3024,6 +2139,286 @@ public class DepartmentServiceImpl implements DepartmentService { // 🔥 SỬA:
                 .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
         return departmentMapper.toResponse(department); // 🌟 Sử dụng đúng toResponse
     }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/RegistrationServiceImpl.java">
+package com.dangdepzaivaio.StudentManagement.service.impl;
+
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
+import com.dangdepzaivaio.StudentManagement.entity.Grade;
+import com.dangdepzaivaio.StudentManagement.entity.Student;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
+import com.dangdepzaivaio.StudentManagement.mapper.GradeMapper;
+import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
+import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
+import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
+import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class RegistrationServiceImpl {
+
+    private final RegistrationPeriodRepository periodRepository;
+    private final CourseClassRepository courseClassRepository;
+    private final StudentRepository studentRepository;
+    private final UserRepository userRepository;
+    private final GradeRepository gradeRepository;
+    private final CourseClassMapper courseClassMapper;
+    private final GradeMapper gradeMapper;
+
+    @Transactional
+    public void registerCourseClass(Long courseClassId) {
+        Student student = getCurrentStudent();
+        CourseClass courseClass = getCourseClass(courseClassId);
+
+        assertRegistrationOpen(courseClass);
+
+        if (gradeRepository.existsByStudentIdAndCourseClassId(student.getId(), courseClassId)) {
+            throw new AppException(ErrorCode.GRADE_EXISTED);
+        }
+
+        long registered = gradeRepository.countByCourseClassId(courseClassId);
+        int maxStudents = courseClass.getMaxStudents() == null ? 60 : courseClass.getMaxStudents();
+        if (registered >= maxStudents) {
+            throw new AppException(ErrorCode.COURSE_CLASS_FULL);
+        }
+
+        Grade enrollment = Grade.builder()
+                .student(student)
+                .courseClass(courseClass)
+                .build();
+
+        gradeRepository.save(enrollment);
+    }
+
+    @Transactional
+    public void cancelRegistration(Long courseClassId) {
+        Student student = getCurrentStudent();
+        CourseClass courseClass = getCourseClass(courseClassId);
+
+        assertRegistrationOpen(courseClass);
+
+        Grade grade = gradeRepository.findByStudentIdAndCourseClassId(student.getId(), courseClassId)
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_ENROLLED));
+
+        if (hasAnyGradeValue(grade)) {
+            throw new AppException(ErrorCode.GRADE_ALREADY_ENTERED);
+        }
+
+        gradeRepository.delete(grade);
+    }
+
+    public List<CourseClassResponse> getOpenCourseClasses() {
+        LocalDateTime now = LocalDateTime.now();
+        return courseClassRepository.findByOpenForRegistrationTrue().stream()
+                .filter(courseClass -> periodRepository.findActivePeriod(courseClass.getSemester(), now).isPresent())
+                .map(this::toResponseWithCount)
+                .toList();
+    }
+
+    public List<GradeResponse> getCurrentStudentRegistrations() {
+        Student student = getCurrentStudent();
+        return gradeRepository.findByStudentId(student.getId()).stream()
+                .map(gradeMapper::toResponse)
+                .toList();
+    }
+
+    private CourseClass getCourseClass(Long courseClassId) {
+        return courseClassRepository.findByIdWithSubjectAndTeacher(courseClassId)
+                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
+    }
+
+    private void assertRegistrationOpen(CourseClass courseClass) {
+        if (!courseClass.isOpenForRegistration()) {
+            throw new AppException(ErrorCode.COURSE_CLASS_CLOSED);
+        }
+
+        periodRepository.findActivePeriod(courseClass.getSemester(), LocalDateTime.now())
+                .orElseThrow(() -> new AppException(ErrorCode.REGISTRATION_PERIOD_CLOSED));
+    }
+
+    private Student getCurrentStudent() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+
+        return studentRepository.findByIdWithJoinFetch(user.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
+    }
+
+    private boolean hasAnyGradeValue(Grade grade) {
+        return grade.getAttendanceGrade() != null
+                || grade.getMidtermGrade() != null
+                || grade.getFinalGrade() != null
+                || grade.getOverallGrade() != null
+                || grade.getLetterGrade() != null
+                || grade.getGrade4() != null;
+    }
+
+    private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
+        courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
+        return courseClassMapper.toResponse(courseClass);
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/TeacherServiceImpl.java">
+package com.dangdepzaivaio.StudentManagement.service.impl;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Department;
+import com.dangdepzaivaio.StudentManagement.entity.Role;
+import com.dangdepzaivaio.StudentManagement.entity.Teacher;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.TeacherMapper;
+import com.dangdepzaivaio.StudentManagement.repository.DepartmentRepository;
+import com.dangdepzaivaio.StudentManagement.repository.RoleRepository;
+import com.dangdepzaivaio.StudentManagement.repository.TeacherRepository;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import com.dangdepzaivaio.StudentManagement.service.TeacherService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Set;
+
+@Service
+@RequiredArgsConstructor
+public class TeacherServiceImpl implements TeacherService {
+
+    private final TeacherRepository teacherRepository;
+    private final UserRepository userRepository;
+    private final DepartmentRepository departmentRepository;
+    private final RoleRepository roleRepository;
+    private final TeacherMapper teacherMapper;
+    private final PasswordEncoder passwordEncoder;
+
+    @Override
+    @Transactional
+    public TeacherResponse createTeacher(TeacherCreationRequest request) {
+        if (teacherRepository.existsByTeacherCode(request.teacherCode())) {
+            throw new AppException(ErrorCode.TEACHER_CODE_EXISTED);
+        }
+
+        Department dept = departmentRepository.findById(request.departmentId())
+                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
+
+        long nextIndex = userRepository.countByIdStartingWith("GV_") + 1;
+        String generatedId = String.format("GV_%02d", nextIndex);
+
+        User user = User.builder()
+                .id(generatedId)
+                .username(request.teacherCode())
+                .password(passwordEncoder.encode("password1234"))
+                .email(request.teacherCode().toLowerCase() + "@open.edu.vn")
+                .isActive(true)
+                .build();
+
+        Role teacherRole = roleRepository.findByName("TEACHER")
+                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
+        user.setRoles(Set.of(teacherRole));
+
+        // 🔥 SỬA DÒNG NÀY: Hứng lấy đối tượng Managed trả về từ hàm save()
+        User managedUser = userRepository.save(user);
+
+        Teacher teacher = teacherMapper.toEntity(request);
+
+        // 🔥 SỬA DÒNG NÀY: Gắn đối tượng managedUser (đã an toàn) vào thay vì biến user gốc
+        teacher.setUser(managedUser);
+
+        teacher.setDepartment(dept);
+        teacher.setActive(true);
+
+        return teacherMapper.toResponse(teacherRepository.save(teacher));
+    }
+
+    @Override
+    public List<TeacherResponse> getAllTeachers() {
+        return teacherRepository.findAllTeachersWithJoinFetch().stream()
+                .map(teacherMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    public TeacherResponse getTeacherById(String id) {
+        return teacherRepository.findById(id)
+                .map(teacherMapper::toResponse)
+                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
+    }
+
+    @Override
+    @Transactional
+    public TeacherResponse updateTeacher(String id, TeacherUpdateRequest request) {
+        Teacher teacher = teacherRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
+
+        teacher.setFirstName(request.firstName());
+        teacher.setLastName(request.lastName());
+        teacher.setDateOfBirth(request.dateOfBirth());
+        teacher.setGender(request.gender());
+        teacher.setPhoneNumber(request.phoneNumber());
+
+        return teacherMapper.toResponse(teacherRepository.save(teacher));
+    }
+
+    @Override
+    @Transactional
+    public void disableTeacher(String id) {
+        Teacher teacher = teacherRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
+        teacher.setActive(false);
+        if (teacher.getUser() != null) teacher.getUser().setActive(false);
+        teacherRepository.save(teacher);
+    }
+
+    @Override
+    @Transactional
+    public void enableTeacher(String id) {
+        Teacher teacher = teacherRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
+        teacher.setActive(true);
+        if (teacher.getUser() != null) teacher.getUser().setActive(true);
+        teacherRepository.save(teacher);
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/TeacherService.java">
+package com.dangdepzaivaio.StudentManagement.service;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
+
+import java.util.List;
+
+public interface TeacherService {
+    TeacherResponse createTeacher(TeacherCreationRequest request);
+    List<TeacherResponse> getAllTeachers();
+    TeacherResponse getTeacherById(String id);
+    TeacherResponse updateTeacher(String id, TeacherUpdateRequest request);
+    void disableTeacher(String id);
+    void enableTeacher(String id);
 }
 </file>
 
@@ -3171,25 +2566,6 @@ export default defineConfig([
     <path fill="#08060d" fill-rule="evenodd" d="M1.893 1.98c.052.072 1.245 1.769 2.653 3.77l2.892 4.114c.183.261.333.48.333.486s-.068.089-.152.183l-.522.593-.765.867-3.597 4.087c-.375.426-.734.834-.798.905a1 1 0 0 0-.118.148c0 .01.236.017.664.017h.663l.729-.83c.4-.457.796-.906.879-.999a692 692 0 0 0 1.794-2.038c.034-.037.301-.34.594-.675l.551-.624.345-.392a7 7 0 0 1 .34-.374c.006 0 .93 1.306 2.052 2.903l2.084 2.965.045.063h2.275c1.87 0 2.273-.003 2.266-.021-.008-.02-1.098-1.572-3.894-5.547-2.013-2.862-2.28-3.246-2.273-3.266.008-.019.282-.332 2.085-2.38l2-2.274 1.567-1.782c.022-.028-.016-.03-.65-.03h-.674l-.3.342a871 871 0 0 1-1.782 2.025c-.067.075-.405.458-.75.852a100 100 0 0 1-.803.91c-.148.172-.299.344-.99 1.127-.304.343-.32.358-.345.327-.015-.019-.904-1.282-1.976-2.808L6.365 1.85H1.8zm1.782.91 8.078 11.294c.772 1.08 1.413 1.973 1.425 1.984.016.017.241.02 1.05.017l1.03-.004-2.694-3.766L7.796 5.75 5.722 2.852l-1.039-.004-1.039-.004z" clip-rule="evenodd"/>
   </symbol>
 </svg>
-</file>
-
-<file path="student-management-ui/README.md">
-# React + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
 </file>
 
 <file path="student-management-ui/src/api/axiosClient.js">
@@ -3422,13 +2798,1883 @@ export default axiosClient;
 }
 </file>
 
+<file path="student-management-ui/src/assets/react.svg">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="35.93" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 228"><path fill="#00D8FF" d="M210.483 73.824a171.49 171.49 0 0 0-8.24-2.597c.465-1.9.893-3.777 1.273-5.621c6.238-30.281 2.16-54.676-11.769-62.708c-13.355-7.7-35.196.329-57.254 19.526a171.23 171.23 0 0 0-6.375 5.848a155.866 155.866 0 0 0-4.241-3.917C100.759 3.829 77.587-4.822 63.673 3.233C50.33 10.957 46.379 33.89 51.995 62.588a170.974 170.974 0 0 0 1.892 8.48c-3.28.932-6.445 1.924-9.474 2.98C17.309 83.498 0 98.307 0 113.668c0 15.865 18.582 31.778 46.812 41.427a145.52 145.52 0 0 0 6.921 2.165a167.467 167.467 0 0 0-2.01 9.138c-5.354 28.2-1.173 50.591 12.134 58.266c13.744 7.926 36.812-.22 59.273-19.855a145.567 145.567 0 0 0 5.342-4.923a168.064 168.064 0 0 0 6.92 6.314c21.758 18.722 43.246 26.282 56.54 18.586c13.731-7.949 18.194-32.003 12.4-61.268a145.016 145.016 0 0 0-1.535-6.842c1.62-.48 3.21-.974 4.76-1.488c29.348-9.723 48.443-25.443 48.443-41.52c0-15.417-17.868-30.326-45.517-39.844Zm-6.365 70.984c-1.4.463-2.836.91-4.3 1.345c-3.24-10.257-7.612-21.163-12.963-32.432c5.106-11 9.31-21.767 12.459-31.957c2.619.758 5.16 1.557 7.61 2.4c23.69 8.156 38.14 20.213 38.14 29.504c0 9.896-15.606 22.743-40.946 31.14Zm-10.514 20.834c2.562 12.94 2.927 24.64 1.23 33.787c-1.524 8.219-4.59 13.698-8.382 15.893c-8.067 4.67-25.32-1.4-43.927-17.412a156.726 156.726 0 0 1-6.437-5.87c7.214-7.889 14.423-17.06 21.459-27.246c12.376-1.098 24.068-2.894 34.671-5.345a134.17 134.17 0 0 1 1.386 6.193ZM87.276 214.515c-7.882 2.783-14.16 2.863-17.955.675c-8.075-4.657-11.432-22.636-6.853-46.752a156.923 156.923 0 0 1 1.869-8.499c10.486 2.32 22.093 3.988 34.498 4.994c7.084 9.967 14.501 19.128 21.976 27.15a134.668 134.668 0 0 1-4.877 4.492c-9.933 8.682-19.886 14.842-28.658 17.94ZM50.35 144.747c-12.483-4.267-22.792-9.812-29.858-15.863c-6.35-5.437-9.555-10.836-9.555-15.216c0-9.322 13.897-21.212 37.076-29.293c2.813-.98 5.757-1.905 8.812-2.773c3.204 10.42 7.406 21.315 12.477 32.332c-5.137 11.18-9.399 22.249-12.634 32.792a134.718 134.718 0 0 1-6.318-1.979Zm12.378-84.26c-4.811-24.587-1.616-43.134 6.425-47.789c8.564-4.958 27.502 2.111 47.463 19.835a144.318 144.318 0 0 1 3.841 3.545c-7.438 7.987-14.787 17.08-21.808 26.988c-12.04 1.116-23.565 2.908-34.161 5.309a160.342 160.342 0 0 1-1.76-7.887Zm110.427 27.268a347.8 347.8 0 0 0-7.785-12.803c8.168 1.033 15.994 2.404 23.343 4.08c-2.206 7.072-4.956 14.465-8.193 22.045a381.151 381.151 0 0 0-7.365-13.322Zm-45.032-43.861c5.044 5.465 10.096 11.566 15.065 18.186a322.04 322.04 0 0 0-30.257-.006c4.974-6.559 10.069-12.652 15.192-18.18ZM82.802 87.83a323.167 323.167 0 0 0-7.227 13.238c-3.184-7.553-5.909-14.98-8.134-22.152c7.304-1.634 15.093-2.97 23.209-3.984a321.524 321.524 0 0 0-7.848 12.897Zm8.081 65.352c-8.385-.936-16.291-2.203-23.593-3.793c2.26-7.3 5.045-14.885 8.298-22.6a321.187 321.187 0 0 0 7.257 13.246c2.594 4.48 5.28 8.868 8.038 13.147Zm37.542 31.03c-5.184-5.592-10.354-11.779-15.403-18.433c4.902.192 9.899.29 14.978.29c5.218 0 10.376-.117 15.453-.343c-4.985 6.774-10.018 12.97-15.028 18.486Zm52.198-57.817c3.422 7.8 6.306 15.345 8.596 22.52c-7.422 1.694-15.436 3.058-23.88 4.071a382.417 382.417 0 0 0 7.859-13.026a347.403 347.403 0 0 0 7.425-13.565Zm-16.898 8.101a358.557 358.557 0 0 1-12.281 19.815a329.4 329.4 0 0 1-23.444.823c-7.967 0-15.716-.248-23.178-.732a310.202 310.202 0 0 1-12.513-19.846h.001a307.41 307.41 0 0 1-10.923-20.627a310.278 310.278 0 0 1 10.89-20.637l-.001.001a307.318 307.318 0 0 1 12.413-19.761c7.613-.576 15.42-.876 23.31-.876H128c7.926 0 15.743.303 23.354.883a329.357 329.357 0 0 1 12.335 19.695a358.489 358.489 0 0 1 11.036 20.54a329.472 329.472 0 0 1-11 20.722Zm22.56-122.124c8.572 4.944 11.906 24.881 6.52 51.026c-.344 1.668-.73 3.367-1.15 5.09c-10.622-2.452-22.155-4.275-34.23-5.408c-7.034-10.017-14.323-19.124-21.64-27.008a160.789 160.789 0 0 1 5.888-5.4c18.9-16.447 36.564-22.941 44.612-18.3ZM128 90.808c12.625 0 22.86 10.235 22.86 22.86s-10.235 22.86-22.86 22.86s-22.86-10.235-22.86-22.86s10.235-22.86 22.86-22.86Z"></path></svg>
+</file>
+
+<file path="student-management-ui/src/assets/vite.svg">
+<svg xmlns="http://www.w3.org/2000/svg" width="77" height="47" fill="none" aria-labelledby="vite-logo-title" viewBox="0 0 77 47"><title id="vite-logo-title">Vite</title><style>.parenthesis{fill:#000}@media (prefers-color-scheme:dark){.parenthesis{fill:#fff}}</style><path fill="#9135ff" d="M40.151 45.71c-.663.844-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.493c-.92 0-1.457-1.04-.92-1.788l7.479-10.471c1.07-1.498 0-3.578-1.842-3.578H15.443c-.92 0-1.456-1.04-.92-1.788l9.696-13.576c.213-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.472c-1.07 1.497 0 3.578 1.842 3.578h11.376c.944 0 1.474 1.087.89 1.83L40.153 45.712z"/><mask id="a" width="48" height="47" x="14" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#000" d="M40.047 45.71c-.663.843-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.389c-.92 0-1.457-1.04-.92-1.788l7.479-10.472c1.07-1.497 0-3.578-1.842-3.578H15.34c-.92 0-1.456-1.04-.92-1.788l9.696-13.575c.213-.297.556-.474.92-.474H53.93c.92 0 1.456 1.04.92 1.788L47.37 13.03c-1.07 1.498 0 3.578 1.842 3.578h11.376c.944 0 1.474 1.088.89 1.831L40.049 45.712z"/></mask><g mask="url(#a)"><g filter="url(#b)"><ellipse cx="5.508" cy="14.704" fill="#eee6ff" rx="5.508" ry="14.704" transform="rotate(269.814 20.96 11.29)scale(-1 1)"/></g><g filter="url(#c)"><ellipse cx="10.399" cy="29.851" fill="#eee6ff" rx="10.399" ry="29.851" transform="rotate(89.814 -16.902 -8.275)scale(1 -1)"/></g><g filter="url(#d)"><ellipse cx="5.508" cy="30.487" fill="#8900ff" rx="5.508" ry="30.487" transform="rotate(89.814 -19.197 -7.127)scale(1 -1)"/></g><g filter="url(#e)"><ellipse cx="5.508" cy="30.599" fill="#8900ff" rx="5.508" ry="30.599" transform="rotate(89.814 -25.928 4.177)scale(1 -1)"/></g><g filter="url(#f)"><ellipse cx="5.508" cy="30.599" fill="#8900ff" rx="5.508" ry="30.599" transform="rotate(89.814 -25.738 5.52)scale(1 -1)"/></g><g filter="url(#g)"><ellipse cx="14.072" cy="22.078" fill="#eee6ff" rx="14.072" ry="22.078" transform="rotate(93.35 31.245 55.578)scale(-1 1)"/></g><g filter="url(#h)"><ellipse cx="3.47" cy="21.501" fill="#8900ff" rx="3.47" ry="21.501" transform="rotate(89.009 35.419 55.202)scale(-1 1)"/></g><g filter="url(#i)"><ellipse cx="3.47" cy="21.501" fill="#8900ff" rx="3.47" ry="21.501" transform="rotate(89.009 35.419 55.202)scale(-1 1)"/></g><g filter="url(#j)"><ellipse cx="14.592" cy="9.743" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(39.51 14.592 9.743)"/></g><g filter="url(#k)"><ellipse cx="61.728" cy="-5.321" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 61.728 -5.32)"/></g><g filter="url(#l)"><ellipse cx="55.618" cy="7.104" fill="#00c2ff" rx="5.971" ry="9.665" transform="rotate(37.892 55.618 7.104)"/></g><g filter="url(#m)"><ellipse cx="12.326" cy="39.103" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 12.326 39.103)"/></g><g filter="url(#n)"><ellipse cx="12.326" cy="39.103" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 12.326 39.103)"/></g><g filter="url(#o)"><ellipse cx="49.857" cy="30.678" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 49.857 30.678)"/></g><g filter="url(#p)"><ellipse cx="52.623" cy="33.171" fill="#00c2ff" rx="5.971" ry="15.297" transform="rotate(37.892 52.623 33.17)"/></g></g><path d="M6.919 0c-9.198 13.166-9.252 33.575 0 46.789h6.215c-9.25-13.214-9.196-33.623 0-46.789zm62.424 0h-6.215c9.198 13.166 9.252 33.575 0 46.789h6.215c9.25-13.214 9.196-33.623 0-46.789" class="parenthesis"/><defs><filter id="b" width="60.045" height="41.654" x="-5.564" y="16.92" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="c" width="90.34" height="51.437" x="-40.407" y="-6.762" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="d" width="79.355" height="29.4" x="-35.435" y="2.801" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="e" width="79.579" height="29.4" x="-30.84" y="20.8" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="f" width="79.579" height="29.4" x="-29.307" y="21.949" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="g" width="74.749" height="58.852" x="29.961" y="-17.13" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="h" width="61.377" height="25.362" x="37.754" y="3.055" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="i" width="61.377" height="25.362" x="37.754" y="3.055" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="j" width="56.045" height="63.649" x="-13.43" y="-22.082" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="k" width="54.814" height="64.646" x="34.321" y="-37.644" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="l" width="33.541" height="35.313" x="38.847" y="-10.552" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="m" width="54.814" height="64.646" x="-15.081" y="6.78" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="n" width="54.814" height="64.646" x="-15.081" y="6.78" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="o" width="54.814" height="64.646" x="22.45" y="-1.645" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="p" width="39.409" height="43.623" x="32.919" y="11.36" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter></defs></svg>
+</file>
+
+<file path="student-management-ui/src/components/CourseRegistration.jsx">
+import React, { useState, useEffect } from 'react';
+
+// Giả định bạn lưu thông tin người dùng trong localStorage sau khi login
+const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    };
+};
+
+export default function CourseRegistration({ userRole, userId, studentId, teacherId }) {
+    // State dùng chung
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState({ text: '', isError: false });
+
+    // --- STATE ADMIN ---
+    const [periodForm, setPeriodForm] = useState({ semester: '', startTime: '', endTime: '' });
+    const [stats, setStats] = useState([]);
+
+    // --- STATE TEACHER ---
+    const [teacherClasses, setTeacherClasses] = useState([]);
+    const [selectedClassId, setSelectedClassId] = useState(null);
+    const [classStudents, setClassStudents] = useState([]);
+
+    // --- STATE STUDENT (Dùng chung danh sách lớp học phần mở để đăng ký) ---
+    const [availableClasses, setAvailableClasses] = useState([]);
+
+    useEffect(() => {
+        if (userRole === 'ADMIN') loadAdminStats();
+        if (userRole === 'TEACHER') loadTeacherSchedule();
+        if (userRole === 'STUDENT') loadAvailableClasses();
+    }, [userRole]);
+
+    const showMessage = (text, isError = false) => {
+        setMessage({ text, isError });
+        setTimeout(() => setMessage({ text: '', isError: false }), 4000);
+    };
+
+    // ==================== 🛠️ LOGIC XỬ LÝ ADMIN ====================
+    const loadAdminStats = async () => {
+        try {
+            const res = await fetch('http://localhost:8081/registration/statistics', { headers: getAuthHeaders() });
+            const data = await res.json();
+            if (data.code === 1000) setStats(data.result);
+        } catch (err) { showMessage('Không thể tải số liệu thống kê', true); }
+    };
+
+    const handleCreatePeriod = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await fetch('http://localhost:8081/registration/periods', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(periodForm)
+            });
+            const data = await res.json();
+            if (data.code === 1000) {
+                showMessage('Mở cổng đăng ký tín chỉ thành công!');
+                setPeriodForm({ semester: '', startTime: '', endTime: '' });
+            } else {
+                showMessage(data.message, true);
+            }
+        } catch (err) { showMessage('Lỗi kết nối Server', true); }
+    };
+
+    // ==================== 💼 LOGIC XỬ LÝ TEACHER ====================
+    const loadTeacherSchedule = async () => {
+        try {
+            const res = await fetch(`http://localhost:8081/registration/teacher/${teacherId}/classes`, { headers: getAuthHeaders() });
+            const data = await res.json();
+            if (data.code === 1000) setTeacherClasses(data.result);
+        } catch (err) { showMessage('Không thể tải lịch dạy', true); }
+    };
+
+    const viewClassStudents = async (classId) => {
+        setSelectedClassId(classId);
+        try {
+            const res = await fetch(`http://localhost:8081/registration/classes/${classId}/students`, { headers: getAuthHeaders() });
+            const data = await res.json();
+            if (data.code === 1000) setClassStudents(data.result);
+        } catch (err) { showMessage('Không thể tải danh sách sinh viên', true); }
+    };
+
+    // ==================== 🎓 LOGIC XỬ LÝ STUDENT ====================
+    const loadAvailableClasses = async () => {
+        // Trong thực tế, bạn gọi API lấy danh sách CourseClass mở thuộc Học kỳ hiện tại
+        try {
+            const res = await fetch('http://localhost:8081/grades', { headers: getAuthHeaders() }); // Gọi tạm endpoint để có danh sách hoặc viết riêng API getAllCourseClasses
+            // Giả lập danh sách lớp học phần hiển thị cho sinh viên đăng ký
+            setAvailableClasses([
+                { id: 1, code: 'LHP_CNPM_01', subject: { name: 'Công nghệ phần mềm', credits: 3 }, teacher: { firstName: 'Đăng', lastName: 'Trần' }, semester: 'HK1-2026' },
+                { id: 2, code: 'LHP_CSDL_02', subject: { name: 'Cơ sở dữ liệu', credits: 3 }, teacher: { firstName: 'Hải', lastName: 'Nguyễn' }, semester: 'HK1-2026' }
+            ]);
+        } catch (err) { console.error(err); }
+    };
+
+    const handleEnroll = async (courseClassId) => {
+        try {
+            const res = await fetch(`http://localhost:8081/registration/enroll?studentId=${studentId}&courseClassId=${courseClassId}`, {
+                method: 'POST',
+                headers: getAuthHeaders()
+            });
+            const data = await res.json();
+            if (data.code === 1000) showMessage('Đăng ký môn học thành công!');
+            else showMessage(data.message, true);
+        } catch (err) { showMessage('Cổng đăng ký đang đóng hoặc lỗi hệ thống', true); }
+    };
+
+    const handleUnenroll = async (courseClassId) => {
+        try {
+            const res = await fetch(`http://localhost:8081/registration/unenroll?studentId=${studentId}&courseClassId=${courseClassId}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            const data = await res.json();
+            if (data.code === 1000) showMessage('Hủy đăng ký thành công!');
+            else showMessage(data.message, true);
+        } catch (err) { showMessage('Không thể hủy (Quá hạn hoặc đã có điểm)', true); }
+    };
+
+    return (
+        <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+            <h2>Hệ Thống Quản Lý Đăng Ký Tín Chỉ</h2>
+
+            {message.text && (
+                <div style={{ padding: '10px', margin: '10px 0', backgroundColor: message.isError ? '#f8d7da' : '#d4edda', color: message.isError ? '#721c24' : '#155724', borderRadius: '4px' }}>
+                    {message.text}
+                </div>
+            )}
+
+            <hr />
+
+            {/* ==================== VIEW ADMIN ==================== */}
+            {userRole === 'ADMIN' && (
+                <div>
+                    <h3>⚙️ Quyền hạn: Quản trị viên (Admin)</h3>
+                    <div style={{ display: 'flex', gap: '40px', marginTop: '20px' }}>
+                        {/* Form mở cổng */}
+                        <form onSubmit={handleCreatePeriod} style={{ width: '300px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <h4>⏰ Thiết lập lịch đăng ký mới</h4>
+                            <input type="text" placeholder="Học kỳ (VD: HK1-2026)" value={periodForm.semester} onChange={e => setPeriodForm({...periodForm, semester: e.target.value})} required style={{ padding: '8px' }} />
+                            <label>Thời gian bắt đầu:</label>
+                            <input type="datetime-local" value={periodForm.startTime} onChange={e => setPeriodForm({...periodForm, startTime: e.target.value})} required style={{ padding: '8px' }} />
+                            <label>Thời gian kết thúc:</label>
+                            <input type="datetime-local" value={periodForm.endTime} onChange={e => setPeriodForm({...periodForm, endTime: e.target.value})} required style={{ padding: '8px' }} />
+                            <button type="submit" style={{ padding: '10px', backgroundColor: '#28a745', color: '#fff', border: 'none', cursor: 'pointer' }}>Kích Hoạt Mở Cổng</button>
+                        </form>
+
+                        {/* Bảng thống kê số lượng */}
+                        <div style={{ flex: 1 }}>
+                            <h4>📊 Thống kê lượng sinh viên đăng ký theo lớp học phần</h4>
+                            <table border="1" cellPadding="8" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                <thead style={{ backgroundColor: '#f2f2f2' }}>
+                                <tr>
+                                    <th>Mã Lớp Học Phần</th>
+                                    <th>Tên Môn Học</th>
+                                    <th>Giảng Viên</th>
+                                    <th>Số SV Đăng Ký</th>
+                                    <th>Học Kỳ</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {stats.map((stat, i) => (
+                                    <tr key={i}>
+                                        <td>{stat.courseClassCode}</td>
+                                        <td>{stat.subjectName}</td>
+                                        <td>{stat.teacherName}</td>
+                                        <td style={{ fontWeight: 'bold', color: '#0056b3' }}>{stat.registeredStudents} SV</td>
+                                        <td>{stat.semester}</td>
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ==================== VIEW TEACHER ==================== */}
+            {userRole === 'TEACHER' && (
+                <div>
+                    <h3>💼 Quyền hạn: Giảng viên</h3>
+                    <h4>📅 Lịch dạy và quản lý danh sách lớp của bạn</h4>
+                    <div style={{ display: 'flex', gap: '20px' }}>
+                        <ul style={{ width: '250px', listStyle: 'none', padding: 0 }}>
+                            {teacherClasses.map(c => (
+                                <li key={c.id} onClick={() => viewClassStudents(c.id)} style={{ padding: '10px', backgroundColor: selectedClassId === c.id ? '#007bff' : '#f8f9fa', color: selectedClassId === c.id ? '#fff' : '#000', margin: '5px 0', cursor: 'pointer', borderRadius: '4px' }}>
+                                    {c.code} - {c.semester}
+                                </li>
+                            ))}
+                        </ul>
+
+                        {selectedClassId && (
+                            <div style={{ flex: 1 }}>
+                                <h4>👥 Danh sách sinh viên thuộc lớp học phần này</h4>
+                                <table border="1" cellPadding="8" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                    <tr>
+                                        <th>Mã Sinh Viên</th>
+                                        <th>Họ Và Tên</th>
+                                        <th>Giới Tính</th>
+                                        <th>Số Điện Thoại</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {classStudents.map((sv, i) => (
+                                        <tr key={i}>
+                                            <td>{sv.studentCode}</td>
+                                            <td>{sv.firstName} {sv.lastName}</td>
+                                            <td>{sv.gender}</td>
+                                            <td>{sv.phoneNumber}</td>
+                                        </tr>
+                                    ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* ==================== VIEW STUDENT ==================== */}
+            {userRole === 'STUDENT' && (
+                <div>
+                    <h3>🎓 Phân hệ: Sinh viên đăng ký tín chỉ</h3>
+                    <h4>🏫 Danh sách môn học / lớp học phần đang mở</h4>
+                    <table border="1" cellPadding="10" style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+                        <thead>
+                        <tr>
+                            <th>Mã Lớp Học Phần</th>
+                            <th>Tên Môn Học</th>
+                            <th>Số Tín Chỉ</th>
+                            <th>Giảng Viên Đứng Lớp</th>
+                            <th>Học Kỳ</th>
+                            <th>Thao Tác</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {availableClasses.map(c => (
+                            <tr key={c.id}>
+                                <td>{c.code}</td>
+                                <td>{c.subject.name}</td>
+                                <td>{c.subject.credits} tín</td>
+                                <td>{c.teacher.lastName} {c.teacher.firstName}</td>
+                                <td>{c.semester}</td>
+                                <td>
+                                    <button onClick={() => handleEnroll(c.id)} style={{ padding: '6px 12px', backgroundColor: '#007bff', color: '#fff', border: 'none', marginRight: '8px', cursor: 'pointer' }}>Đăng Ký</button>
+                                    <button onClick={() => handleUnenroll(c.id)} style={{ padding: '6px 12px', backgroundColor: '#dc3545', color: '#fff', border: 'none', cursor: 'pointer' }}>Hủy Môn</button>
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+}
+</file>
+
+<file path="student-management-ui/src/index.css">
+:root {
+  /* 🎨 Hệ màu sắc chuẩn (Bảo vệ mắt, giảm mỏi mắt ban đêm) */
+  --color-bg: #141414;           /* Màu nền tối chủ đạo sâu */
+  --color-surface: #222222;      /* Màu nền của Card, Sidebar, Form */
+  --color-surface-hover: #2d2d2d;/* Màu khi di chuột vào vùng tương tác */
+  --color-border: #333333;       /* Đường viền phân cách mảnh */
+
+  /* 🌟 Màu sắc trạng thái tín chỉ */
+  --color-primary: #007bff;      /* Màu xanh thương hiệu (Nút bấm, trạng thái chính) */
+  --color-success: #28a745;      /* Màu xanh lá (Điểm cao, Đạt, Thành công) */
+  --color-warning: #ffc107;      /* Màu vàng (Mã sinh viên, Cảnh báo, Điểm trung bình) */
+  --color-danger: #dc3545;       /* Màu đỏ (Điểm F, Xóa, Lỗi hệ thống) */
+
+  /* 📝 Màu chữ theo cấp độ phân rã */
+  --text-main: #ffffff;          /* Chữ trắng rõ ràng cho nội dung chính */
+  --text-muted: #aaaaaa;         /* Chữ xám cho nội dung phụ, mô tả */
+  --text-cyan: #00ffff;          /* Màu nhấn phản quang cho tiêu đề, bảng số */
+
+  /* 📐 Hệ khoảng cách và Kích thước (Spacing & Sizing) */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+
+  /* 🔤 Font size tiêu chuẩn hệ thống */
+  --font-base: 14px;
+  --font-md: 16px;
+  --font-lg: 18px;
+  --font-title: 24px;
+}
+
+/* Reset cơ bản cho toàn bộ ứng dụng sử dụng chuẩn toàn cục */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--text-main);
+  font-size: var(--font-base);
+  -webkit-font-smoothing: antialiased;
+}
+</file>
+
+<file path="student-management-ui/src/main.jsx">
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+</file>
+
+<file path="student-management-ui/src/pages/RegistrationPage.jsx">
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
+
+export default function RegistrationPage() {
+    const role = localStorage.getItem('roles') || '';
+    const teacherId = localStorage.getItem('teacherId') || '';
+
+    const [message, setMessage] = useState({ text: '', isError: false });
+
+    // --- STATE PHÂN HỆ ADMIN ---
+    const [periodForm, setPeriodForm] = useState({ semester: 'HK1-2026', startTime: '', endTime: '' });
+    const [allPeriods, setAllPeriods] = useState([]); // Lưu lịch sử tất cả các đợt mở cổng
+    const [selectedPeriod, setSelectedPeriod] = useState(null); // Đợt đang được chọn để xem chi tiết
+    const [courseClasses, setCourseClasses] = useState([]); // Lưu tất cả lớp học phần từ DB thật
+
+    // --- STATE PHÂN HỆ TEACHER ---
+    const [teacherClasses, setTeacherClasses] = useState([]);
+    const [selectedClassId, setSelectedClassId] = useState(null);
+    const [classStudents, setClassStudents] = useState([]);
+
+    // --- STATE PHÂN HỆ STUDENT ---
+    const [availableClasses, setAvailableClasses] = useState([]);
+    const [myRegisteredClasses, setMyRegisteredClasses] = useState([]);
+    const [isRegistrationTime, setIsRegistrationTime] = useState(false);
+    const [activePeriodInfo, setActivePeriodInfo] = useState(null);
+
+    useEffect(() => {
+        refreshData();
+    }, [role]);
+
+    const refreshData = () => {
+        if (role.includes('ADMIN')) {
+            loadAdminPeriodsAndClasses();
+        }
+        if (role.includes('TEACHER')) {
+            loadTeacherSchedule();
+        }
+        if (role.includes('STUDENT')) {
+            loadStudentRegistrationFlow();
+        }
+    };
+
+    const showMessage = (text, isError = false) => {
+        setMessage({ text, isError });
+        setTimeout(() => setMessage({ text: '', isError: false }), 4000);
+    };
+
+    // ==================== 🛠️ NGHIỆP VỤ ADMIN ====================
+    const loadAdminPeriodsAndClasses = async () => {
+        try {
+            // 1. Tải lịch sử tất cả các đợt mở cổng từ DB
+            const periodsData = await axiosClient.get('/registration/periods');
+            if (periodsData && periodsData.length > 0) {
+                const sortedPeriods = [...periodsData].sort((a, b) => b.id - a.id);
+                setAllPeriods(sortedPeriods);
+                // Mặc định chọn đợt mới nhất để hiển thị chi tiết
+                if (!selectedPeriod) {
+                    setSelectedPeriod(sortedPeriods[0]);
+                }
+            }
+
+            // 2. Tải toàn bộ danh sách lớp học phần thật từ hệ thống
+            const classesData = await axiosClient.get('/course-classes');
+            setCourseClasses(classesData);
+        } catch (err) { showMessage('Không thể tải dữ liệu quản trị hệ thống', true); }
+    };
+
+    const handleCreatePeriod = async (e) => {
+        e.preventDefault();
+        try {
+            await axiosClient.post('/registration/periods', periodForm);
+            showMessage('Kích hoạt cấu hình khung giờ và lưu đợt mở đăng ký học kỳ mới thành công!');
+            setPeriodForm({ semester: 'HK1-2026', startTime: '', endTime: '' });
+
+            // Tải lại dữ liệu đợt mới vừa tạo
+            const periodsData = await axiosClient.get('/registration/periods');
+            if (periodsData && periodsData.length > 0) {
+                const sortedPeriods = [...periodsData].sort((a, b) => b.id - a.id);
+                setAllPeriods(sortedPeriods);
+                setSelectedPeriod(sortedPeriods[0]); // Chuyển vùng xem chi tiết sang đợt mới nhất
+            }
+            const classesData = await axiosClient.get('/course-classes');
+            setCourseClasses(classesData);
+        } catch (err) { showMessage(err || 'Lỗi kích hoạt khung giờ', true); }
+    };
+
+    const handleClosePeriod = async (id) => {
+        if (!window.confirm("⚠️ Bạn có chắc chắn muốn HỦY KÍCH HOẠT khung giờ đăng ký tín chỉ này không?")) return;
+        try {
+            await axiosClient.put(`/registration/periods/${id}/close`);
+            showMessage('Đã đóng cổng và hủy kích hoạt khung giờ thành công!');
+            // Cập nhật lại trạng thái hiển thị
+            const periodsData = await axiosClient.get('/registration/periods');
+            if (periodsData && periodsData.length > 0) {
+                const sortedPeriods = [...periodsData].sort((a, b) => b.id - a.id);
+                setAllPeriods(sortedPeriods);
+                setSelectedPeriod(sortedPeriods.find(p => p.id === id) || sortedPeriods[0]);
+            }
+        } catch (err) { showMessage(err || 'Không thể thực hiện hủy kích hoạt!', true); }
+    };
+
+    const handleToggleClassRegistration = async (id) => {
+        try {
+            await axiosClient.put(`/registration/course-class/${id}/toggle`);
+            showMessage(`Cập nhật trạng thái tích chọn mở lớp học phần thành công!`);
+            // Làm tươi danh sách lớp
+            const classesData = await axiosClient.get('/course-classes');
+            setCourseClasses(classesData);
+        } catch (err) { showMessage(err || 'Không thể thay đổi trạng thái tích chọn môn', true); }
+    };
+
+    // ==================== 💼 NGHIỆP VỤ TEACHER ====================
+    const loadTeacherSchedule = async () => {
+        if (!teacherId) return;
+        try {
+            const data = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
+            setTeacherClasses(data);
+        } catch (err) { showMessage('Không thể tải lịch giảng dạy cá nhân', true); }
+    };
+
+    const viewClassStudents = async (classId) => {
+        setSelectedClassId(classId);
+        try {
+            const data = await axiosClient.get(`/registration/classes/${classId}/students`);
+            setClassStudents(data);
+        } catch (err) { showMessage('Không thể tải danh sách sinh viên lớp học phần', true); }
+    };
+
+    // ==================== 🎓 NGHIỆP VỤ STUDENT ====================
+    const loadStudentRegistrationFlow = async () => {
+        try {
+            const periods = await axiosClient.get('/registration/periods');
+            let period = null;
+            if (periods && periods.length > 0) {
+                const sorted = [...periods].sort((a, b) => b.id - a.id);
+                period = sorted[0]; // Bóc đợt cấu hình mới nhất
+                setActivePeriodInfo(period);
+            }
+
+            if (period && period.isActive) {
+                const now = new Date();
+                const start = new Date(period.startTime);
+                const end = new Date(period.endTime);
+
+                if (now >= start && now <= end) {
+                    setIsRegistrationTime(true);
+                    // 🔥 ĐÃ SỬA VÁ LỖI CHÍ MẠNG: Lấy từ /course-classes của DB thật và thực hiện lọc thông minh phía Client
+                    const allSystemClasses = await axiosClient.get('/course-classes');
+                    const filteredOpenClasses = allSystemClasses.filter(
+                        c => c.openForRegistration === true && c.semester === period.semester
+                    );
+                    setAvailableClasses(filteredOpenClasses);
+                } else {
+                    setIsRegistrationTime(false);
+                    setAvailableClasses([]);
+                }
+            } else {
+                setIsRegistrationTime(false);
+                setAvailableClasses([]);
+            }
+
+            const myClasses = await axiosClient.get('/registration/my-classes');
+            setMyRegisteredClasses(myClasses);
+        } catch (err) { console.error(err); }
+    };
+
+    const handleEnroll = async (courseClassId) => {
+        try {
+            await axiosClient.post(`/registration/enroll?courseClassId=${courseClassId}`);
+            showMessage('Đăng ký chọn lớp học phần thành công mượt mà!');
+            loadStudentRegistrationFlow();
+        } catch (err) { showMessage(err || 'Không thể đăng ký học phần này!', true); }
+    };
+
+    const handleUnenroll = async (courseClassId) => {
+        if (!window.confirm("Bạn có chắc chắn muốn hủy học phần này không?")) return;
+        try {
+            await axiosClient.delete(`/registration/unenroll?courseClassId=${courseClassId}`);
+            showMessage('Đã rút tên khỏi lớp học phần thành công!');
+            loadStudentRegistrationFlow();
+        } catch (err) { showMessage(err || 'Không thể hủy học phần này!', true); }
+    };
+
+    const formatDate = (dateStr) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')} ngày ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+    };
+
+    // 🔥 THÊM MỚI HÀM KIỂM TRA TRẠNG THÁI THỜI GIAN THỰC (Sửa lỗi quá hạn vẫn báo mở ở Admin)
+    const renderPeriodStatusLabel = (period) => {
+        if (!period) return <span style={{color:'var(--text-muted)'}}>Chưa rõ</span>;
+        if (!period.isActive) {
+            return <span style={{color:'var(--color-danger)', fontWeight:'bold'}}>🔒 Đã đóng / Hủy kích hoạt</span>;
+        }
+
+        const now = new Date();
+        const start = new Date(period.startTime);
+        const end = new Date(period.endTime);
+
+        if (now < start) {
+            return <span style={{color:'var(--color-warning)', fontWeight:'bold'}}>⏳ Chờ đến mốc giờ mở</span>;
+        } else if (now > end) {
+            return <span style={{color:'var(--color-danger)', fontWeight:'bold'}}>⏰ Đã hết hạn đóng cổng</span>;
+        } else {
+            return <span style={{color:'var(--color-success)', fontWeight:'bold'}}>🟢 Đang mở đăng ký</span>;
+        }
+    };
+
+    return (
+        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
+            <h2 style={{ color: 'var(--text-cyan)', marginBottom: 'var(--spacing-xl)' }}>⏰ TRUNG TÂM ĐIỀU PHỐI ĐĂNG KÝ TÍN CHỈ REALTIME</h2>
+
+            {message.text && (
+                <div style={{ padding: '12px', marginBottom: '20px', backgroundColor: message.isError ? 'var(--color-danger)' : 'var(--color-primary)', color: 'white', borderRadius: '4px', fontWeight: 'bold' }}>
+                    {message.text}
+                </div>
+            )}
+
+            {/* ==================== VIEW ADMIN ==================== */}
+            {role.includes('ADMIN') && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+                    {/* KHU VỰC 1: LỊCH SỬ CÁC ĐỢT MỞ CỔNG ĐĂNG KÝ TÍN CHỈ CỦA TRƯỜNG */}
+                    <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                        <h3 style={{ color: 'var(--text-cyan)', margin: '0 0 12px 0' }}>📂 LỊCH SỬ CÁC ĐỢT MỞ CỔNG ĐĂNG KÝ HỆ THỐNG</h3>
+                        <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
+                            {allPeriods.map(p => (
+                                <div
+                                    key={p.id}
+                                    onClick={() => setSelectedPeriod(p)}
+                                    style={{
+                                        padding: '10px 15px',
+                                        backgroundColor: selectedPeriod?.id === p.id ? 'var(--color-primary)' : 'var(--color-bg)',
+                                        border: selectedPeriod?.id === p.id ? '2px solid var(--text-cyan)' : '1px solid var(--color-border)',
+                                        borderRadius: '6px', cursor: 'pointer', minWidth: '220px', transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <div style={{ fontWeight: 'bold', fontSize: '14px' }}>Học kỳ: {p.semester}</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Mã đợt: #RP_{p.id}</div>
+                                    <div style={{ fontSize: '11px', marginTop: '6px', color: p.isActive ? 'var(--color-success)' : 'var(--color-danger)', fontWeight: 'bold' }}>
+                                        {p.isActive ? '● Đang hoạt động' : '🔒 Đã hủy/Đóng cổng'}
+                                    </div>
+                                </div>
+                            ))}
+                            {allPeriods.length === 0 && <p style={{color:'var(--text-muted)', fontSize:'13px'}}>Chưa có dữ liệu lịch sử đợt mở đăng ký.</p>}
+                        </div>
+                    </div>
+
+                    {/* KHU VỰC 2: THANH GIÁM SÁT CHI TIẾT ĐỢT ĐANG CHỌN */}
+                    {selectedPeriod && (
+                        <div style={{ padding: '15px 20px', backgroundColor: 'var(--color-surface)', borderLeft: '5px solid var(--color-success)', borderRadius: '4px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid var(--color-border)' }}>
+                            <div>
+                                <h4 style={{ margin: '0 0 6px 0', color: 'var(--color-success)' }}>🟢 KHUNG GIỜ HỆ THỐNG ĐANG LƯU TRỮ VÀ HOẠT ĐỘNG</h4>
+                                {activePeriodInfo ? (
+                                    <div style={{ fontSize: '13px' }}>
+                                        Học kỳ áp dụng: <b style={{color:'var(--text-cyan)'}}>{activePeriodInfo.semester}</b> |
+                                        Thời gian: Từ <b>{formatDate(activePeriodInfo.startTime)}</b> đến <b>{formatDate(activePeriodInfo.endTime)}</b> |
+                                        Trạng thái: {renderPeriodStatusLabel(activePeriodInfo)}  {/* 🔥 GỌI HÀM ĐÃ SỬA TẠI ĐÂY */}
+                                    </div>
+                                ) : (
+                                    <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Chưa có cấu hình lịch đăng ký tín chỉ nào hoạt động. Vui lòng thiết lập ở form bên dưới.</div>
+                                )}
+                            </div>
+
+                            {activePeriodInfo && activePeriodInfo.isActive && (
+                                <button
+                                    onClick={() => handleClosePeriod(activePeriodInfo.id)}
+                                    style={{ padding: '8px 14px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
+                                >
+                                    🛑 Hủy Kích Hoạt Đợt Này
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: 'var(--spacing-xl)', flexWrap: 'wrap' }}>
+                        {/* Form tạo đợt mới */}
+                        <form onSubmit={handleCreatePeriod} style={{ width: '310px', display: 'flex', flexDirection: 'column', gap: '12px', padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)', height: 'fit-content' }}>
+                            <style>{`
+                                .calendar-click-overlay { position: relative; }
+                                .calendar-click-overlay::-webkit-calendar-picker-indicator { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+                            `}</style>
+
+                            <h4 style={{color: 'var(--text-cyan)', margin: 0}}>🔒 MỞ ĐĂNG KÝ TÍN CHỈ MỚI</h4>
+                            <input type="text" placeholder="Học kỳ (VD: HK1-2026)" value={periodForm.semester} onChange={e => setPeriodForm({...periodForm, semester: e.target.value})} required style={inputStyle} />
+                            <label style={{fontSize:'13px', fontWeight: 'bold'}}>Thời gian bắt đầu:</label>
+                            <input type="datetime-local" value={periodForm.startTime} onChange={e => setPeriodForm({...periodForm, startTime: e.target.value})} required className="calendar-click-overlay" style={inputStyle} />
+                            <label style={{fontSize:'13px', fontWeight: 'bold'}}>Thời gian kết thúc:</label>
+                            <input type="datetime-local" value={periodForm.endTime} onChange={e => setPeriodForm({...periodForm, endTime: e.target.value})} required className="calendar-click-overlay" style={inputStyle} />
+
+                            <button type="submit" style={{ padding: '12px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', marginTop: '5px' }}>
+                                Kích Hoạt Đợt Mở Mới
+                            </button>
+                        </form>
+
+                        {/* BẢNG ĐỒNG BỘ HIỂN THỊ CHI TIẾT MÔN THEO HỌC KỲ ĐƯỢC CHỌN */}
+                        <div style={{ flex: 1, minWidth: '450px', padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                            <h4>📋 Danh sách môn học phần thuộc học kỳ: {selectedPeriod?.semester || 'Chưa chọn'}</h4>
+                            <p style={{fontSize: '12px', color: 'var(--color-warning)', marginTop: 0, marginBottom: '12px'}}>
+                                💡 <b>Tác vụ Admin:</b> Tích chọn checkbox để cho phép mở hoặc khóa môn học phần tương ứng của học kỳ đang xem.
+                            </p>
+
+                            <table style={tableStyle}>
+                                <thead>
+                                <tr style={thStyle}>
+                                    <th>Mã Lớp HP</th><th>Tên Môn Học</th><th>Số Tín</th><th>Giảng Viên</th><th>Thời Khóa Biểu (Lịch học)</th><th style={{textAlign: 'center'}}>Tích Chọn Mở Môn</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {courseClasses
+                                    .filter(c => c.semester === selectedPeriod?.semester)
+                                    .map((cls) => (
+                                        <tr key={cls.id} style={trStyle}>
+                                            <td style={{fontWeight:'bold', color: 'var(--text-cyan)'}}>{cls.code}</td>
+                                            <td>{cls.subjectName}</td>
+                                            <td>{cls.credits} tín</td>
+                                            <td>{cls.teacherName || 'Chưa phân công'}</td>
+                                            <td style={{color:'var(--color-warning)', fontSize:'13px', fontWeight:'bold'}}>{cls.schedule || 'Chưa xếp'}</td>
+                                            <td style={{textAlign: 'center'}}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={cls.openForRegistration}
+                                                    onChange={() => handleToggleClassRegistration(cls.id)}
+                                                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                {courseClasses.filter(c => c.semester === selectedPeriod?.semester).length === 0 && (
+                                    <tr>
+                                        <td colSpan="6" style={{textAlign:'center', padding:'20px', color:'var(--text-muted)'}}>Học kỳ này chưa được Admin mở lớp học phần nào ở trang Quản lý đào tạo.</td>
+                                    </tr>
+                                )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ==================== VIEW TEACHER ==================== */}
+            {role.includes('TEACHER') && !role.includes('ADMIN') && (
+                <div>
+                    <h3 style={{ color: 'var(--text-cyan)' }}>💼 DANH SÁCH LỚP VÀ LỊCH GIẢNG DẠY CỦA BẠN</h3>
+                    <div style={{ display: 'flex', gap: '20px', marginTop: '15px' }}>
+                        <div style={{ width: '280px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {teacherClasses.map(c => (
+                                <button key={c.id} onClick={() => viewClassStudents(c.id)} style={{ padding: '12px', backgroundColor: selectedClassId === c.id ? 'var(--color-primary)' : 'var(--color-surface)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px', textAlign: 'left', cursor: 'pointer' }}>
+                                    <div style={{fontWeight:'bold', color: 'var(--text-cyan)'}}>{c.code}</div>
+                                    <div style={{fontSize:'12px', marginTop:'4px', color:'var(--color-warning)'}}>📅 Lịch dạy: {c.schedule || 'Chưa xếp lịch'}</div>
+                                </button>
+                            ))}
+                        </div>
+
+                        {selectedClassId && (
+                            <div style={{ flex: 1, padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                                <h4>👥 Danh sách sinh viên đăng ký học phần lớp [{teacherClasses.find(x => x.id === selectedClassId)?.code}]</h4>
+                                <table style={tableStyle}>
+                                    <thead>
+                                    <tr style={thStyle}><th>Mã Sinh Viên</th><th>Họ Và Tên</th><th>Giới Tính</th><th>Số Điện Thoại</th></tr>
+                                    </thead>
+                                    <tbody>
+                                    {classStudents.map((sv, i) => (
+                                        <tr key={i} style={trStyle}>
+                                            <td style={{fontWeight:'bold', color:'var(--color-warning)'}}>{sv.studentCode}</td>
+                                            <td>{sv.firstName} {sv.lastName}</td>
+                                            <td>{sv.gender}</td><td>{sv.phoneNumber || '-'}</td>
+                                        </tr>
+                                    ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* ==================== VIEW STUDENT ==================== */}
+            {role.includes('STUDENT') && !role.includes('ADMIN') && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+
+                    {/* BẢNG THÔNG BÁO CHI TIẾT NGÀY GIỜ MỞ ĐĂNG KÝ CHO SINH VIÊN */}
+                    <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderLeft: '5px solid var(--text-cyan)', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
+                        <h4 style={{ margin: '0 0 8px 0', color: 'var(--text-cyan)' }}>📢 THÔNG BÁO KẾ HOẠCH ĐĂNG KÝ TÍN CHỈ HỆ THỐNG</h4>
+                        {activePeriodInfo ? (
+                            <div style={{ fontSize: '14px' }}>
+                                Kế hoạch mở cổng đăng ký tín chỉ học kỳ <b>{activePeriodInfo.semester}</b>:
+                                <ul style={{ margin: '5px 0 0 20px', padding: 0 }}>
+                                    <li>⏱️ Thời gian bắt đầu mở hệ thống: <span style={{ color: 'var(--text-cyan)', fontWeight: 'bold' }}>{formatDate(activePeriodInfo.startTime)}</span></li>
+                                    <li>⌛ Thời gian đóng hệ thống: <span style={{ color: 'var(--color-danger)', fontWeight: 'bold' }}>{formatDate(activePeriodInfo.endTime)}</span></li>
+                                    <li style={{marginTop: '5px'}}>📌 Trạng thái: {isRegistrationTime ? (
+                                        <span style={{ color: 'var(--color-success)', fontWeight: 'bold', backgroundColor: 'rgba(40, 167, 69, 0.1)', padding: '2px 6px', borderRadius: '3px' }}>● CỔNG ĐANG MỞ - ĐƯỢC PHÉP ĐĂNG KÝ CHỌN LỚP</span>
+                                    ) : (
+                                        <span style={{ color: 'var(--color-warning)', fontWeight: 'bold', backgroundColor: 'rgba(255, 193, 7, 0.1)', padding: '2px 6px', borderRadius: '3px' }}>🔒 HỆ THỐNG ĐANG KHÓA CHẶT (Chưa đến mốc thời gian hoặc đã đóng cổng)</span>
+                                    )}</li>
+                                </ul>
+                            </div>
+                        ) : (
+                            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>Hiện tại nhà trường chưa phát hành khung thời gian đăng ký học phần.</p>
+                        )}
+                    </div>
+
+                    {/* Phần 1: Đăng ký tín chỉ trực tuyến */}
+                    <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                        <h3 style={{ color: 'var(--text-cyan)', marginBottom: '15px', marginTop: 0 }}>✍️ ĐĂNG KÝ HỌC PHẦN TRỰC TUYẾN</h3>
+
+                        {!isRegistrationTime ? (
+                            <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--color-bg)', borderRadius: '4px', border: '1px dashed var(--color-border)' }}>
+                                <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔒</div>
+                                <h4 style={{ color: 'var(--color-warning)', margin: '0 0 5px 0' }}>CỔNG ĐĂNG KÝ TÍN CHỈ CHƯA ĐẾN GIỜ KHỞI CHẠY</h4>
+                                <p style={{ margin: 0, fontSize: '13px' }}>Vui lòng quay lại khi đồng hồ chạm mốc thời gian quy định tại bảng thông báo phía trên.</p>
+                            </div>
+                        ) : availableClasses.length === 0 ? (
+                            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--color-bg)', borderRadius: '4px' }}>
+                                Cổng đã mở thành công nhưng chưa có môn học phần nào thuộc học kỳ {activePeriodInfo?.semester} được Ban giáo vụ tích chọn mở đăng ký.
+                            </div>
+                        ) : (
+                            <table style={tableStyle}>
+                                <thead>
+                                <tr style={thStyle}><th>Mã Lớp HP</th><th>Tên Môn Học</th><th>Số Tín</th><th>Giảng Viên</th><th>Lịch Học Thiết Kế</th><th>Thao Tác</th></tr>
+                                </thead>
+                                <tbody>
+                                {availableClasses.map(c => (
+                                    <tr key={c.id} style={trStyle}>
+                                        <td style={{fontWeight:'bold', color: 'var(--text-cyan)'}}>{c.code}</td>
+                                        <td>{c.subjectName}</td><td>{c.credits} tín</td><td>{c.teacherName || 'Chưa xếp'}</td>
+                                        <td style={{color:'var(--color-warning)', fontWeight:'bold'}}>{c.schedule}</td>
+                                        <td>
+                                            <button onClick={() => handleEnroll(c.id)} style={{ padding: '6px 12px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight:'bold' }}>Đăng ký chọn lớp</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+
+                    {/* Phần 2: Xem Thời khóa biểu lịch học cá nhân */}
+                    <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                        <h3 style={{ color: 'var(--color-warning)', marginBottom: '15px', marginTop: 0 }}>📅 THỜI KHÓA BIỂU & LỊCH HỌC CÁ NHÂN ĐÃ ĐĂNG KÝ ĐỒNG BỘ DATA</h3>
+                        <table style={tableStyle}>
+                            <thead>
+                            <tr style={thStyle}><th>Mã Lớp HP</th><th>Tên Môn Học</th><th>Số Tín Nhiệm</th><th>Giảng Viên</th><th>Thời Khóa Biểu Lịch Học</th><th>Hành Động Rút Môn</th></tr>
+                            </thead>
+                            <tbody>
+                            {myRegisteredClasses.map(reg => (
+                                <tr key={reg.id} style={trStyle}>
+                                    <td style={{fontWeight:'bold', color:'var(--text-cyan)'}}>{reg.courseClassCode}</td>
+                                    <td>{reg.subjectName}</td><td>{reg.credits} tín</td><td>{reg.teacherName}</td>
+                                    <td style={{color:'var(--color-success)', fontWeight:'bold'}}>{reg.schedule || 'Chưa xếp lịch'}</td>
+                                    <td>
+                                        <button
+                                            onClick={() => handleUnenroll(reg.courseClassId)}
+                                            disabled={!isRegistrationTime}
+                                            style={{ padding: '6px 12px', backgroundColor: isRegistrationTime ? 'var(--color-danger)' : '#555', color: 'white', border: 'none', borderRadius: '4px', cursor: isRegistrationTime ? 'pointer' : 'not-allowed', fontWeight:'bold' }}
+                                        >
+                                            Hủy chọn lớp
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                            {myRegisteredClasses.length === 0 && (
+                                <tr>
+                                    <td colSpan="6" style={{textAlign: 'center', padding: '15px', color: 'var(--text-muted)'}}>Bạn chưa thực hiện thao tác chọn lớp học phần nào trong học kỳ này.</td>
+                                </tr>
+                            )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const inputStyle = { padding: '8px', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px', outline: 'none' };
+const tableStyle = { width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' };
+const thStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', backgroundColor: 'var(--color-surface-hover)', textAlign: 'left', padding: '10px' };
+const trStyle = { borderBottom: '1px solid var(--color-border)', padding: '10px' };
+</file>
+
+<file path="student-management-ui/src/pages/TeacherPage.jsx">
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
+
+function TeacherPage() {
+    const [teachers, setTeachers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [modalError, setModalError] = useState('');
+
+    const [teacherCode, setTeacherCode] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [dateOfBirth, setDateOfBirth] = useState('');
+    const [gender, setGender] = useState('Nam');
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [departmentId, setDepartmentId] = useState('');
+
+    // 🔥 THÊM MỚI: State lưu trữ danh sách khoa chuyên môn phục vụ Dropdown menu
+    const [departmentList, setDepartmentList] = useState([]);
+
+    useEffect(() => {
+        fetchTeachers();
+        fetchDepartmentList(); // Nạp sẵn danh sách khoa từ DB lên
+    }, []);
+
+    const fetchTeachers = async () => {
+        try {
+            setLoading(true);
+            const data = await axiosClient.get('/teachers');
+            setTeachers(data);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 🔥 THÊM MỚI: Hàm tải danh sách khoa viện chuyên môn thực tế từ DB
+    const fetchDepartmentList = async () => {
+        try {
+            const data = await axiosClient.get('/departments');
+            setDepartmentList(data);
+        } catch (err) {
+            console.error("Lỗi nạp danh sách khoa gợi ý:", err);
+        }
+    };
+
+    const handleCreateTeacher = async (e) => {
+        e.preventDefault();
+        setModalError('');
+        if (!departmentId) {
+            setModalError('Vui lòng chọn Khoa/Viện chuyên môn phù hợp!');
+            return;
+        }
+
+        const payload = { teacherCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, departmentId: Number(departmentId) };
+        try {
+            await axiosClient.post('/teachers', payload);
+            alert(`Cấp tài khoản Giảng viên thành công!\nTài khoản: ${teacherCode}\nMật khẩu mặc định: password1234`);
+            setShowModal(false);
+            resetForm();
+            fetchTeachers();
+        } catch (err) {
+            setModalError(err || 'Lỗi khởi tạo hồ sơ giảng viên.');
+        }
+    };
+
+    const resetForm = () => {
+        setTeacherCode(''); setFirstName(''); setLastName(''); setDateOfBirth(''); setGender('Nam'); setPhoneNumber(''); setDepartmentId(''); setModalError('');
+    };
+
+    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang tải danh sách giảng viên...</div>;
+
+    return (
+        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
+                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>QUẢN LÝ DANH SÁCH GIẢNG VIÊN</h2>
+                <button onClick={() => setShowModal(true)} style={{ padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-success)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                    + Cấp Tài Khoản Giảng Viên
+                </button>
+            </div>
+
+            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+                <thead>
+                <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Mã Giảng Viên</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Tên</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Khoa Chuyên Môn</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Email Giảng Dạy</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Số Điện Thoại</th>
+                </tr>
+                </thead>
+                <tbody>
+                {teachers.map((t) => (
+                    <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{t.teacherCode}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{t.lastName} {t.firstName}</td>
+                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)' }}>{t.departmentName}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{t.gender}</td>
+                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-muted)' }}>{t.email}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{t.phoneNumber || '-'}</td>
+                    </tr>
+                ))}
+                </tbody>
+            </table>
+
+            {showModal && (
+                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 }}>
+                    <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--spacing-xl)', borderRadius: '8px', width: '550px' }}>
+                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>✍️ THÊM MỚI HỒ SƠ GIẢNG VIÊN</h3>
+                        {modalError && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)' }}>{modalError}</div>}
+                        <form onSubmit={handleCreateTeacher}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Mã Giảng Viên:</label><input type="text" placeholder="GV2026_01" value={teacherCode} onChange={(e) => setTeacherCode(e.target.value)} required style={inputStyle} /></div>
+
+                                {/* 🔥 ĐÃ SỬA: Thay thế ô input ID Number bằng Dropdown chọn Khoa chuyên môn chuyên nghiệp */}
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '4px' }}>Khoa Chuyên Môn:</label>
+                                    <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required style={inputStyle}>
+                                        <option value="">-- Chọn khoa giảng dạy --</option>
+                                        {departmentList.map(dept => (
+                                            <option key={dept.id} value={dept.id}>{dept.name} ({dept.code})</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Họ Và Tên Đệm:</label><input type="text" placeholder="Trần Quốc" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Tên Giảng Viên:</label><input type="text" placeholder="Tuấn" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Giới Tính:</label><select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
+                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px' }}>Số Điện Thoại:</label><input type="text" placeholder="0912345678" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
+                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}>Hủy</button>
+                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}>Khởi Tạo & Cấp TK</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
+export default TeacherPage;
+</file>
+
+<file path="student-management-ui/vite.config.js">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/AuthenticationController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.AuthenticationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.AuthenticationResponse;
+import com.dangdepzaivaio.StudentManagement.service.impl.AuthenticationService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/auth")
+@RequiredArgsConstructor
+public class AuthenticationController {
+
+    private final AuthenticationService authenticationService;
+
+    @PostMapping("/login")
+    public ApiResponse<AuthenticationResponse> login(@RequestBody AuthenticationRequest request) {
+        var result = authenticationService.authenticate(request);
+        return new ApiResponse<>(1000, "Đăng nhập hệ thống thành công!", result);
+    }
+
+    @PostMapping("/change-password")
+    public ApiResponse<String> changePassword(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String newPassword = request.get("newPassword");
+        authenticationService.changePasswordFirstLogin(username, newPassword);
+        return new ApiResponse<>(1000, "Đổi mật khẩu lần đầu thành công!", "Mật khẩu mới đã được áp dụng.");
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/GradeController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse;
+import com.dangdepzaivaio.StudentManagement.service.GradeService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/grades")
+@RequiredArgsConstructor
+public class GradeController {
+
+    private final GradeService gradeService;
+
+    @PostMapping
+    public ApiResponse<GradeResponse> inputGrade(@RequestBody @Valid GradeRequest request) {
+        return new ApiResponse<>(1000, "Nhập và quy đổi điểm số thành công!", gradeService.inputGrade(request));
+    }
+
+    @GetMapping("/student/{studentId}")
+    public ApiResponse<List<GradeResponse>> getGradesByStudent(@PathVariable String studentId) { // 🔥 String
+        return new ApiResponse<>(1000, "Lấy bảng điểm chi tiết của sinh viên thành công!", gradeService.getGradesByStudent(studentId));
+    }
+
+    @PutMapping("/{id}")
+    public ApiResponse<GradeResponse> updateGrade(@PathVariable Long id, @RequestBody @Valid GradeRequest request) {
+        return new ApiResponse<>(1000, "Sửa đổi và cập nhật lại điểm số thành công!", gradeService.updateGrade(id, request));
+    }
+
+    @GetMapping
+    public ApiResponse<List<GradeResponse>> getAll() {
+        return new ApiResponse<>(1000, "Lấy toàn bộ danh sách điểm thành công!", gradeService.getAllGrades());
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<String> deleteGrade(@PathVariable Long id) {
+        gradeService.deleteGrade(id);
+        return new ApiResponse<>(1000, "Xóa đầu điểm thành công!", "Đầu điểm có ID " + id + " đã bị loại bỏ hoàn toàn.");
+    }
+
+    @GetMapping("/student/{studentId}/summary")
+    public ApiResponse<StudentAcademicSummaryResponse> getAcademicSummary(@PathVariable String studentId) { // 🔥 String
+        return new ApiResponse<>(1000, "Tổng hợp kết quả học tập và tính GPA thành công!", gradeService.getAcademicSummary(studentId));
+    }
+
+    @GetMapping("/{id}")
+    public ApiResponse<GradeResponse> getGradeById(@PathVariable Long id) {
+        return new ApiResponse<>(1000, "Lấy chi tiết thông tin điểm số thành công!", gradeService.getGradeById(id));
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/SubjectController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse; // Đổi import sang DTO Response
+import com.dangdepzaivaio.StudentManagement.service.SubjectService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/subjects")
+@RequiredArgsConstructor
+public class SubjectController {
+
+    private final SubjectService subjectService;
+
+    @PostMapping
+    public ApiResponse<SubjectResponse> createSubject(@RequestBody @Valid SubjectRequest request) {
+        return new ApiResponse<>(1000, "Tạo môn học thành công!", subjectService.createSubject(request));
+    }
+
+    @GetMapping
+    public ApiResponse<List<SubjectResponse>> getAllSubjects() {
+        return new ApiResponse<>(1000, "Lấy danh sách môn học thành công!", subjectService.getAllSubjects());
+    }
+
+    @GetMapping("/{subjectId}")
+    public ApiResponse<SubjectResponse> getSubject(@PathVariable Long subjectId) {
+        return new ApiResponse<>(1000, "Lấy chi tiết môn học thành công!", subjectService.getSubjectById(subjectId));
+    }
+
+    @PutMapping("/{subjectId}")
+    public ApiResponse<SubjectResponse> updateSubject(@PathVariable Long subjectId, @RequestBody @Valid SubjectRequest request) {
+        return new ApiResponse<>(1000, "Cập nhật môn học thành công!", subjectService.updateSubject(subjectId, request));
+    }
+
+    @DeleteMapping("/{subjectId}")
+    public ApiResponse<String> deleteSubject(@PathVariable Long subjectId) {
+        subjectService.deleteSubject(subjectId);
+        return new ApiResponse<>(1000, "Xóa môn học thành công!", "Môn học có ID " + subjectId + " đã bị xóa hoàn toàn.");
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/TeacherController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
+import com.dangdepzaivaio.StudentManagement.service.TeacherService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/teachers")
+@RequiredArgsConstructor
+public class TeacherController {
+
+    private final TeacherService teacherService;
+
+    @PostMapping
+    public ApiResponse<TeacherResponse> createTeacher(@RequestBody @Valid TeacherCreationRequest request) {
+        return new ApiResponse<>(1000, "Cap tai khoan giang vien thanh cong", teacherService.createTeacher(request));
+    }
+
+    @GetMapping
+    public ApiResponse<List<TeacherResponse>> getAll() {
+        return new ApiResponse<>(1000, "Lay danh sach giang vien thanh cong", teacherService.getAllTeachers());
+    }
+
+    @GetMapping("/{teacherId}")
+    public ApiResponse<TeacherResponse> getTeacher(@PathVariable String teacherId) {
+        return new ApiResponse<>(1000, "Lay chi tiet giang vien thanh cong", teacherService.getTeacherById(teacherId));
+    }
+
+    @PutMapping("/{teacherId}")
+    public ApiResponse<TeacherResponse> updateTeacher(@PathVariable String teacherId, @RequestBody @Valid TeacherUpdateRequest request) {
+        return new ApiResponse<>(1000, "Cap nhat giang vien thanh cong", teacherService.updateTeacher(teacherId, request));
+    }
+
+    @PutMapping("/{teacherId}/enable")
+    public ApiResponse<String> enableTeacher(@PathVariable String teacherId) {
+        teacherService.enableTeacher(teacherId);
+        return new ApiResponse<>(1000, "Mo khoa tai khoan giang vien thanh cong", "ID: " + teacherId);
+    }
+
+    @DeleteMapping("/{teacherId}")
+    public ApiResponse<String> deleteTeacher(@PathVariable String teacherId) {
+        teacherService.disableTeacher(teacherId);
+        return new ApiResponse<>(1000, "Khoa tai khoan giang vien thanh cong", "ID: " + teacherId);
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/CourseClassRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+public record CourseClassRequest(
+        @NotBlank(message = "Ma lop hoc phan khong duoc de trong")
+        String code,
+
+        @NotBlank(message = "Hoc ky khong duoc de trong")
+        String semester,
+
+        @NotNull(message = "ID mon hoc khong duoc de trong")
+        Long subjectId,
+
+        String teacherId,
+
+        @Min(value = 1, message = "Si so toi da phai lon hon 0")
+        Integer maxStudents,
+
+        String schedule,
+
+        Boolean openForRegistration
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/GradeRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+
+public record GradeRequest(
+        @NotNull(message = "ID sinh viên không được để trống")
+        String studentId, // 🔥 Đã đổi sang String
+
+        @NotNull(message = "ID lớp học phần không được để trống")
+        Long courseClassId,
+
+        @Min(value = 0, message = "Điểm chuyên cần không được nhỏ hơn 0")
+        @Max(value = 10, message = "Điểm chuyên cần không được lớn hơn 10")
+        Double attendanceGrade,
+
+        @Min(value = 0, message = "Điểm giữa kỳ không được nhỏ hơn 0")
+        @Max(value = 10, message = "Điểm giữa kỳ không được lớn hơn 10")
+        Double midtermGrade,
+
+        @Min(value = 0, message = "Điểm cuốii kỳ không được nhỏ hơn 0")
+        @Max(value = 10, message = "Điểm cuối kỳ không được lớn hơn 10")
+        Double finalGrade
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentCreationRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
+
+public record StudentCreationRequest(
+        @NotBlank(message = "Mã sinh viên không được để trống")
+        @Size(max = 20, message = "Mã sinh viên không vượt quá 20 ký tự")
+        String studentCode,
+
+        @NotBlank(message = "Tên sinh viên không được để trống")
+        String firstName,
+
+        @NotBlank(message = "Họ và tên đệm không được để trống")
+        String lastName,
+
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+
+        @NotNull(message = "ID lớp hành chính không được để trống")
+        Long classId
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentUpdateRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import java.time.LocalDate;
+
+public record StudentUpdateRequest(
+        @NotBlank(message = "Tên sinh viên không được để trống")
+        String firstName,
+
+        @NotBlank(message = "Họ và tên đệm không được để trống")
+        String lastName,
+
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+        Long classId,
+        Boolean active // 🔥 THÊM TRƯỜNG NÀY: Để nhận trạng thái Đang học (true) / Khóa (false) từ form sửa
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/CourseClassResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+public record CourseClassResponse(
+        Long id,
+        String code,
+        String semester,
+        Long subjectId,
+        String subjectCode,
+        String subjectName,
+        Integer credits,
+        String teacherId,
+        String teacherName,
+        Integer maxStudents,
+        long registeredStudents,
+        String schedule,
+        boolean openForRegistration
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/GradeResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+public record GradeResponse(
+        Long id,
+        String studentId,
+        String studentCode,
+        String studentName,
+        Long courseClassId,
+        String courseClassCode,
+        String subjectName,
+        Integer credits,       // 🔥 THÊM MỚI: Số tín chỉ môn học
+        String teacherName,    // 🔥 THÊM MỚI: Tên giảng viên đứng lớp
+        String schedule,       // 🔥 THÊM MỚI: Lịch học thiết kế (Thứ, Tiết, Phòng)
+        Double attendanceGrade,
+        Double midtermGrade,
+        Double finalGrade,
+        Double overallGrade,
+        String letterGrade,
+        Double grade4
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentAcademicSummaryResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+import java.util.List;
+
+public record StudentAcademicSummaryResponse(
+        String studentId,        // 🔥 Đã đổi sang String
+        String studentCode,
+        String studentName,
+        String className,
+        List<GradeResponse> details,
+        Integer totalCredits,
+        Double gpaSystem10,
+        Double gpaSystem4
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+import java.time.LocalDate;
+
+public record StudentResponse(
+        String id, // 🔥 ĐÃ SỬA: Chuyển hoàn toàn sang kiểu dữ liệu String để hứng chuỗi 'HS_01'
+        String studentCode,
+        String firstName,
+        String lastName,
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+        boolean active,
+        String username,
+        String email,
+        Long classId,
+        String className
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/TeacherResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+import java.time.LocalDate;
+
+public record TeacherResponse(
+        String id,          // PHẢI LÀ String
+        String teacherCode,
+        String firstName,
+        String lastName,
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+        boolean active,
+        String username,
+        String email,
+        String departmentName
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/UserResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+import java.util.Set;
+
+public record UserResponse(
+        String id, // 🔥 Đã đổi sang String
+        String username,
+        String email,
+        boolean active,
+        Set<String> roles
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Grade.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "grades", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"student_id", "course_class_id"}) // Một SV chỉ có 1 dòng điểm trong 1 lớp học phần
+})
+public class Grade extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // Nhiều dòng điểm thuộc về một Sinh viên
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "student_id", nullable = false)
+    private Student student;
+
+    // Nhiều dòng điểm thuộc về một Lớp học phần
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_class_id", nullable = false)
+    private CourseClass courseClass;
+
+    @Column(name = "attendance_grade")
+    private Double attendanceGrade; // Điểm chuyên cần
+
+    @Column(name = "midterm_grade")
+    private Double midtermGrade; // Điểm giữa kỳ
+
+    @Column(name = "final_grade")
+    private Double finalGrade; // Điểm cuối kỳ
+
+    @Column(name = "overall_grade")
+    private Double overallGrade; // Điểm tổng kết hệ 10
+
+    @Column(name = "letter_grade", length = 5)
+    private String letterGrade; // Điểm chữ (A, B+, B, C...)
+
+    // BỔ SUNG THÊM DÒNG NÀY
+    @Column(name = "grade_4")
+    private Double grade4; // Điểm số hệ 4 (Ví dụ: 3.5, 4.0)
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Teacher.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDate;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "teachers")
+public class Teacher extends BaseEntity {
+
+    @Id
+    @Column(name = "id", length = 20)
+    private String id; // 🔥 Khóa chính kiểu Chuỗi đồng bộ với User
+
+    @Column(name = "teacher_code", nullable = false, unique = true, length = 20)
+    private String teacherCode;
+
+    @Column(name = "first_name", nullable = false, length = 50)
+    private String firstName;
+
+    @Column(name = "last_name", nullable = false, length = 100)
+    private String lastName;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(name = "gender", length = 10)
+    private String gender;
+
+    @Column(name = "phone_number", length = 15)
+    private String phoneNumber;
+
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId // 🔥 Ép khóa chính trùng vẹn với User liên kết
+    @JoinColumn(name = "id")
+    private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id", nullable = false)
+    private Department department;
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/exception/GlobalExceptionHandler.java">
+package com.dangdepzaivaio.StudentManagement.exception;
+
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    // 1. Bắt toàn bộ các lỗi Runtime không xác định (Tránh làm lộ log hệ thống ra ngoài)
+    // 1. Bắt toàn bộ các lỗi Runtime không xác định và trả thẳng tên lỗi ra Postman
+    @ExceptionHandler(value = Exception.class)
+    public ResponseEntity<ApiResponse<Object>> handlingRuntimeException(Exception exception) {
+
+        // Tạo câu thông báo chi tiết: Lấy tên Class của lỗi + Tin nhắn lỗi gốc
+        String detailedMessage = exception.getClass().getSimpleName() + " -> " + exception.getMessage();
+
+        ApiResponse<Object> apiResponse = new ApiResponse<>(
+                ErrorCode.UNCATEGORIZED_EXCEPTION.getCode(),
+                detailedMessage, // Trả thẳng câu này ra ngoài Postman thay vì câu "Lỗi hệ thống không xác định"
+                null
+        );
+        return ResponseEntity.status(ErrorCode.UNCATEGORIZED_EXCEPTION.getStatusCode()).body(apiResponse);
+    }
+
+    // 2. Bắt lỗi nghiệp vụ hệ thống do chúng ta chủ động throw (AppException)
+    @ExceptionHandler(value = AppException.class)
+    public ResponseEntity<ApiResponse<Object>> handlingAppException(AppException exception) {
+        ErrorCode errorCode = exception.getErrorCode();
+        ApiResponse<Object> apiResponse = new ApiResponse<>(
+                errorCode.getCode(),
+                errorCode.getMessage(),
+                null
+        );
+        return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
+    }
+
+    // 3. Bắt toàn bộ lỗi Validation đầu vào từ DTO Records (@NotBlank, @Size, @Email)
+    @ExceptionHandler(value = MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<Object>> handlingValidation(MethodArgumentNotValidException exception) {
+        String defaultMessage = exception.getFieldError().getDefaultMessage();
+
+        ApiResponse<Object> apiResponse = new ApiResponse<>(
+                ErrorCode.VALIDATION_ERROR.getCode(),
+                defaultMessage, // Trả ra chính xác câu thông báo lỗi bạn viết ở Record DTO
+                null
+        );
+        return ResponseEntity.status(ErrorCode.VALIDATION_ERROR.getStatusCode()).body(apiResponse);
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/CourseClassMapper.java">
+package com.dangdepzaivaio.StudentManagement.mapper;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.CourseClassRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
+import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
+import com.dangdepzaivaio.StudentManagement.entity.Subject;
+import com.dangdepzaivaio.StudentManagement.entity.Teacher;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
+@Mapper(componentModel = "spring")
+public interface CourseClassMapper {
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "subject", ignore = true)
+    @Mapping(target = "teacher", ignore = true)
+    @Mapping(target = "registeredStudents", ignore = true)
+    CourseClass toEntity(CourseClassRequest request);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "subject", ignore = true)
+    @Mapping(target = "teacher", ignore = true)
+    @Mapping(target = "registeredStudents", ignore = true)
+    void updateEntityFromRequest(CourseClassRequest request, @MappingTarget CourseClass courseClass);
+
+    default CourseClassResponse toResponse(CourseClass courseClass) {
+        if (courseClass == null) {
+            return null;
+        }
+
+        Subject subject = courseClass.getSubject();
+        Teacher teacher = courseClass.getTeacher();
+        String teacherName = teacher == null
+                ? null
+                : (safe(teacher.getLastName()) + " " + safe(teacher.getFirstName())).trim();
+
+        return new CourseClassResponse(
+                courseClass.getId(),
+                courseClass.getCode(),
+                courseClass.getSemester(),
+                subject == null ? null : subject.getId(),
+                subject == null ? null : subject.getCode(),
+                subject == null ? null : subject.getName(),
+                subject == null ? null : subject.getCredits(),
+                teacher == null ? null : teacher.getId(),
+                teacherName == null || teacherName.isBlank() ? null : teacherName,
+                courseClass.getMaxStudents(),
+                courseClass.getRegisteredStudents(),
+                courseClass.getSchedule(),
+                courseClass.isOpenForRegistration()
+        );
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/SubjectMapper.java">
+package com.dangdepzaivaio.StudentManagement.mapper;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse; // Thêm import này
+import com.dangdepzaivaio.StudentManagement.entity.Subject;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
+@Mapper(componentModel = "spring")
+public interface SubjectMapper {
+
+    @Mapping(target = "id", ignore = true)
+    Subject toEntity(SubjectRequest request);
+
+    @Mapping(target = "id", ignore = true)
+    void updateEntityFromRequest(SubjectRequest request, @MappingTarget Subject subject);
+
+    // BỔ SUNG HÀM NÀY: Chuyển đổi thực thể sang DTO phẳng sạch sẽ
+    SubjectResponse toResponse(Subject subject);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/UserMapper.java">
+package com.dangdepzaivaio.StudentManagement.mapper;
+
+import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.entity.Role;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Mapper(componentModel = "spring")
+public interface UserMapper {
+
+    @Mapping(target = "roles", source = "roles")
+    UserResponse toResponse(User user);
+
+    // Hàm chuyển đổi custom: Ép danh sách thực thể Role thành bộ tên chuỗi gọn gàng
+    default Set<String> mapRoles(Set<Role> roles) {
+        if (roles == null) return null;
+        return roles.stream()
+                .map(Role::getName)
+                .collect(Collectors.toSet());
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/ClassRepository.java">
+package com.dangdepzaivaio.StudentManagement.repository;
+
+import com.dangdepzaivaio.StudentManagement.entity.Class;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+
+@Repository
+public interface ClassRepository extends JpaRepository<Class, Long> {
+    List<Class> findByDepartmentId(Long departmentId);
+    boolean existsByName(String name);
+    boolean existsByDepartmentId(Long departmentId);
+    @org.springframework.data.jpa.repository.Query("SELECT c FROM Class c JOIN FETCH c.department")
+    List<Class> findAllClassesWithJoinFetch();
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/TeacherRepository.java">
+package com.dangdepzaivaio.StudentManagement.repository;
+
+import com.dangdepzaivaio.StudentManagement.entity.Teacher;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface TeacherRepository extends JpaRepository<Teacher, String> {
+    boolean existsByTeacherCode(String teacherCode);
+    Optional<Teacher> findByTeacherCode(String teacherCode);
+
+    @Query("SELECT t FROM Teacher t JOIN FETCH t.user JOIN FETCH t.department")
+    List<Teacher> findAllTeachersWithJoinFetch();
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/GradeService.java">
+package com.dangdepzaivaio.StudentManagement.service;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse;
+import java.util.List;
+
+public interface GradeService {
+    GradeResponse inputGrade(GradeRequest request);
+    List<GradeResponse> getGradesByStudent(String studentId); // 🔥 Sửa sang String
+    GradeResponse updateGrade(Long id, GradeRequest request);
+    List<GradeResponse> getAllGrades();
+    GradeResponse getGradeById(Long id);
+    void deleteGrade(Long id);
+    StudentAcademicSummaryResponse getAcademicSummary(String studentId); // 🔥 Sửa sang String
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/ClassServiceImpl.java">
+package com.dangdepzaivaio.StudentManagement.service.impl;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.ClassRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ClassResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Class;
+import com.dangdepzaivaio.StudentManagement.entity.Department;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.ClassMapper;
+import com.dangdepzaivaio.StudentManagement.repository.ClassRepository;
+import com.dangdepzaivaio.StudentManagement.repository.DepartmentRepository;
+import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
+import com.dangdepzaivaio.StudentManagement.service.ClassService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class ClassServiceImpl implements ClassService {
+    // 🔥 ĐÃ GOM TOÀN BỘ KHAI BÁO LÊN ĐẦU CLASS THEO ĐÚNG CHUẨN LOMBOK
+    private final ClassRepository classRepository;
+    private final DepartmentRepository departmentRepository;
+    private final StudentRepository studentRepository;
+    private final ClassMapper classMapper;
+
+    @Override
+    @Transactional
+    public ClassResponse createClass(ClassRequest request) {
+        if (classRepository.existsByName(request.name())) {
+            throw new AppException(ErrorCode.CLASS_EXISTED);
+        }
+        Department department = departmentRepository.findById(request.departmentId())
+                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
+
+        Class studentClass = classMapper.toEntity(request);
+        studentClass.setDepartment(department);
+        return classMapper.toResponse(classRepository.save(studentClass));
+    }
+
+    @Override
+    public List<ClassResponse> getAllClasses() {
+        return classRepository.findAllClassesWithJoinFetch().stream()
+                .map(classMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public ClassResponse updateClass(Long id, ClassRequest request) {
+        Class studentClass = classRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+
+        if (!studentClass.getName().equals(request.name()) && classRepository.existsByName(request.name())) {
+            throw new AppException(ErrorCode.CLASS_EXISTED);
+        }
+
+        Department department = departmentRepository.findById(request.departmentId())
+                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
+
+        classMapper.updateEntityFromRequest(request, studentClass);
+        studentClass.setDepartment(department);
+        return classMapper.toResponse(classRepository.save(studentClass));
+    }
+
+    @Override
+    @Transactional
+    public void deleteClass(Long id) {
+        Class studentClass = classRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+
+        if (studentRepository.existsByStudentClassId(id)) {
+            throw new AppException(ErrorCode.CLASS_HAS_STUDENTS);
+        }
+
+        classRepository.delete(studentClass);
+    }
+
+    @Override
+    public ClassResponse getClassById(Long id) {
+        Class adminClass = classRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+        return classMapper.toResponse(adminClass);
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/SubjectService.java">
+package com.dangdepzaivaio.StudentManagement.service;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse; // Sửa import này
+import java.util.List;
+
+public interface SubjectService {
+    SubjectResponse createSubject(SubjectRequest request);
+    List<SubjectResponse> getAllSubjects();
+    SubjectResponse getSubjectById(Long id);
+    SubjectResponse updateSubject(Long id, SubjectRequest request);
+    void deleteSubject(Long id);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/StudentManagementApplication.java">
+package com.dangdepzaivaio.StudentManagement;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+
+@SpringBootApplication
+@EnableJpaAuditing
+
+public class StudentManagementApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(StudentManagementApplication.class, args);
+	}
+
+}
+</file>
+
+<file path="student-management-ui/README.md">
+# React + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+Tiến độ Dự án (Project Progress)
+Markdown
+- [x] Đồng bộ toàn vẹn cấu trúc mã chuỗi tự sinh (AD, HS_xx, GV_xx) ở cả 2 phân hệ.
+- [x] Chuyển đổi luồng xác thực bảo mật hệ thống sang Email trường cấp (`@open.edu.vn`).
+- [x] Xây dựng phân hệ Đăng ký tín chỉ Realtime (Tự động mở/đóng cổng, thống kê lớp học phần).
+- [x] Triển khai bộ lắng nghe trạng thái tab (Visibility API) để kiểm soát phiên làm việc 15 phút.
+- [x] Dọn dẹp môi trường, tối ưu MapStruct ánh xạ phẳng và dập tắt hoàn toàn log Hibernate SQ
+</file>
+
 <file path="student-management-ui/src/App.jsx">
 import React, { useState, useEffect } from 'react';
 import LoginPage from './pages/LoginPage';
 import StudentPage from './pages/StudentPage';
 import TeacherPage from './pages/TeacherPage';
 import GradePage from './pages/GradePage';
-import RegistrationPage from './pages/RegistrationPage'; // 🔥 THÊM MỚI: Import trang đăng ký tín chỉ
+import RegistrationPage from './pages/RegistrationPage';
+import TrainingPage from './pages/TrainingPage';
 
 function App() {
     const [token, setToken] = useState(localStorage.getItem('token'));
@@ -3525,6 +4771,9 @@ function App() {
 
                     {/* 🔥 THÊM MỚI: Menu Đăng ký tín chỉ dành cho tất cả mọi người hiển thị đồng bộ style */}
                     <button onClick={() => setActiveTab('registration')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'registration' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>⏰ Đăng Ký Tín Chỉ</button>
+                    {role.includes('ADMIN') && (
+                        <button onClick={() => setActiveTab('training')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'training' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>🏛️ Quản Lý Đào Tạo</button>
+                    )}
                 </div>
 
                 {/* CONTENT AREA CO-GIÃN */}
@@ -3541,6 +4790,8 @@ function App() {
 
                     {/* 🔥 THÊM MỚI: Vùng render trang Đăng ký tín chỉ khi click chọn tab */}
                     {activeTab === 'registration' && <RegistrationPage />}
+
+                    {activeTab === 'training' && <TrainingPage />}
                 </div>
 
             </div>
@@ -3549,71 +4800,6 @@ function App() {
 }
 
 export default App;
-</file>
-
-<file path="student-management-ui/src/assets/react.svg">
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="35.93" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 228"><path fill="#00D8FF" d="M210.483 73.824a171.49 171.49 0 0 0-8.24-2.597c.465-1.9.893-3.777 1.273-5.621c6.238-30.281 2.16-54.676-11.769-62.708c-13.355-7.7-35.196.329-57.254 19.526a171.23 171.23 0 0 0-6.375 5.848a155.866 155.866 0 0 0-4.241-3.917C100.759 3.829 77.587-4.822 63.673 3.233C50.33 10.957 46.379 33.89 51.995 62.588a170.974 170.974 0 0 0 1.892 8.48c-3.28.932-6.445 1.924-9.474 2.98C17.309 83.498 0 98.307 0 113.668c0 15.865 18.582 31.778 46.812 41.427a145.52 145.52 0 0 0 6.921 2.165a167.467 167.467 0 0 0-2.01 9.138c-5.354 28.2-1.173 50.591 12.134 58.266c13.744 7.926 36.812-.22 59.273-19.855a145.567 145.567 0 0 0 5.342-4.923a168.064 168.064 0 0 0 6.92 6.314c21.758 18.722 43.246 26.282 56.54 18.586c13.731-7.949 18.194-32.003 12.4-61.268a145.016 145.016 0 0 0-1.535-6.842c1.62-.48 3.21-.974 4.76-1.488c29.348-9.723 48.443-25.443 48.443-41.52c0-15.417-17.868-30.326-45.517-39.844Zm-6.365 70.984c-1.4.463-2.836.91-4.3 1.345c-3.24-10.257-7.612-21.163-12.963-32.432c5.106-11 9.31-21.767 12.459-31.957c2.619.758 5.16 1.557 7.61 2.4c23.69 8.156 38.14 20.213 38.14 29.504c0 9.896-15.606 22.743-40.946 31.14Zm-10.514 20.834c2.562 12.94 2.927 24.64 1.23 33.787c-1.524 8.219-4.59 13.698-8.382 15.893c-8.067 4.67-25.32-1.4-43.927-17.412a156.726 156.726 0 0 1-6.437-5.87c7.214-7.889 14.423-17.06 21.459-27.246c12.376-1.098 24.068-2.894 34.671-5.345a134.17 134.17 0 0 1 1.386 6.193ZM87.276 214.515c-7.882 2.783-14.16 2.863-17.955.675c-8.075-4.657-11.432-22.636-6.853-46.752a156.923 156.923 0 0 1 1.869-8.499c10.486 2.32 22.093 3.988 34.498 4.994c7.084 9.967 14.501 19.128 21.976 27.15a134.668 134.668 0 0 1-4.877 4.492c-9.933 8.682-19.886 14.842-28.658 17.94ZM50.35 144.747c-12.483-4.267-22.792-9.812-29.858-15.863c-6.35-5.437-9.555-10.836-9.555-15.216c0-9.322 13.897-21.212 37.076-29.293c2.813-.98 5.757-1.905 8.812-2.773c3.204 10.42 7.406 21.315 12.477 32.332c-5.137 11.18-9.399 22.249-12.634 32.792a134.718 134.718 0 0 1-6.318-1.979Zm12.378-84.26c-4.811-24.587-1.616-43.134 6.425-47.789c8.564-4.958 27.502 2.111 47.463 19.835a144.318 144.318 0 0 1 3.841 3.545c-7.438 7.987-14.787 17.08-21.808 26.988c-12.04 1.116-23.565 2.908-34.161 5.309a160.342 160.342 0 0 1-1.76-7.887Zm110.427 27.268a347.8 347.8 0 0 0-7.785-12.803c8.168 1.033 15.994 2.404 23.343 4.08c-2.206 7.072-4.956 14.465-8.193 22.045a381.151 381.151 0 0 0-7.365-13.322Zm-45.032-43.861c5.044 5.465 10.096 11.566 15.065 18.186a322.04 322.04 0 0 0-30.257-.006c4.974-6.559 10.069-12.652 15.192-18.18ZM82.802 87.83a323.167 323.167 0 0 0-7.227 13.238c-3.184-7.553-5.909-14.98-8.134-22.152c7.304-1.634 15.093-2.97 23.209-3.984a321.524 321.524 0 0 0-7.848 12.897Zm8.081 65.352c-8.385-.936-16.291-2.203-23.593-3.793c2.26-7.3 5.045-14.885 8.298-22.6a321.187 321.187 0 0 0 7.257 13.246c2.594 4.48 5.28 8.868 8.038 13.147Zm37.542 31.03c-5.184-5.592-10.354-11.779-15.403-18.433c4.902.192 9.899.29 14.978.29c5.218 0 10.376-.117 15.453-.343c-4.985 6.774-10.018 12.97-15.028 18.486Zm52.198-57.817c3.422 7.8 6.306 15.345 8.596 22.52c-7.422 1.694-15.436 3.058-23.88 4.071a382.417 382.417 0 0 0 7.859-13.026a347.403 347.403 0 0 0 7.425-13.565Zm-16.898 8.101a358.557 358.557 0 0 1-12.281 19.815a329.4 329.4 0 0 1-23.444.823c-7.967 0-15.716-.248-23.178-.732a310.202 310.202 0 0 1-12.513-19.846h.001a307.41 307.41 0 0 1-10.923-20.627a310.278 310.278 0 0 1 10.89-20.637l-.001.001a307.318 307.318 0 0 1 12.413-19.761c7.613-.576 15.42-.876 23.31-.876H128c7.926 0 15.743.303 23.354.883a329.357 329.357 0 0 1 12.335 19.695a358.489 358.489 0 0 1 11.036 20.54a329.472 329.472 0 0 1-11 20.722Zm22.56-122.124c8.572 4.944 11.906 24.881 6.52 51.026c-.344 1.668-.73 3.367-1.15 5.09c-10.622-2.452-22.155-4.275-34.23-5.408c-7.034-10.017-14.323-19.124-21.64-27.008a160.789 160.789 0 0 1 5.888-5.4c18.9-16.447 36.564-22.941 44.612-18.3ZM128 90.808c12.625 0 22.86 10.235 22.86 22.86s-10.235 22.86-22.86 22.86s-22.86-10.235-22.86-22.86s10.235-22.86 22.86-22.86Z"></path></svg>
-</file>
-
-<file path="student-management-ui/src/assets/vite.svg">
-<svg xmlns="http://www.w3.org/2000/svg" width="77" height="47" fill="none" aria-labelledby="vite-logo-title" viewBox="0 0 77 47"><title id="vite-logo-title">Vite</title><style>.parenthesis{fill:#000}@media (prefers-color-scheme:dark){.parenthesis{fill:#fff}}</style><path fill="#9135ff" d="M40.151 45.71c-.663.844-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.493c-.92 0-1.457-1.04-.92-1.788l7.479-10.471c1.07-1.498 0-3.578-1.842-3.578H15.443c-.92 0-1.456-1.04-.92-1.788l9.696-13.576c.213-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.472c-1.07 1.497 0 3.578 1.842 3.578h11.376c.944 0 1.474 1.087.89 1.83L40.153 45.712z"/><mask id="a" width="48" height="47" x="14" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha"><path fill="#000" d="M40.047 45.71c-.663.843-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.389c-.92 0-1.457-1.04-.92-1.788l7.479-10.472c1.07-1.497 0-3.578-1.842-3.578H15.34c-.92 0-1.456-1.04-.92-1.788l9.696-13.575c.213-.297.556-.474.92-.474H53.93c.92 0 1.456 1.04.92 1.788L47.37 13.03c-1.07 1.498 0 3.578 1.842 3.578h11.376c.944 0 1.474 1.088.89 1.831L40.049 45.712z"/></mask><g mask="url(#a)"><g filter="url(#b)"><ellipse cx="5.508" cy="14.704" fill="#eee6ff" rx="5.508" ry="14.704" transform="rotate(269.814 20.96 11.29)scale(-1 1)"/></g><g filter="url(#c)"><ellipse cx="10.399" cy="29.851" fill="#eee6ff" rx="10.399" ry="29.851" transform="rotate(89.814 -16.902 -8.275)scale(1 -1)"/></g><g filter="url(#d)"><ellipse cx="5.508" cy="30.487" fill="#8900ff" rx="5.508" ry="30.487" transform="rotate(89.814 -19.197 -7.127)scale(1 -1)"/></g><g filter="url(#e)"><ellipse cx="5.508" cy="30.599" fill="#8900ff" rx="5.508" ry="30.599" transform="rotate(89.814 -25.928 4.177)scale(1 -1)"/></g><g filter="url(#f)"><ellipse cx="5.508" cy="30.599" fill="#8900ff" rx="5.508" ry="30.599" transform="rotate(89.814 -25.738 5.52)scale(1 -1)"/></g><g filter="url(#g)"><ellipse cx="14.072" cy="22.078" fill="#eee6ff" rx="14.072" ry="22.078" transform="rotate(93.35 31.245 55.578)scale(-1 1)"/></g><g filter="url(#h)"><ellipse cx="3.47" cy="21.501" fill="#8900ff" rx="3.47" ry="21.501" transform="rotate(89.009 35.419 55.202)scale(-1 1)"/></g><g filter="url(#i)"><ellipse cx="3.47" cy="21.501" fill="#8900ff" rx="3.47" ry="21.501" transform="rotate(89.009 35.419 55.202)scale(-1 1)"/></g><g filter="url(#j)"><ellipse cx="14.592" cy="9.743" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(39.51 14.592 9.743)"/></g><g filter="url(#k)"><ellipse cx="61.728" cy="-5.321" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 61.728 -5.32)"/></g><g filter="url(#l)"><ellipse cx="55.618" cy="7.104" fill="#00c2ff" rx="5.971" ry="9.665" transform="rotate(37.892 55.618 7.104)"/></g><g filter="url(#m)"><ellipse cx="12.326" cy="39.103" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 12.326 39.103)"/></g><g filter="url(#n)"><ellipse cx="12.326" cy="39.103" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 12.326 39.103)"/></g><g filter="url(#o)"><ellipse cx="49.857" cy="30.678" fill="#8900ff" rx="4.407" ry="29.108" transform="rotate(37.892 49.857 30.678)"/></g><g filter="url(#p)"><ellipse cx="52.623" cy="33.171" fill="#00c2ff" rx="5.971" ry="15.297" transform="rotate(37.892 52.623 33.17)"/></g></g><path d="M6.919 0c-9.198 13.166-9.252 33.575 0 46.789h6.215c-9.25-13.214-9.196-33.623 0-46.789zm62.424 0h-6.215c9.198 13.166 9.252 33.575 0 46.789h6.215c9.25-13.214 9.196-33.623 0-46.789" class="parenthesis"/><defs><filter id="b" width="60.045" height="41.654" x="-5.564" y="16.92" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="c" width="90.34" height="51.437" x="-40.407" y="-6.762" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="d" width="79.355" height="29.4" x="-35.435" y="2.801" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="e" width="79.579" height="29.4" x="-30.84" y="20.8" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="f" width="79.579" height="29.4" x="-29.307" y="21.949" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="g" width="74.749" height="58.852" x="29.961" y="-17.13" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="7.659"/></filter><filter id="h" width="61.377" height="25.362" x="37.754" y="3.055" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="i" width="61.377" height="25.362" x="37.754" y="3.055" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="j" width="56.045" height="63.649" x="-13.43" y="-22.082" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="k" width="54.814" height="64.646" x="34.321" y="-37.644" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="l" width="33.541" height="35.313" x="38.847" y="-10.552" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="m" width="54.814" height="64.646" x="-15.081" y="6.78" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="n" width="54.814" height="64.646" x="-15.081" y="6.78" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="o" width="54.814" height="64.646" x="22.45" y="-1.645" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter><filter id="p" width="39.409" height="43.623" x="32.919" y="11.36" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_2002_17286" stdDeviation="4.596"/></filter></defs></svg>
-</file>
-
-<file path="student-management-ui/src/index.css">
-:root {
-  /* 🎨 Hệ màu sắc chuẩn (Bảo vệ mắt, giảm mỏi mắt ban đêm) */
-  --color-bg: #141414;           /* Màu nền tối chủ đạo sâu */
-  --color-surface: #222222;      /* Màu nền của Card, Sidebar, Form */
-  --color-surface-hover: #2d2d2d;/* Màu khi di chuột vào vùng tương tác */
-  --color-border: #333333;       /* Đường viền phân cách mảnh */
-
-  /* 🌟 Màu sắc trạng thái tín chỉ */
-  --color-primary: #007bff;      /* Màu xanh thương hiệu (Nút bấm, trạng thái chính) */
-  --color-success: #28a745;      /* Màu xanh lá (Điểm cao, Đạt, Thành công) */
-  --color-warning: #ffc107;      /* Màu vàng (Mã sinh viên, Cảnh báo, Điểm trung bình) */
-  --color-danger: #dc3545;       /* Màu đỏ (Điểm F, Xóa, Lỗi hệ thống) */
-
-  /* 📝 Màu chữ theo cấp độ phân rã */
-  --text-main: #ffffff;          /* Chữ trắng rõ ràng cho nội dung chính */
-  --text-muted: #aaaaaa;         /* Chữ xám cho nội dung phụ, mô tả */
-  --text-cyan: #00ffff;          /* Màu nhấn phản quang cho tiêu đề, bảng số */
-
-  /* 📐 Hệ khoảng cách và Kích thước (Spacing & Sizing) */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 12px;
-  --spacing-lg: 16px;
-  --spacing-xl: 20px;
-
-  /* 🔤 Font size tiêu chuẩn hệ thống */
-  --font-base: 14px;
-  --font-md: 16px;
-  --font-lg: 18px;
-  --font-title: 24px;
-}
-
-/* Reset cơ bản cho toàn bộ ứng dụng sử dụng chuẩn toàn cục */
-body {
-  margin: 0;
-  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--color-bg);
-  color: var(--text-main);
-  font-size: var(--font-base);
-  -webkit-font-smoothing: antialiased;
-}
-</file>
-
-<file path="student-management-ui/src/main.jsx">
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
-
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
 </file>
 
 <file path="student-management-ui/src/pages/GradePage.jsx">
@@ -4098,7 +5284,7 @@ function StudentPage() {
     const [includeInactive, setIncludeInactive] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
-    const [editingStudentId, setEditingStudentId] = useState(''); // 🔥 ĐÃ SỬA: Chuyển sang String trống làm mặc định
+    const [editingStudentId, setEditingStudentId] = useState('');
 
     // Form States
     const [studentCode, setStudentCode] = useState('');
@@ -4109,8 +5295,14 @@ function StudentPage() {
     const [phoneNumber, setPhoneNumber] = useState('');
     const [classId, setClassId] = useState('');
 
+    // 🔥 THÊM MỚI: State lưu trữ danh sách lớp hành chính phục vụ Dropdown menu
+    const [classList, setClassList] = useState([]);
+
     useEffect(() => {
         fetchStudents();
+        if (isAdmin) {
+            fetchClassList(); // Chỉ tải danh sách gợi ý lớp nếu là Admin có quyền tạo/sửa
+        }
     }, [includeInactive]);
 
     const fetchStudents = async () => {
@@ -4125,8 +5317,22 @@ function StudentPage() {
         }
     };
 
+    // 🔥 THÊM MỚI: Hàm tải danh sách lớp hành chính từ DB thật
+    const fetchClassList = async () => {
+        try {
+            const data = await axiosClient.get('/classes');
+            setClassList(data);
+        } catch (err) {
+            console.error("Lỗi nạp danh sách lớp gợi ý:", err);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!classId) {
+            alert("Vui lòng lựa chọn một Lớp hành chính gợi ý từ danh sách!");
+            return;
+        }
 
         if (isEditMode) {
             const payload = { firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId) };
@@ -4143,7 +5349,7 @@ function StudentPage() {
             const payload = { studentCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId) };
             try {
                 await axiosClient.post('/students', payload);
-                alert(`Cấp tài khoản thành công mượt mà!`);
+                alert(`Cấp tài khoản thành công mượt mà!\nTài khoản: ${studentCode}\nMật khẩu mặc định: password1234`);
                 setShowModal(false);
                 resetForm();
                 fetchStudents();
@@ -4155,14 +5361,14 @@ function StudentPage() {
 
     const handleOpenEdit = (student) => {
         setIsEditMode(true);
-        setEditingStudentId(student.id); // Lưu chuỗi ID dạng 'HS_01' làm đích cập nhật
+        setEditingStudentId(student.id);
         setStudentCode(student.studentCode);
         setFirstName(student.firstName);
         setLastName(student.lastName);
         setDateOfBirth(student.dateOfBirth || '');
         setGender(student.gender || 'Nam');
         setPhoneNumber(student.phoneNumber || '');
-        setClassId(student.classId || '');
+        setClassId(student.classId || ''); // Tự động chọn trúng option lớp cũ của sinh viên
         setShowModal(true);
     };
 
@@ -4223,7 +5429,7 @@ function StudentPage() {
                     <th style={{ padding: 'var(--spacing-md)' }}>Hệ thống ID</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Mã Sinh Viên</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Tên</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Lớp Học Phần</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Lớp Hành Chính</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Trạng thái</th>
                     {isAdmin && <th style={{ padding: 'var(--spacing-md)' }}>Hành Động Tác Vụ</th>}
@@ -4232,7 +5438,6 @@ function StudentPage() {
                 <tbody>
                 {students.map((student) => (
                     <tr key={student.id} style={{ borderBottom: '1px solid var(--color-border)', opacity: student.active ? 1 : 0.55 }}>
-                        {/* Hiển thị chuỗi định danh đồng bộ hóa dùng chung với User */}
                         <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--text-muted)' }}>{student.id}</td>
                         <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{student.studentCode}</td>
                         <td style={{ padding: 'var(--spacing-md)' }}>{student.lastName} {student.firstName}</td>
@@ -4243,7 +5448,6 @@ function StudentPage() {
                         </td>
                         {isAdmin && (
                             <td style={{ padding: 'var(--spacing-md)' }}>
-                                {/* 🔥 HÀNH ĐỘNG: Phân tách nút bấm độc lập hoàn chỉnh ra bên ngoài danh sách */}
                                 <button onClick={() => handleOpenEdit(student)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', marginRight: '5px', fontWeight: 'bold' }}>Sửa</button>
                                 {student.active ? (
                                     <button onClick={() => handleDeleteStudent(student.id, student.studentCode, student.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Khóa</button>
@@ -4264,7 +5468,18 @@ function StudentPage() {
                         <form onSubmit={handleSubmit}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
                                 <div><label style={{ display: 'block', marginBottom: '4px' }}>Mã Sinh Viên:</label><input type="text" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} disabled={isEditMode} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>ID Lớp Hành Chính:</label><input type="number" value={classId} onChange={(e) => setClassId(e.target.value)} required style={inputStyle} /></div>
+
+                                {/* 🔥 ĐÃ SỬA: Thay thế ô input ID Number bằng Dropdown chọn lớp chuyên nghiệp */}
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '4px' }}>Lớp Hành Chính:</label>
+                                    <select value={classId} onChange={(e) => setClassId(e.target.value)} required style={inputStyle}>
+                                        <option value="">-- Chọn lớp gợi ý --</option>
+                                        {classList.map(cls => (
+                                            <option key={cls.id} value={cls.id}>{cls.name} ({cls.code})</option>
+                                        ))}
+                                    </select>
+                                </div>
+
                                 <div><label style={{ display: 'block', marginBottom: '4px' }}>Họ Và Tên Đệm:</label><input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
                                 <div><label style={{ display: 'block', marginBottom: '4px' }}>Tên Sinh Viên:</label><input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
                                 <div><label style={{ display: 'block', marginBottom: '4px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
@@ -4285,136 +5500,6 @@ function StudentPage() {
 
 const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
 export default StudentPage;
-</file>
-
-<file path="student-management-ui/src/pages/TeacherPage.jsx">
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
-
-function TeacherPage() {
-    const [teachers, setTeachers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
-    const [modalError, setModalError] = useState('');
-
-    const [teacherCode, setTeacherCode] = useState('');
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [dateOfBirth, setDateOfBirth] = useState('');
-    const [gender, setGender] = useState('Nam');
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [departmentId, setDepartmentId] = useState('');
-
-    useEffect(() => {
-        fetchTeachers();
-    }, []);
-
-    const fetchTeachers = async () => {
-        try {
-            setLoading(true);
-            const data = await axiosClient.get('/teachers');
-            setTeachers(data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleCreateTeacher = async (e) => {
-        e.preventDefault();
-        setModalError('');
-        const payload = { teacherCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, departmentId: Number(departmentId) };
-        try {
-            await axiosClient.post('/teachers', payload);
-            alert(`Cấp tài khoản Giảng viên thành công!\nTài khoản: ${teacherCode}\nMật khẩu: password1234`);
-            setShowModal(false);
-            resetForm();
-            fetchTeachers();
-        } catch (err) {
-            setModalError(err || 'Lỗi khởi tạo hồ sơ giảng viên.');
-        }
-    };
-
-    const resetForm = () => {
-        setTeacherCode(''); setFirstName(''); setLastName(''); setDateOfBirth(''); setGender('Nam'); setPhoneNumber(''); setDepartmentId(''); setModalError('');
-    };
-
-    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang tải danh sách giảng viên...</div>;
-
-    return (
-        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
-                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>QUẢN LÝ DANH SÁCH GIẢNG VIÊN</h2>
-                <button onClick={() => setShowModal(true)} style={{ padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-success)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                    + Cấp Tài Khoản Giảng Viên
-                </button>
-            </div>
-
-            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-                <thead>
-                <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Mã Giảng Viên</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Tên</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Khoa Chuyên Môn</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Email Giảng Dạy</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Số Điện Thoại</th>
-                </tr>
-                </thead>
-                <tbody>
-                {teachers.map((t) => (
-                    <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{t.teacherCode}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{t.lastName} {t.firstName}</td>
-                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)' }}>{t.departmentName}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{t.gender}</td>
-                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-muted)' }}>{t.email}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{t.phoneNumber || '-'}</td>
-                    </tr>
-                ))}
-                </tbody>
-            </table>
-
-            {showModal && (
-                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 }}>
-                    <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--spacing-xl)', borderRadius: '8px', width: '550px' }}>
-                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>✍️ THÊM MỚI HỒ SƠ GIẢNG VIÊN</h3>
-                        {modalError && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)' }}>{modalError}</div>}
-                        <form onSubmit={handleCreateTeacher}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Mã Giảng Viên:</label><input type="text" placeholder="GV2026_01" value={teacherCode} onChange={(e) => setTeacherCode(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>ID Khoa/Viện:</label><input type="number" placeholder="ID" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Họ Và Tên Đệm:</label><input type="text" placeholder="Trần Quốc" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Tên Giảng Viên:</label><input type="text" placeholder="Tuấn" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Giới Tính:</label><select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
-                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px' }}>Số Điện Thoại:</label><input type="text" placeholder="0912345678" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
-                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}>Hủy</button>
-                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}>Khởi Tạo & Cấp TK</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
-const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
-export default TeacherPage;
-</file>
-
-<file path="student-management-ui/vite.config.js">
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
-})
 </file>
 
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/configuration/DatabaseInitializer.java">
@@ -4538,7 +5623,7 @@ public class SecurityConfig {
 
                 .requestMatchers(HttpMethod.POST, "/registration/periods").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/registration/periods/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/registration/periods").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/registration/periods").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
                 .requestMatchers(HttpMethod.GET, "/registration/statistics").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/registration/course-class/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/registration/teacher/**").hasRole("TEACHER")
@@ -4573,119 +5658,6 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/AuthenticationController.java">
-package com.dangdepzaivaio.StudentManagement.controller;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.AuthenticationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.AuthenticationResponse;
-import com.dangdepzaivaio.StudentManagement.service.impl.AuthenticationService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import java.util.Map;
-
-@RestController
-@RequestMapping("/auth")
-@RequiredArgsConstructor
-public class AuthenticationController {
-
-    private final AuthenticationService authenticationService;
-
-    @PostMapping("/login")
-    public ApiResponse<AuthenticationResponse> login(@RequestBody AuthenticationRequest request) {
-        var result = authenticationService.authenticate(request);
-        return new ApiResponse<>(1000, "Đăng nhập hệ thống thành công!", result);
-    }
-
-    @PostMapping("/change-password")
-    public ApiResponse<String> changePassword(@RequestBody Map<String, String> request) {
-        String username = request.get("username");
-        String newPassword = request.get("newPassword");
-        authenticationService.changePasswordFirstLogin(username, newPassword);
-        return new ApiResponse<>(1000, "Đổi mật khẩu lần đầu thành công!", "Mật khẩu mới đã được áp dụng.");
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/SubjectController.java">
-package com.dangdepzaivaio.StudentManagement.controller;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse; // Đổi import sang DTO Response
-import com.dangdepzaivaio.StudentManagement.service.SubjectService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-
-@RestController
-@RequestMapping("/subjects")
-@RequiredArgsConstructor
-public class SubjectController {
-
-    private final SubjectService subjectService;
-
-    @PostMapping
-    public ApiResponse<SubjectResponse> createSubject(@RequestBody @Valid SubjectRequest request) {
-        return new ApiResponse<>(1000, "Tạo môn học thành công!", subjectService.createSubject(request));
-    }
-
-    @GetMapping
-    public ApiResponse<List<SubjectResponse>> getAllSubjects() {
-        return new ApiResponse<>(1000, "Lấy danh sách môn học thành công!", subjectService.getAllSubjects());
-    }
-
-    @GetMapping("/{subjectId}")
-    public ApiResponse<SubjectResponse> getSubject(@PathVariable Long subjectId) {
-        return new ApiResponse<>(1000, "Lấy chi tiết môn học thành công!", subjectService.getSubjectById(subjectId));
-    }
-
-    @PutMapping("/{subjectId}")
-    public ApiResponse<SubjectResponse> updateSubject(@PathVariable Long subjectId, @RequestBody @Valid SubjectRequest request) {
-        return new ApiResponse<>(1000, "Cập nhật môn học thành công!", subjectService.updateSubject(subjectId, request));
-    }
-
-    @DeleteMapping("/{subjectId}")
-    public ApiResponse<String> deleteSubject(@PathVariable Long subjectId) {
-        subjectService.deleteSubject(subjectId);
-        return new ApiResponse<>(1000, "Xóa môn học thành công!", "Môn học có ID " + subjectId + " đã bị xóa hoàn toàn.");
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentCreationRequest.java">
-package com.dangdepzaivaio.StudentManagement.dto.request;
-
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import java.time.LocalDate;
-
-public record StudentCreationRequest(
-        @NotBlank(message = "Mã sinh viên không được để trống")
-        @Size(max = 20, message = "Mã sinh viên không vượt quá 20 ký tự")
-        String studentCode,
-
-        @NotBlank(message = "Tên sinh viên không được để trống")
-        String firstName,
-
-        @NotBlank(message = "Họ và tên đệm không được để trống")
-        String lastName,
-
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber,
-
-        @NotNull(message = "ID lớp hành chính không được để trống")
-        Long classId
-) {}
 </file>
 
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/AuthenticationResponse.java">
@@ -4753,183 +5725,6 @@ public class CourseClass extends BaseEntity {
 
     @Transient
     private long registeredStudents;
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Grade.java">
-package com.dangdepzaivaio.StudentManagement.entity;
-
-import jakarta.persistence.*;
-import lombok.*;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Entity
-@Table(name = "grades", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"student_id", "course_class_id"}) // Một SV chỉ có 1 dòng điểm trong 1 lớp học phần
-})
-public class Grade extends BaseEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    // Nhiều dòng điểm thuộc về một Sinh viên
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "student_id", nullable = false)
-    private Student student;
-
-    // Nhiều dòng điểm thuộc về một Lớp học phần
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "course_class_id", nullable = false)
-    private CourseClass courseClass;
-
-    @Column(name = "attendance_grade")
-    private Double attendanceGrade; // Điểm chuyên cần
-
-    @Column(name = "midterm_grade")
-    private Double midtermGrade; // Điểm giữa kỳ
-
-    @Column(name = "final_grade")
-    private Double finalGrade; // Điểm cuối kỳ
-
-    @Column(name = "overall_grade")
-    private Double overallGrade; // Điểm tổng kết hệ 10
-
-    @Column(name = "letter_grade", length = 5)
-    private String letterGrade; // Điểm chữ (A, B+, B, C...)
-
-    // BỔ SUNG THÊM DÒNG NÀY
-    @Column(name = "grade_4")
-    private Double grade4; // Điểm số hệ 4 (Ví dụ: 3.5, 4.0)
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/exception/GlobalExceptionHandler.java">
-package com.dangdepzaivaio.StudentManagement.exception;
-
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-
-@RestControllerAdvice
-public class GlobalExceptionHandler {
-
-    // 1. Bắt toàn bộ các lỗi Runtime không xác định (Tránh làm lộ log hệ thống ra ngoài)
-    // 1. Bắt toàn bộ các lỗi Runtime không xác định và trả thẳng tên lỗi ra Postman
-    @ExceptionHandler(value = Exception.class)
-    public ResponseEntity<ApiResponse<Object>> handlingRuntimeException(Exception exception) {
-
-        // Tạo câu thông báo chi tiết: Lấy tên Class của lỗi + Tin nhắn lỗi gốc
-        String detailedMessage = exception.getClass().getSimpleName() + " -> " + exception.getMessage();
-
-        ApiResponse<Object> apiResponse = new ApiResponse<>(
-                ErrorCode.UNCATEGORIZED_EXCEPTION.getCode(),
-                detailedMessage, // Trả thẳng câu này ra ngoài Postman thay vì câu "Lỗi hệ thống không xác định"
-                null
-        );
-        return ResponseEntity.status(ErrorCode.UNCATEGORIZED_EXCEPTION.getStatusCode()).body(apiResponse);
-    }
-
-    // 2. Bắt lỗi nghiệp vụ hệ thống do chúng ta chủ động throw (AppException)
-    @ExceptionHandler(value = AppException.class)
-    public ResponseEntity<ApiResponse<Object>> handlingAppException(AppException exception) {
-        ErrorCode errorCode = exception.getErrorCode();
-        ApiResponse<Object> apiResponse = new ApiResponse<>(
-                errorCode.getCode(),
-                errorCode.getMessage(),
-                null
-        );
-        return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
-    }
-
-    // 3. Bắt toàn bộ lỗi Validation đầu vào từ DTO Records (@NotBlank, @Size, @Email)
-    @ExceptionHandler(value = MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Object>> handlingValidation(MethodArgumentNotValidException exception) {
-        String defaultMessage = exception.getFieldError().getDefaultMessage();
-
-        ApiResponse<Object> apiResponse = new ApiResponse<>(
-                ErrorCode.VALIDATION_ERROR.getCode(),
-                defaultMessage, // Trả ra chính xác câu thông báo lỗi bạn viết ở Record DTO
-                null
-        );
-        return ResponseEntity.status(ErrorCode.VALIDATION_ERROR.getStatusCode()).body(apiResponse);
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/SubjectMapper.java">
-package com.dangdepzaivaio.StudentManagement.mapper;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse; // Thêm import này
-import com.dangdepzaivaio.StudentManagement.entity.Subject;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.MappingTarget;
-
-@Mapper(componentModel = "spring")
-public interface SubjectMapper {
-
-    @Mapping(target = "id", ignore = true)
-    Subject toEntity(SubjectRequest request);
-
-    @Mapping(target = "id", ignore = true)
-    void updateEntityFromRequest(SubjectRequest request, @MappingTarget Subject subject);
-
-    // BỔ SUNG HÀM NÀY: Chuyển đổi thực thể sang DTO phẳng sạch sẽ
-    SubjectResponse toResponse(Subject subject);
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/UserMapper.java">
-package com.dangdepzaivaio.StudentManagement.mapper;
-
-import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
-import com.dangdepzaivaio.StudentManagement.entity.User;
-import com.dangdepzaivaio.StudentManagement.entity.Role;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-
-import java.util.Set;
-import java.util.stream.Collectors;
-
-@Mapper(componentModel = "spring")
-public interface UserMapper {
-
-    @Mapping(target = "roles", source = "roles")
-    UserResponse toResponse(User user);
-
-    // Hàm chuyển đổi custom: Ép danh sách thực thể Role thành bộ tên chuỗi gọn gàng
-    default Set<String> mapRoles(Set<Role> roles) {
-        if (roles == null) return null;
-        return roles.stream()
-                .map(Role::getName)
-                .collect(Collectors.toSet());
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/ClassRepository.java">
-package com.dangdepzaivaio.StudentManagement.repository;
-
-import com.dangdepzaivaio.StudentManagement.entity.Class;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-import java.util.List;
-
-@Repository
-public interface ClassRepository extends JpaRepository<Class, Long> {
-    List<Class> findByDepartmentId(Long departmentId);
-    boolean existsByName(String name);
-    boolean existsByDepartmentId(Long departmentId);
-    @org.springframework.data.jpa.repository.Query("SELECT c FROM Class c JOIN FETCH c.department")
-    List<Class> findAllClassesWithJoinFetch();
 }
 </file>
 
@@ -5132,95 +5927,6 @@ public class AuthenticationService {
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setFirstLogin(false);
         userRepository.save(user);
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/ClassServiceImpl.java">
-package com.dangdepzaivaio.StudentManagement.service.impl;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.ClassRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.ClassResponse;
-import com.dangdepzaivaio.StudentManagement.entity.Class;
-import com.dangdepzaivaio.StudentManagement.entity.Department;
-import com.dangdepzaivaio.StudentManagement.exception.AppException;
-import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.mapper.ClassMapper;
-import com.dangdepzaivaio.StudentManagement.repository.ClassRepository;
-import com.dangdepzaivaio.StudentManagement.repository.DepartmentRepository;
-import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
-import com.dangdepzaivaio.StudentManagement.service.ClassService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
-
-@Service
-@RequiredArgsConstructor
-public class ClassServiceImpl implements ClassService {
-    // 🔥 ĐÃ GOM TOÀN BỘ KHAI BÁO LÊN ĐẦU CLASS THEO ĐÚNG CHUẨN LOMBOK
-    private final ClassRepository classRepository;
-    private final DepartmentRepository departmentRepository;
-    private final StudentRepository studentRepository;
-    private final ClassMapper classMapper;
-
-    @Override
-    @Transactional
-    public ClassResponse createClass(ClassRequest request) {
-        if (classRepository.existsByName(request.name())) {
-            throw new AppException(ErrorCode.CLASS_EXISTED);
-        }
-        Department department = departmentRepository.findById(request.departmentId())
-                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
-
-        Class studentClass = classMapper.toEntity(request);
-        studentClass.setDepartment(department);
-        return classMapper.toResponse(classRepository.save(studentClass));
-    }
-
-    @Override
-    public List<ClassResponse> getAllClasses() {
-        return classRepository.findAllClassesWithJoinFetch().stream()
-                .map(classMapper::toResponse)
-                .toList();
-    }
-
-    @Override
-    @Transactional
-    public ClassResponse updateClass(Long id, ClassRequest request) {
-        Class studentClass = classRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
-
-        if (!studentClass.getName().equals(request.name()) && classRepository.existsByName(request.name())) {
-            throw new AppException(ErrorCode.CLASS_EXISTED);
-        }
-
-        Department department = departmentRepository.findById(request.departmentId())
-                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
-
-        classMapper.updateEntityFromRequest(request, studentClass);
-        studentClass.setDepartment(department);
-        return classMapper.toResponse(classRepository.save(studentClass));
-    }
-
-    @Override
-    @Transactional
-    public void deleteClass(Long id) {
-        Class studentClass = classRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
-
-        if (studentRepository.existsByStudentClassId(id)) {
-            throw new AppException(ErrorCode.CLASS_HAS_STUDENTS);
-        }
-
-        classRepository.delete(studentClass);
-    }
-
-    @Override
-    public ClassResponse getClassById(Long id) {
-        Class adminClass = classRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
-        return classMapper.toResponse(adminClass);
     }
 }
 </file>
@@ -5584,39 +6290,239 @@ public class GradeServiceImpl implements GradeService {
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/SubjectService.java">
-package com.dangdepzaivaio.StudentManagement.service;
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/SubjectServiceImpl.java">
+package com.dangdepzaivaio.StudentManagement.service.impl;
 
 import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse; // Sửa import này
+import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Subject;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.SubjectMapper;
+import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
+import com.dangdepzaivaio.StudentManagement.repository.SubjectRepository;
+import com.dangdepzaivaio.StudentManagement.service.SubjectService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
-public interface SubjectService {
-    SubjectResponse createSubject(SubjectRequest request);
-    List<SubjectResponse> getAllSubjects();
-    SubjectResponse getSubjectById(Long id);
-    SubjectResponse updateSubject(Long id, SubjectRequest request);
-    void deleteSubject(Long id);
+@Service
+@RequiredArgsConstructor
+public class SubjectServiceImpl implements SubjectService {
+
+    private final SubjectRepository subjectRepository;
+    private final SubjectMapper subjectMapper;
+    private final CourseClassRepository courseClassRepository;
+
+    @Override
+    @Transactional
+    public SubjectResponse createSubject(SubjectRequest request) {
+        if (subjectRepository.existsByCode(request.code())) {
+            throw new AppException(ErrorCode.SUBJECT_EXISTED);
+        }
+        Subject subject = subjectMapper.toEntity(request);
+        return subjectMapper.toResponse(subjectRepository.save(subject)); // Đã bọc Response
+    }
+
+    @Override
+    public List<SubjectResponse> getAllSubjects() {
+        return subjectRepository.findAll().stream()
+                .map(subjectMapper::toResponse) // Map toàn bộ danh sách sang DTO
+                .toList();
+    }
+
+    @Override
+    public SubjectResponse getSubjectById(Long id) {
+        return subjectRepository.findById(id)
+                .map(subjectMapper::toResponse) // Ánh xạ trực tiếp
+                .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
+    }
+
+    @Override
+    @Transactional
+    public SubjectResponse updateSubject(Long id, SubjectRequest request) {
+        // Tận dụng hàm tìm kiếm thực thể gốc để xử lý
+        Subject subject = subjectRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
+
+        // Kiểm tra nếu đổi sang mã môn mới, mã đó có bị trùng với môn khác không
+        if (!subject.getCode().equals(request.code()) && subjectRepository.existsByCode(request.code())) {
+            throw new AppException(ErrorCode.SUBJECT_EXISTED);
+        }
+
+        subjectMapper.updateEntityFromRequest(request, subject);
+        return subjectMapper.toResponse(subjectRepository.save(subject)); // Đã bọc Response
+    }
+
+    @Override
+    @Transactional
+    public void deleteSubject(Long id) {
+        Subject subject = subjectRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
+        if (courseClassRepository.existsBySubjectId(id)) {
+            throw new AppException(ErrorCode.SUBJECT_HAS_CLASSES);
+        }
+        subjectRepository.delete(subject);
+    }
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/StudentManagementApplication.java">
-package com.dangdepzaivaio.StudentManagement;
+<file path="pom.xml">
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>4.0.6</version>
+		<relativePath/> </parent>
+	<groupId>com.dangdepzaivaio</groupId>
+	<artifactId>StudentManagement</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>StudentManagement</name>
+	<description>Student Management System API</description>
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+	<properties>
+		<java.version>26</java.version>
+	</properties>
 
-@SpringBootApplication
-@EnableJpaAuditing
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
 
-public class StudentManagementApplication {
+		<dependency>
+			<groupId>com.nimbusds</groupId>
+			<artifactId>nimbus-jose-jwt</artifactId>
+			<version>9.37.3</version>
+		</dependency>
 
-	public static void main(String[] args) {
-		SpringApplication.run(StudentManagementApplication.class, args);
-	}
+		<dependency>
+			<groupId>com.mysql</groupId>
+			<artifactId>mysql-connector-j</artifactId>
+			<scope>runtime</scope>
+		</dependency>
 
-}
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>org.mapstruct</groupId>
+			<artifactId>mapstruct</artifactId>
+			<version>1.6.3</version>
+		</dependency>
+		<dependency>
+			<groupId>org.mapstruct</groupId>
+			<artifactId>mapstruct-processor</artifactId>
+			<version>1.6.3</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>default-compile</id>
+						<phase>compile</phase>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+						<configuration>
+							<annotationProcessorPaths>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok</artifactId>
+									<version>${lombok.version}</version>
+								</path>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok-mapstruct-binding</artifactId>
+									<version>0.2.0</version>
+								</path>
+								<path>
+									<groupId>org.mapstruct</groupId>
+									<artifactId>mapstruct-processor</artifactId>
+									<version>1.6.3</version>
+								</path>
+							</annotationProcessorPaths>
+						</configuration>
+					</execution>
+					<execution>
+						<id>default-testCompile</id>
+						<phase>test-compile</phase>
+						<goals>
+							<goal>testCompile</goal>
+						</goals>
+						<configuration>
+							<annotationProcessorPaths>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok</artifactId>
+									<version>${lombok.version}</version>
+								</path>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok-mapstruct-binding</artifactId>
+									<version>0.2.0</version>
+								</path>
+								<path>
+									<groupId>org.mapstruct</groupId>
+									<artifactId>mapstruct-processor</artifactId>
+									<version>1.6.3</version>
+								</path>
+							</annotationProcessorPaths>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>
 </file>
 
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/UserController.java">
@@ -5845,85 +6751,6 @@ public interface StudentRepository extends JpaRepository<Student, String> { // �
 
     @Query("SELECT s FROM Student s JOIN FETCH s.user JOIN FETCH s.studentClass WHERE s.id = :id")
     Optional<Student> findByIdWithJoinFetch(@Param("id") String id); // 🔥 Đổi sang tham số String id
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/SubjectServiceImpl.java">
-package com.dangdepzaivaio.StudentManagement.service.impl;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse;
-import com.dangdepzaivaio.StudentManagement.entity.Subject;
-import com.dangdepzaivaio.StudentManagement.exception.AppException;
-import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.mapper.SubjectMapper;
-import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
-import com.dangdepzaivaio.StudentManagement.repository.SubjectRepository;
-import com.dangdepzaivaio.StudentManagement.service.SubjectService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-
-@Service
-@RequiredArgsConstructor
-public class SubjectServiceImpl implements SubjectService {
-
-    private final SubjectRepository subjectRepository;
-    private final SubjectMapper subjectMapper;
-    private final CourseClassRepository courseClassRepository;
-
-    @Override
-    @Transactional
-    public SubjectResponse createSubject(SubjectRequest request) {
-        if (subjectRepository.existsByCode(request.code())) {
-            throw new AppException(ErrorCode.SUBJECT_EXISTED);
-        }
-        Subject subject = subjectMapper.toEntity(request);
-        return subjectMapper.toResponse(subjectRepository.save(subject)); // Đã bọc Response
-    }
-
-    @Override
-    public List<SubjectResponse> getAllSubjects() {
-        return subjectRepository.findAll().stream()
-                .map(subjectMapper::toResponse) // Map toàn bộ danh sách sang DTO
-                .toList();
-    }
-
-    @Override
-    public SubjectResponse getSubjectById(Long id) {
-        return subjectRepository.findById(id)
-                .map(subjectMapper::toResponse) // Ánh xạ trực tiếp
-                .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
-    }
-
-    @Override
-    @Transactional
-    public SubjectResponse updateSubject(Long id, SubjectRequest request) {
-        // Tận dụng hàm tìm kiếm thực thể gốc để xử lý
-        Subject subject = subjectRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
-
-        // Kiểm tra nếu đổi sang mã môn mới, mã đó có bị trùng với môn khác không
-        if (!subject.getCode().equals(request.code()) && subjectRepository.existsByCode(request.code())) {
-            throw new AppException(ErrorCode.SUBJECT_EXISTED);
-        }
-
-        subjectMapper.updateEntityFromRequest(request, subject);
-        return subjectMapper.toResponse(subjectRepository.save(subject)); // Đã bọc Response
-    }
-
-    @Override
-    @Transactional
-    public void deleteSubject(Long id) {
-        Subject subject = subjectRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
-        if (courseClassRepository.existsBySubjectId(id)) {
-            throw new AppException(ErrorCode.SUBJECT_HAS_CLASSES);
-        }
-        subjectRepository.delete(subject);
-    }
 }
 </file>
 
@@ -6295,162 +7122,6 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2026-06-10 17:56:00
-</file>
-
-<file path="pom.xml">
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<parent>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.0.6</version>
-		<relativePath/> </parent>
-	<groupId>com.dangdepzaivaio</groupId>
-	<artifactId>StudentManagement</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<name>StudentManagement</name>
-	<description>Student Management System API</description>
-
-	<properties>
-		<java.version>26</java.version>
-	</properties>
-
-	<dependencies>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-jpa</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-validation</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-security</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.nimbusds</groupId>
-			<artifactId>nimbus-jose-jwt</artifactId>
-			<version>9.37.3</version>
-		</dependency>
-
-		<dependency>
-			<groupId>com.mysql</groupId>
-			<artifactId>mysql-connector-j</artifactId>
-			<scope>runtime</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
-			<groupId>org.mapstruct</groupId>
-			<artifactId>mapstruct</artifactId>
-			<version>1.6.3</version>
-		</dependency>
-		<dependency>
-			<groupId>org.mapstruct</groupId>
-			<artifactId>mapstruct-processor</artifactId>
-			<version>1.6.3</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-security-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-	</dependencies>
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<excludes>
-						<exclude>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</exclude>
-					</excludes>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>default-compile</id>
-						<phase>compile</phase>
-						<goals>
-							<goal>compile</goal>
-						</goals>
-						<configuration>
-							<annotationProcessorPaths>
-								<path>
-									<groupId>org.projectlombok</groupId>
-									<artifactId>lombok</artifactId>
-									<version>${lombok.version}</version>
-								</path>
-								<path>
-									<groupId>org.projectlombok</groupId>
-									<artifactId>lombok-mapstruct-binding</artifactId>
-									<version>0.2.0</version>
-								</path>
-								<path>
-									<groupId>org.mapstruct</groupId>
-									<artifactId>mapstruct-processor</artifactId>
-									<version>1.6.3</version>
-								</path>
-							</annotationProcessorPaths>
-						</configuration>
-					</execution>
-					<execution>
-						<id>default-testCompile</id>
-						<phase>test-compile</phase>
-						<goals>
-							<goal>testCompile</goal>
-						</goals>
-						<configuration>
-							<annotationProcessorPaths>
-								<path>
-									<groupId>org.projectlombok</groupId>
-									<artifactId>lombok</artifactId>
-									<version>${lombok.version}</version>
-								</path>
-								<path>
-									<groupId>org.projectlombok</groupId>
-									<artifactId>lombok-mapstruct-binding</artifactId>
-									<version>0.2.0</version>
-								</path>
-								<path>
-									<groupId>org.mapstruct</groupId>
-									<artifactId>mapstruct-processor</artifactId>
-									<version>1.6.3</version>
-								</path>
-							</annotationProcessorPaths>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
-</project>
 </file>
 
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/StudentController.java">
@@ -6874,13 +7545,20 @@ public class StudentServiceImpl implements StudentService {
                 .isActive(true)
                 .build();
 
+        // Trong file StudentServiceImpl.java:
+
         Role studentRole = roleRepository.findByName("STUDENT")
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
         user.setRoles(Set.of(studentRole));
-        userRepository.save(user);
+
+        // 🔥 SỬA DÒNG NÀY: Hứng lấy đối tượng Managed trả về từ hàm save()
+        User managedUser = userRepository.save(user);
 
         Student student = studentMapper.toEntity(request);
-        student.setUser(user); // JPA và @MapsId sẽ tự động copy chuỗi generatedId từ User sang Student làm PK
+
+        // 🔥 SỬA DÒNG NÀY: Gắn đối tượng managedUser đã an toàn vào Student
+        student.setUser(managedUser);
+
         student.setStudentClass(studentClass);
         student.setActive(true);
 

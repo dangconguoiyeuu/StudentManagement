@@ -27,5 +27,5 @@ public class RegistrationPeriod extends BaseEntity {
     private LocalDateTime endTime;
 
     @Column(name = "is_active", nullable = false)
-    private boolean isActive;
+    private Boolean isActive = true;
 }

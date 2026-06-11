@@ -3,7 +3,8 @@ import LoginPage from './pages/LoginPage';
 import StudentPage from './pages/StudentPage';
 import TeacherPage from './pages/TeacherPage';
 import GradePage from './pages/GradePage';
-import RegistrationPage from './pages/RegistrationPage'; // 🔥 THÊM MỚI: Import trang đăng ký tín chỉ
+import RegistrationPage from './pages/RegistrationPage';
+import TrainingPage from './pages/TrainingPage';
 
 function App() {
     const [token, setToken] = useState(localStorage.getItem('token'));
@@ -100,6 +101,9 @@ function App() {
 
                     {/* 🔥 THÊM MỚI: Menu Đăng ký tín chỉ dành cho tất cả mọi người hiển thị đồng bộ style */}
                     <button onClick={() => setActiveTab('registration')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'registration' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>⏰ Đăng Ký Tín Chỉ</button>
+                    {role.includes('ADMIN') && (
+                        <button onClick={() => setActiveTab('training')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'training' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>🏛️ Quản Lý Đào Tạo</button>
+                    )}
                 </div>
 
                 {/* CONTENT AREA CO-GIÃN */}
@@ -116,6 +120,8 @@ function App() {
 
                     {/* 🔥 THÊM MỚI: Vùng render trang Đăng ký tín chỉ khi click chọn tab */}
                     {activeTab === 'registration' && <RegistrationPage />}
+
+                    {activeTab === 'training' && <TrainingPage />}
                 </div>
 
             </div>
