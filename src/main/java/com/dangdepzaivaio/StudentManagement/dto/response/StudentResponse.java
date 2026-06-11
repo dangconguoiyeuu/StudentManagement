@@ -3,7 +3,7 @@ package com.dangdepzaivaio.StudentManagement.dto.response;
 import java.time.LocalDate;
 
 public record StudentResponse(
-        String id, // 🔥 ĐÃ SỬA: Chuyển hoàn toàn sang kiểu dữ liệu String để hứng chuỗi 'HS_01'
+        String id,
         String studentCode,
         String firstName,
         String lastName,
@@ -14,5 +14,9 @@ public record StudentResponse(
         String username,
         String email,
         Long classId,
-        String className
+        String className,
+
+        // 🔥 THÊM MỚI: Trường dữ liệu phản hồi khóa học từ Database thật ra ngoài UI
+        String cohort,
+        String departmentName
 ) {}

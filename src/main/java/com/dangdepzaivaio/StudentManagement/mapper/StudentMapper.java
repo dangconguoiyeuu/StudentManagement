@@ -21,5 +21,6 @@ public interface StudentMapper {
     @Mapping(target = "classId", source = "studentClass.id") // 🔥 ÉP MAP: Lấy ID của Class đưa vào DTO
     @Mapping(target = "className", source = "studentClass.name")
     @Mapping(target = "active", source = "active")
+    @Mapping(target = "departmentName", source = "studentClass.department.name")
     StudentResponse toResponse(Student student);
 }

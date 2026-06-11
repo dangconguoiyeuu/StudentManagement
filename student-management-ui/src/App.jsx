@@ -5,6 +5,8 @@ import TeacherPage from './pages/TeacherPage';
 import GradePage from './pages/GradePage';
 import RegistrationPage from './pages/RegistrationPage';
 import TrainingPage from './pages/TrainingPage';
+import DashboardPage from './pages/DashboardPage';
+import SchedulePage from './pages/SchedulePage';
 
 function App() {
     const [token, setToken] = useState(localStorage.getItem('token'));
@@ -12,7 +14,6 @@ function App() {
     const [role, setRole] = useState(localStorage.getItem('roles') || '');
     const [activeTab, setActiveTab] = useState('dashboard');
 
-    // 🔥 LOGIC KIỂM TRA PHIÊN ĐĂNG NHẬP THỜI GIAN THỰC (15 PHÚT) - GIỮ NGUYÊN
     useEffect(() => {
         const checkSession = () => {
             const lastExitTime = localStorage.getItem('lastExitTime');
@@ -71,56 +72,60 @@ function App() {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)' }}>
 
-            {/* HEADER - GIỮ NGUYÊN */}
+            {/* HEADER SYSTEM */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-sm) var(--spacing-xl)', backgroundColor: 'var(--color-surface)', color: 'var(--text-main)', borderBottom: '2px solid var(--text-cyan)' }}>
                 <h3>CMS - STUDENT MANAGEMENT</h3>
                 <div>
                     <span style={{ marginRight: 'var(--spacing-xl)', color: 'var(--text-muted)' }}>Xin chào: <b>{username}</b> ({role})</span>
-                    <button onClick={handleLogout} style={{ padding: '6px 12px', backgroundColor: 'var(--color-danger)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Đăng xuất</button>
+                    <button onClick={handleLogout} style={{ padding: '6px 12px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Đăng xuất</button>
                 </div>
             </div>
 
-            {/* BODY */}
+            {/* BODY SYSTEM */}
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
-                {/* SIDEBAR */}
+                {/* SIDEBAR NAVIGATION */}
                 <div style={{ width: '240px', backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl) var(--spacing-sm)', borderRight: '1px solid var(--color-border)' }}>
-                    <button onClick={() => setActiveTab('dashboard')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'dashboard' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>📊 Tổng Quan System</button>
+                    <button onClick={() => setActiveTab('dashboard')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'dashboard' ? 'var(--color-primary)' : 'transparent' }}>📊 Tổng Quan System</button>
 
                     {/* MENU QUẢN LÝ SINH VIÊN */}
                     {(role.includes('ADMIN') || role.includes('TEACHER')) && (
-                        <button onClick={() => setActiveTab('students')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'students' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>👥 Quản Lý Sinh Viên</button>
+                        <button onClick={() => setActiveTab('students')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'students' ? 'var(--color-primary)' : 'transparent' }}>👥 Quản Lý Sinh Viên</button>
                     )}
 
                     {/* MENU QUẢN LÝ GIẢNG VIÊN */}
                     {role.includes('ADMIN') && (
-                        <button onClick={() => setActiveTab('teachers')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'teachers' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>💼 Quản Lý Giảng Viên</button>
+                        <button onClick={() => setActiveTab('teachers')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'teachers' ? 'var(--color-primary)' : 'transparent' }}>💼 Quản Lý Giảng Viên</button>
                     )}
 
-                    <button onClick={() => setActiveTab('grades')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'grades' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>🎯 Quản Lý Điểm Số</button>
+                    <button onClick={() => setActiveTab('grades')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'grades' ? 'var(--color-primary)' : 'transparent' }}>🎯 Quản Lý Điểm Số</button>
 
-                    {/* 🔥 THÊM MỚI: Menu Đăng ký tín chỉ dành cho tất cả mọi người hiển thị đồng bộ style */}
-                    <button onClick={() => setActiveTab('registration')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'registration' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>⏰ Đăng Ký Tín Chỉ</button>
+                    <button onClick={() => setActiveTab('registration')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'registration' ? 'var(--color-primary)' : 'transparent' }}>⏰ Đăng Ký Tín Chỉ</button>
+
+                    {/* 🔥 ĐÃ FIX THEO YÊU CẦU: Rẽ nhánh hiển thị "Lịch Dạy" cho Teacher và "Lịch Học" cho Student */}
+                    {/* MENU LỊCH TRÌNH DÀNH RIÊNG CHO GIẢNG VIÊN VÀ SINH VIÊN */}
+                    {(role.includes('TEACHER') || role.includes('STUDENT')) && (
+                        <button
+                            onClick={() => setActiveTab('schedule')}
+                            style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'schedule' ? 'var(--color-primary)' : 'transparent' }}
+                        >
+                            📅 {role.includes('TEACHER') ? 'Lịch Dạy' : 'Lịch Học'}
+                        </button>
+                    )}
+
                     {role.includes('ADMIN') && (
-                        <button onClick={() => setActiveTab('training')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'training' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>🏛️ Quản Lý Đào Tạo</button>
+                        <button onClick={() => setActiveTab('training')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'training' ? 'var(--color-primary)' : 'transparent' }}>🏛️ Quản Lý Đào Tạo</button>
                     )}
                 </div>
 
-                {/* CONTENT AREA CO-GIÃN */}
+                {/* MAIN CONTENT AREA */}
                 <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)', padding: 'var(--spacing-xl)' }}>
-                    {activeTab === 'dashboard' && (
-                        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            <h2>HỆ THỐNG QUẢN TRỊ ĐÀO TẠO TÍN CHỈ</h2>
-                            <p>Chọn phân hệ bên thanh điều hướng để bắt đầu thực hiện kiểm tra dữ liệu.</p>
-                        </div>
-                    )}
+                    {activeTab === 'dashboard' && <DashboardPage />}
                     {activeTab === 'students' && <StudentPage />}
                     {activeTab === 'teachers' && <TeacherPage />}
                     {activeTab === 'grades' && <GradePage />}
-
-                    {/* 🔥 THÊM MỚI: Vùng render trang Đăng ký tín chỉ khi click chọn tab */}
                     {activeTab === 'registration' && <RegistrationPage />}
-
+                    {activeTab === 'schedule' && <SchedulePage />}
                     {activeTab === 'training' && <TrainingPage />}
                 </div>
 
@@ -128,5 +133,7 @@ function App() {
         </div>
     );
 }
+
+const sidebarBtnStyle = { width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' };
 
 export default App;

@@ -43,12 +43,11 @@ public class StudentServiceImpl implements StudentService {
         Class studentClass = classRepository.findById(request.classId())
                 .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
 
-        // 🔥 THUẬT TOÁN TỰ SINH CHUỖI ID LIÊN KẾT: HS_01, HS_02...
         long nextIndex = userRepository.countByIdStartingWith("HS_") + 1;
         String generatedId = String.format("HS_%02d", nextIndex);
 
         User user = User.builder()
-                .id(generatedId) // Gán cứng chuỗi ID tự sinh vào User
+                .id(generatedId)
                 .username(request.studentCode())
                 .password(passwordEncoder.encode("password1234"))
                 .email(request.studentCode().toLowerCase() + "@open.edu.vn")
@@ -56,21 +55,19 @@ public class StudentServiceImpl implements StudentService {
                 .isActive(true)
                 .build();
 
-        // Trong file StudentServiceImpl.java:
-
         Role studentRole = roleRepository.findByName("STUDENT")
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
         user.setRoles(Set.of(studentRole));
 
-        // 🔥 SỬA DÒNG NÀY: Hứng lấy đối tượng Managed trả về từ hàm save()
+        // 🔥 BẢN VÁ: Hứng lấy Managed Object từ UserRepository trả về để chống lỗi crash liên kết dữ liệu
         User managedUser = userRepository.save(user);
 
         Student student = studentMapper.toEntity(request);
-
-        // 🔥 SỬA DÒNG NÀY: Gắn đối tượng managedUser đã an toàn vào Student
         student.setUser(managedUser);
-
         student.setStudentClass(studentClass);
+
+        // 🔥 THÊM MỚI: Lưu thông tin niên khóa học thực tế trực tiếp vào Database SQL
+        student.setCohort(request.cohort());
         student.setActive(true);
 
         return studentMapper.toResponse(studentRepository.save(student));
@@ -86,7 +83,7 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    public StudentResponse getStudentById(String id) { // Chuyển tham số sang String
+    public StudentResponse getStudentById(String id) {
         return studentRepository.findById(id)
                 .map(studentMapper::toResponse)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
@@ -94,7 +91,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
-    public StudentResponse updateStudent(String id, StudentUpdateRequest request) { // Chuyển tham số sang String
+    public StudentResponse updateStudent(String id, StudentUpdateRequest request) {
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
 
@@ -109,6 +106,12 @@ public class StudentServiceImpl implements StudentService {
         student.setDateOfBirth(request.dateOfBirth());
         student.setGender(request.gender());
         student.setPhoneNumber(request.phoneNumber());
+
+        // 🔥 THÊM MỚI: Cập nhật sửa đổi Khóa học thực tế trong Database
+        if (request.cohort() != null) {
+            student.setCohort(request.cohort());
+        }
+
         if (request.active() != null) {
             student.setActive(request.active());
             if (student.getUser() != null) {
@@ -121,7 +124,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
-    public void disableStudent(String id) { // Chuyển tham số sang String
+    public void disableStudent(String id) {
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
         student.setActive(false);
@@ -131,7 +134,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
-    public void enableStudent(String id) { // Chuyển tham số sang String
+    public void enableStudent(String id) {
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
         student.setActive(true);

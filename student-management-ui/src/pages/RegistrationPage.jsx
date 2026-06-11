@@ -24,9 +24,41 @@ export default function RegistrationPage() {
     const [isRegistrationTime, setIsRegistrationTime] = useState(false);
     const [activePeriodInfo, setActivePeriodInfo] = useState(null);
 
+    // 🔥 STATE ĐẾM GIÂY REALTIME: Đồng bộ thời gian thực cho cả hệ thống và bảng lịch sử
+    const [tick, setTick] = useState(Date.now());
+
     useEffect(() => {
         refreshData();
     }, [role]);
+
+    // Kích hoạt bộ đếm nhịp chạy ngầm mỗi 1 giây
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setTick(Date.now());
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    // Tự động đóng/mở cổng chọn môn cho Sinh viên khi đồng hồ chạm mốc giờ hẹn
+    useEffect(() => {
+        if (role.includes('STUDENT') && activePeriodInfo) {
+            const now = new Date();
+            const start = new Date(activePeriodInfo.startTime);
+            const end = new Date(activePeriodInfo.endTime);
+
+            if (activePeriodInfo.isActive && now >= start && now <= end) {
+                if (!isRegistrationTime) {
+                    setIsRegistrationTime(true);
+                    fetchOpenClassesForStudent(activePeriodInfo.semester);
+                }
+            } else {
+                if (isRegistrationTime) {
+                    setIsRegistrationTime(false);
+                    setAvailableClasses([]);
+                }
+            }
+        }
+    }, [tick, activePeriodInfo, role]);
 
     const refreshData = () => {
         if (role.includes('ADMIN')) {
@@ -48,18 +80,19 @@ export default function RegistrationPage() {
     // ==================== 🛠️ NGHIỆP VỤ ADMIN ====================
     const loadAdminPeriodsAndClasses = async () => {
         try {
-            // 1. Tải lịch sử tất cả các đợt mở cổng từ DB
             const periodsData = await axiosClient.get('/registration/periods');
             if (periodsData && periodsData.length > 0) {
                 const sortedPeriods = [...periodsData].sort((a, b) => b.id - a.id);
                 setAllPeriods(sortedPeriods);
-                // Mặc định chọn đợt mới nhất để hiển thị chi tiết
-                if (!selectedPeriod) {
+
+                if (selectedPeriod) {
+                    const updated = sortedPeriods.find(p => p.id === selectedPeriod.id);
+                    setSelectedPeriod(updated || sortedPeriods[0]);
+                } else {
                     setSelectedPeriod(sortedPeriods[0]);
                 }
             }
 
-            // 2. Tải toàn bộ danh sách lớp học phần thật từ hệ thống
             const classesData = await axiosClient.get('/course-classes');
             setCourseClasses(classesData);
         } catch (err) { showMessage('Không thể tải dữ liệu quản trị hệ thống', true); }
@@ -71,16 +104,7 @@ export default function RegistrationPage() {
             await axiosClient.post('/registration/periods', periodForm);
             showMessage('Kích hoạt cấu hình khung giờ và lưu đợt mở đăng ký học kỳ mới thành công!');
             setPeriodForm({ semester: 'HK1-2026', startTime: '', endTime: '' });
-
-            // Tải lại dữ liệu đợt mới vừa tạo
-            const periodsData = await axiosClient.get('/registration/periods');
-            if (periodsData && periodsData.length > 0) {
-                const sortedPeriods = [...periodsData].sort((a, b) => b.id - a.id);
-                setAllPeriods(sortedPeriods);
-                setSelectedPeriod(sortedPeriods[0]); // Chuyển vùng xem chi tiết sang đợt mới nhất
-            }
-            const classesData = await axiosClient.get('/course-classes');
-            setCourseClasses(classesData);
+            refreshData();
         } catch (err) { showMessage(err || 'Lỗi kích hoạt khung giờ', true); }
     };
 
@@ -89,13 +113,7 @@ export default function RegistrationPage() {
         try {
             await axiosClient.put(`/registration/periods/${id}/close`);
             showMessage('Đã đóng cổng và hủy kích hoạt khung giờ thành công!');
-            // Cập nhật lại trạng thái hiển thị
-            const periodsData = await axiosClient.get('/registration/periods');
-            if (periodsData && periodsData.length > 0) {
-                const sortedPeriods = [...periodsData].sort((a, b) => b.id - a.id);
-                setAllPeriods(sortedPeriods);
-                setSelectedPeriod(sortedPeriods.find(p => p.id === id) || sortedPeriods[0]);
-            }
+            refreshData();
         } catch (err) { showMessage(err || 'Không thể thực hiện hủy kích hoạt!', true); }
     };
 
@@ -103,7 +121,6 @@ export default function RegistrationPage() {
         try {
             await axiosClient.put(`/registration/course-class/${id}/toggle`);
             showMessage(`Cập nhật trạng thái tích chọn mở lớp học phần thành công!`);
-            // Làm tươi danh sách lớp
             const classesData = await axiosClient.get('/course-classes');
             setCourseClasses(classesData);
         } catch (err) { showMessage(err || 'Không thể thay đổi trạng thái tích chọn môn', true); }
@@ -127,13 +144,23 @@ export default function RegistrationPage() {
     };
 
     // ==================== 🎓 NGHIỆP VỤ STUDENT ====================
+    const fetchOpenClassesForStudent = async (semester) => {
+        try {
+            const allSystemClasses = await axiosClient.get('/course-classes');
+            const filteredOpenClasses = allSystemClasses.filter(
+                c => c.openForRegistration === true && c.semester === semester
+            );
+            setAvailableClasses(filteredOpenClasses);
+        } catch (err) { console.error(err); }
+    };
+
     const loadStudentRegistrationFlow = async () => {
         try {
             const periods = await axiosClient.get('/registration/periods');
             let period = null;
             if (periods && periods.length > 0) {
                 const sorted = [...periods].sort((a, b) => b.id - a.id);
-                period = sorted[0]; // Bóc đợt cấu hình mới nhất
+                period = sorted[0];
                 setActivePeriodInfo(period);
             }
 
@@ -144,12 +171,7 @@ export default function RegistrationPage() {
 
                 if (now >= start && now <= end) {
                     setIsRegistrationTime(true);
-                    // 🔥 ĐÃ SỬA VÁ LỖI CHÍ MẠNG: Lấy từ /course-classes của DB thật và thực hiện lọc thông minh phía Client
-                    const allSystemClasses = await axiosClient.get('/course-classes');
-                    const filteredOpenClasses = allSystemClasses.filter(
-                        c => c.openForRegistration === true && c.semester === period.semester
-                    );
-                    setAvailableClasses(filteredOpenClasses);
+                    await fetchOpenClassesForStudent(period.semester);
                 } else {
                     setIsRegistrationTime(false);
                     setAvailableClasses([]);
@@ -187,7 +209,6 @@ export default function RegistrationPage() {
         return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')} ngày ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
     };
 
-    // 🔥 THÊM MỚI HÀM KIỂM TRA TRẠNG THÁI THỜI GIAN THỰC (Sửa lỗi quá hạn vẫn báo mở ở Admin)
     const renderPeriodStatusLabel = (period) => {
         if (!period) return <span style={{color:'var(--text-muted)'}}>Chưa rõ</span>;
         if (!period.isActive) {
@@ -225,24 +246,53 @@ export default function RegistrationPage() {
                     <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
                         <h3 style={{ color: 'var(--text-cyan)', margin: '0 0 12px 0' }}>📂 LỊCH SỬ CÁC ĐỢT MỞ CỔNG ĐĂNG KÝ HỆ THỐNG</h3>
                         <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
-                            {allPeriods.map(p => (
-                                <div
-                                    key={p.id}
-                                    onClick={() => setSelectedPeriod(p)}
-                                    style={{
-                                        padding: '10px 15px',
-                                        backgroundColor: selectedPeriod?.id === p.id ? 'var(--color-primary)' : 'var(--color-bg)',
-                                        border: selectedPeriod?.id === p.id ? '2px solid var(--text-cyan)' : '1px solid var(--color-border)',
-                                        borderRadius: '6px', cursor: 'pointer', minWidth: '220px', transition: 'all 0.2s'
-                                    }}
-                                >
-                                    <div style={{ fontWeight: 'bold', fontSize: '14px' }}>Học kỳ: {p.semester}</div>
-                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Mã đợt: #RP_{p.id}</div>
-                                    <div style={{ fontSize: '11px', marginTop: '6px', color: p.isActive ? 'var(--color-success)' : 'var(--color-danger)', fontWeight: 'bold' }}>
-                                        {p.isActive ? '● Đang hoạt động' : '🔒 Đã hủy/Đóng cổng'}
+                            {allPeriods.map(p => {
+                                const isSelected = selectedPeriod?.id === p.id;
+
+                                // 🔥 ĐÃ SỬA LUỒNG REALTIME: Tính toán nhãn trạng thái chính xác từng giây cho từng ô trong danh sách lịch sử
+                                let statusText = '🔒 Đã hủy/Đóng cổng';
+                                let statusColor = 'var(--color-danger)';
+
+                                if (p.isActive) {
+                                    const now = new Date();
+                                    const start = new Date(p.startTime);
+                                    const end = new Date(p.endTime);
+                                    if (now < start) {
+                                        statusText = '⏳ Chờ mốc giờ';
+                                        statusColor = 'var(--color-warning)';
+                                    } else if (now > end) {
+                                        statusText = '⏰ Đã hết hạn';
+                                        statusColor = 'var(--color-danger)';
+                                    } else {
+                                        statusText = '● Đang hoạt động';
+                                        statusColor = 'var(--color-success)';
+                                    }
+                                }
+
+                                return (
+                                    <div
+                                        key={p.id}
+                                        onClick={() => setSelectedPeriod(p)}
+                                        style={{
+                                            padding: '10px 15px',
+                                            // 🔥 ĐÃ ĐẠI TU UI: Giữ nền tối, nếu click chọn thì bật viền Cyan phát sáng và nhuộm màu chữ để nét căng, dễ nhìn
+                                            backgroundColor: isSelected ? 'rgba(0, 188, 212, 0.08)' : 'var(--color-bg)',
+                                            border: isSelected ? '2px solid var(--text-cyan)' : '1px solid var(--color-border)',
+                                            boxShadow: isSelected ? '0 0 10px rgba(0, 188, 212, 0.25)' : 'none',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            minWidth: '220px',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        <div style={{ fontWeight: 'bold', fontSize: '14px', color: isSelected ? 'var(--text-cyan)' : 'white' }}>Học kỳ: {p.semester}</div>
+                                        <div style={{ fontSize: '12px', color: isSelected ? 'white' : 'var(--text-muted)', marginTop: '4px' }}>Mã đợt: #RP_{p.id}</div>
+                                        <div style={{ fontSize: '11px', marginTop: '6px', color: statusColor, fontWeight: 'bold' }}>
+                                            {statusText}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                             {allPeriods.length === 0 && <p style={{color:'var(--text-muted)', fontSize:'13px'}}>Chưa có dữ liệu lịch sử đợt mở đăng ký.</p>}
                         </div>
                     </div>
@@ -251,21 +301,17 @@ export default function RegistrationPage() {
                     {selectedPeriod && (
                         <div style={{ padding: '15px 20px', backgroundColor: 'var(--color-surface)', borderLeft: '5px solid var(--color-success)', borderRadius: '4px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid var(--color-border)' }}>
                             <div>
-                                <h4 style={{ margin: '0 0 6px 0', color: 'var(--color-success)' }}>🟢 KHUNG GIỜ HỆ THỐNG ĐANG LƯU TRỮ VÀ HOẠT ĐỘNG</h4>
-                                {activePeriodInfo ? (
-                                    <div style={{ fontSize: '13px' }}>
-                                        Học kỳ áp dụng: <b style={{color:'var(--text-cyan)'}}>{activePeriodInfo.semester}</b> |
-                                        Thời gian: Từ <b>{formatDate(activePeriodInfo.startTime)}</b> đến <b>{formatDate(activePeriodInfo.endTime)}</b> |
-                                        Trạng thái: {renderPeriodStatusLabel(activePeriodInfo)}  {/* 🔥 GỌI HÀM ĐÃ SỬA TẠI ĐÂY */}
-                                    </div>
-                                ) : (
-                                    <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Chưa có cấu hình lịch đăng ký tín chỉ nào hoạt động. Vui lòng thiết lập ở form bên dưới.</div>
-                                )}
+                                <h4 style={{ margin: '0 0 6px 0', color: 'var(--text-cyan)' }}>🟢 CHI TIẾT ĐỢT ĐANG CHỌN GIÁM SÁT REALTIME</h4>
+                                <div style={{ fontSize: '13px' }}>
+                                    Học kỳ áp dụng: <b style={{color:'var(--color-warning)'}}>{selectedPeriod.semester}</b> |
+                                    Thời gian cấu hình: Từ <b>{formatDate(selectedPeriod.startTime)}</b> đến <b>{formatDate(selectedPeriod.endTime)}</b> |
+                                    Trạng thái thực tế: {renderPeriodStatusLabel(selectedPeriod)}
+                                </div>
                             </div>
 
-                            {activePeriodInfo && activePeriodInfo.isActive && (
+                            {selectedPeriod && selectedPeriod.isActive && (
                                 <button
-                                    onClick={() => handleClosePeriod(activePeriodInfo.id)}
+                                    onClick={() => handleClosePeriod(selectedPeriod.id)}
                                     style={{ padding: '8px 14px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
                                 >
                                     🛑 Hủy Kích Hoạt Đợt Này

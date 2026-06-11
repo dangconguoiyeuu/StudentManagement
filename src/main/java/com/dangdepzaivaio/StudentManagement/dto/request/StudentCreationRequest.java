@@ -21,5 +21,9 @@ public record StudentCreationRequest(
         String phoneNumber,
 
         @NotNull(message = "ID lớp hành chính không được để trống")
-        Long classId
+        Long classId,
+
+        // 🔥 THÊM MỚI: Đón nhận niên khóa học truyền từ form tạo
+        @NotBlank(message = "Khóa học sinh viên không được để trống")
+        String cohort
 ) {}

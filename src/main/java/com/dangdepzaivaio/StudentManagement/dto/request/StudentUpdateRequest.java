@@ -14,5 +14,8 @@ public record StudentUpdateRequest(
         String gender,
         String phoneNumber,
         Long classId,
-        Boolean active // 🔥 THÊM TRƯỜNG NÀY: Để nhận trạng thái Đang học (true) / Khóa (false) từ form sửa
+        Boolean active,
+
+        // 🔥 THÊM MỚI: Cho phép sửa đổi đợt khóa học khi hiệu chỉnh hồ sơ
+        String cohort
 ) {}

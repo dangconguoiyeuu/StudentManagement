@@ -15,7 +15,7 @@ public class Student extends BaseEntity {
 
     @Id
     @Column(name = "id", length = 20)
-    private String id; // 🔥 Khóa chính kiểu Chuỗi
+    private String id;
 
     @Column(name = "student_code", nullable = false, unique = true, length = 20)
     private String studentCode;
@@ -35,12 +35,16 @@ public class Student extends BaseEntity {
     @Column(name = "phone_number", length = 15)
     private String phoneNumber;
 
+    // 🔥 THÊM MỚI: Cột khóa học sinh viên lưu trữ thẳng xuống Database thật
+    @Column(name = "cohort", length = 20)
+    private String cohort;
+
     @Builder.Default
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @MapsId // 🔥 ĐỒNG BỘ: Ép ID của bảng Student khớp hoàn toàn với ID của User
+    @MapsId
     @JoinColumn(name = "id")
     private User user;
 

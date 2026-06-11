@@ -117,6 +117,7 @@ src/main/java/com/dangdepzaivaio/StudentManagement/repository/StudentRepository.
 src/main/java/com/dangdepzaivaio/StudentManagement/repository/SubjectRepository.java
 src/main/java/com/dangdepzaivaio/StudentManagement/repository/TeacherRepository.java
 src/main/java/com/dangdepzaivaio/StudentManagement/repository/UserRepository.java
+src/main/java/com/dangdepzaivaio/StudentManagement/scheduler/RegistrationScheduler.java
 src/main/java/com/dangdepzaivaio/StudentManagement/service/ClassService.java
 src/main/java/com/dangdepzaivaio/StudentManagement/service/CourseClassService.java
 src/main/java/com/dangdepzaivaio/StudentManagement/service/DepartmentService.java
@@ -155,9 +156,11 @@ student-management-ui/src/assets/vite.svg
 student-management-ui/src/components/CourseRegistration.jsx
 student-management-ui/src/index.css
 student-management-ui/src/main.jsx
+student-management-ui/src/pages/DashboardPage.jsx
 student-management-ui/src/pages/GradePage.jsx
 student-management-ui/src/pages/LoginPage.jsx
 student-management-ui/src/pages/RegistrationPage.jsx
+student-management-ui/src/pages/SchedulePage.jsx
 student-management-ui/src/pages/StudentPage.jsx
 student-management-ui/src/pages/TeacherPage.jsx
 student-management-ui/src/pages/TrainingPage.jsx
@@ -168,377 +171,628 @@ StudentManagement.docx
 <files>
 This section contains the contents of the repository's files.
 
-<file path="student-management-ui/src/pages/TrainingPage.jsx">
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/scheduler/RegistrationScheduler.java">
+package com.dangdepzaivaio.StudentManagement.scheduler;
+
+import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
+import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class RegistrationScheduler {
+
+    private final RegistrationPeriodRepository periodRepository;
+
+    /**
+     * 🔥 HÀM CHẠY TỰ ĐỘNG: Quét Database định kỳ để đóng các cổng đăng ký tín chỉ quá hạn
+     * fixedDelay = 60000 nghĩa là cứ sau 60 giây (1 phút) hệ thống sẽ tự quét 1 lần.
+     */
+    @Scheduled(fixedDelay = 60000)
+    @Transactional
+    public void autoCloseExpiredPeriods() {
+        LocalDateTime now = LocalDateTime.now();
+
+        // Lấy toàn bộ các đợt đăng ký đang bật trạng thái active = true
+        List<RegistrationPeriod> activePeriods = periodRepository.findAllByIsActiveTrue();
+
+        for (RegistrationPeriod period : activePeriods) {
+            // So sánh: Nếu mốc endTime nằm ở quá khứ (nhỏ hơn thời gian hiện tại) -> Đã hết giờ!
+            if (period.getEndTime() != null && period.getEndTime().isBefore(now)) {
+
+                period.setIsActive(false); // Chuyển trạng thái hoạt động về false (Đóng cổng)
+                periodRepository.save(period);
+
+                // Ghi vết nhật ký ra Console của IntelliJ để giám sát vận hành
+                log.info("⏰ [HỆ THỐNG TỰ ĐỘNG] Đã chốt sổ, hủy kích hoạt đợt đăng ký tín chỉ quá hạn của học kỳ: {}", period.getSemester());
+            }
+        }
+    }
+}
+</file>
+
+<file path="student-management-ui/src/pages/DashboardPage.jsx">
 import React, { useState, useEffect } from 'react';
 import axiosClient from '../api/axiosClient';
 
-function TrainingPage() {
-    const [subTab, setSubTab] = useState('departments');
-    const [departments, setDepartments] = useState([]);
-    const [subjects, setSubjects] = useState([]);
-    const [courseClasses, setCourseClasses] = useState([]);
-    const [teachers, setTeachers] = useState([]);
+export default function DashboardPage() {
+    const username = localStorage.getItem('username') || 'Người dùng';
+    const role = localStorage.getItem('roles') || '';
+    const studentId = localStorage.getItem('studentId') || '';
+    const teacherId = localStorage.getItem('teacherId') || '';
 
-    // --- TRẠNG THÁI CHẾ ĐỘ SỬA (EDIT MODE STATES) ---
-    const [isEditMode, setIsEditMode] = useState(false);
-    const [editingId, setEditingId] = useState(null);
+    // --- STATES SỐ LIỆU NÂNG CAO CHO ADMIN ---
+    const [adminMetrics, setAdminMetrics] = useState({
+        totalStudents: 0, activeStudents: 0, lockedStudents: 0,
+        totalTeachers: 0, activeTeachers: 0, lockedTeachers: 0,
+        totalSubjects: 0,
+        totalClasses: 0, openClasses: 0
+    });
+    const [allPeriods, setAllPeriods] = useState([]); // Lưu toàn bộ lịch sử đợt mở cổng
 
-    // Form states
-    const [deptForm, setDeptForm] = useState({ code: '', name: '' });
-    const [subjectForm, setSubjectForm] = useState({ code: '', name: '', credits: 3 });
-    const [classForm, setClassForm] = useState({ code: '', semester: 'HK1-2026', subjectId: '', teacherId: '', maxStudents: 60 });
+    // --- STATES CHO TEACHER & STUDENT (GIỮ NGUYÊN ĐỒNG BỘ) ---
+    const [teacherClasses, setTeacherClasses] = useState([]);
+    const [myClasses, setMyClasses] = useState([]);
+    const [studentInfo, setStudentInfo] = useState(null);
 
-    // Quản lý danh sách các buổi học động
-    const [scheduleSlots, setScheduleSlots] = useState([
-        { day: 'Thứ 2', shift: 'Sáng (Tiết 1-4)', room: '' }
-    ]);
-
-    const daysOfWeek = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
-    const shifts = ['Sáng (Tiết 1-4)', 'Chiều (Tiết 5-8)', 'Tối (Tiết 9-12)'];
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        loadDepartments();
-        loadSubjects();
-        loadCourseClasses();
-        loadTeachers();
-    }, []);
-
-    // Mỗi khi chuyển đổi tiểu ban (subTab), tự động hủy trạng thái sửa cũ để tránh xung đột form
-    useEffect(() => {
-        resetAllForms();
-    }, [subTab]);
-
-    const loadDepartments = async () => { try { const data = await axiosClient.get('/departments'); setDepartments(data); } catch (e) { console.error(e); } };
-    const loadSubjects = async () => { try { const data = await axiosClient.get('/subjects'); setSubjects(data); } catch (e) { console.error(e); } };
-    const loadCourseClasses = async () => { try { const data = await axiosClient.get('/course-classes'); setCourseClasses(data); } catch (e) { console.error(e); } };
-    const loadTeachers = async () => { try { const data = await axiosClient.get('/teachers'); setTeachers(data); } catch (e) { console.error(e); } };
-
-    const resetAllForms = () => {
-        setIsEditMode(false);
-        setEditingId(null);
-        setDeptForm({ code: '', name: '' });
-        setSubjectForm({ code: '', name: '', credits: 3 });
-        setClassForm({ code: '', semester: 'HK1-2026', subjectId: '', teacherId: '', maxStudents: 60 });
-        setScheduleSlots([{ day: 'Thứ 2', shift: 'Sáng (Tiết 1-4)', room: '' }]);
-    };
-
-    // --- THUẬT TOÁN ĐỌC NGƯỢC CHUỖI LỊCH (SCHEDULE DECODER) ---
-    // Biến đổi chuỗi "Thứ 2 Sáng (Tiết 1-4) - Phòng 402 | Thứ 6 Chiều (Tiết 5-8) - Phòng 301" thành mảng Object cấu trúc ban đầu
-    const parseScheduleToSlots = (scheduleStr) => {
-        if (!scheduleStr) return [{ day: 'Thứ 2', shift: 'Sáng (Tiết 1-4)', room: '' }];
-        try {
-            const parts = scheduleStr.split(' | ');
-            return parts.map(part => {
-                const subParts = part.split(' - ');
-                const dayShift = subParts[0]; // "Thứ 2 Sáng (Tiết 1-4)"
-                const roomPart = subParts[1] || ''; // "Phòng 402"
-
-                const roomValue = roomPart.replace('Phòng ', '').trim();
-                const foundDay = daysOfWeek.find(d => dayShift.startsWith(d)) || 'Thứ 2';
-                const shiftValue = dayShift.replace(foundDay, '').trim();
-
-                return { day: foundDay, shift: shiftValue || 'Sáng (Tiết 1-4)', room: roomValue };
-            });
-        } catch (e) {
-            return [{ day: 'Thứ 2', shift: 'Sáng (Tiết 1-4)', room: '' }];
-        }
-    };
-
-    // --- TÁC VỤ CHO LỊCH ĐỘNG ---
-    const handleAddSlot = () => setScheduleSlots([...scheduleSlots, { day: 'Thứ 2', shift: 'Sáng (Tiết 1-4)', room: '' }]);
-    const handleRemoveSlot = (index) => {
-        if (scheduleSlots.length === 1) return;
-        setScheduleSlots(scheduleSlots.filter((_, i) => i !== index));
-    };
-    const handleSlotChange = (index, field, value) => {
-        const updatedSlots = [...scheduleSlots];
-        updatedSlots[index][field] = value;
-        setScheduleSlots(updatedSlots);
-    };
-
-    // ==================== 🏛️ XỬ LÝ KHỐI KHOA (DEPARTMENTS) ====================
-    const handleSaveDept = async (e) => {
-        e.preventDefault();
-        try {
-            if (isEditMode) {
-                await axiosClient.put(`/departments/${editingId}`, deptForm);
-                alert('Cập nhật thông tin khoa thành công!');
-            } else {
-                await axiosClient.post('/departments', deptForm);
-                alert('Thêm khoa chuyên môn mới thành công!');
-            }
-            resetAllForms();
-            loadDepartments();
-        } catch (err) { alert(err || 'Có lỗi xảy ra!'); }
-    };
-
-    const handleOpenEditDept = (dept) => {
-        setIsEditMode(true);
-        setEditingId(dept.id);
-        setDeptForm({ code: dept.code, name: dept.name });
-    };
-
-    const handleDeleteDept = async (id, name) => {
-        if (window.confirm(`⚠️ Bạn có chắc chắn muốn XÓA HOÀN TOÀN khoa [${name}] không?\nHành động này có thể ảnh hưởng đến giảng viên thuộc khoa.`)) {
+        const loadDashboardData = async () => {
             try {
-                await axiosClient.delete(`/departments/${id}`);
-                alert('Đã xóa khoa ra khỏi hệ thống thành công!');
-                loadDepartments();
-            } catch (err) { alert(err || 'Không thể xóa khoa này do có ràng buộc dữ liệu!'); }
-        }
-    };
+                setLoading(true);
 
-    // ==================== 📘 XỬ LÝ KHỐI MÔN HỌC (SUBJECTS) ====================
-    const handleSaveSubject = async (e) => {
-        e.preventDefault();
-        try {
-            if (isEditMode) {
-                await axiosClient.put(`/subjects/${editingId}`, subjectForm);
-                alert('Cập nhật thông tin môn học thành công!');
-            } else {
-                await axiosClient.post('/subjects', subjectForm);
-                alert('Thêm môn học hệ thống mới thành công!');
+                // 🛠️ LUỒNG BIẾN ĐỔI CHUYÊN SÂU 1: PHÂN HỆ ADMIN
+                if (role.includes('ADMIN')) {
+                    const [resStudents, resTeachers, resSubjects, resClasses, resPeriods] = await Promise.all([
+                        axiosClient.get('/students?includeInactive=true'),
+                        axiosClient.get('/teachers'),
+                        axiosClient.get('/subjects'),
+                        axiosClient.get('/course-classes'),
+                        axiosClient.get('/registration/periods').catch(() => [])
+                    ]);
+
+                    // Thuật toán bóc tách trạng thái tài khoản từ mảng dữ liệu thật
+                    const sActive = resStudents ? resStudents.filter(s => s.active).length : 0;
+                    const sLocked = resStudents ? resStudents.filter(s => !s.active).length : 0;
+                    const tActive = resTeachers ? resTeachers.filter(t => t.active).length : 0;
+                    const tLocked = resTeachers ? resTeachers.filter(t => !t.active).length : 0;
+                    const cOpen = resClasses ? resClasses.filter(c => c.openForRegistration).length : 0;
+
+                    setAdminMetrics({
+                        totalStudents: resStudents?.length || 0, activeStudents: sActive, lockedStudents: sLocked,
+                        totalTeachers: resTeachers?.length || 0, activeTeachers: tActive, lockedTeachers: tLocked,
+                        totalSubjects: resSubjects?.length || 0,
+                        totalClasses: resClasses?.length || 0, openClasses: cOpen
+                    });
+
+                    if (resPeriods && resPeriods.length > 0) {
+                        setAllPeriods([...resPeriods].sort((a, b) => b.id - a.id));
+                    }
+                }
+
+                // 🛠️ LUỒNG BIẾN ĐỔI 2: PHÂN HỆ TEACHER
+                if (role.includes('TEACHER')) {
+                    if (teacherId) {
+                        const classes = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
+                        setTeacherClasses(classes || []);
+                    }
+                }
+
+                // 🛠️ LUỒNG BIẾN ĐỔI 3: PHÂN HỆ STUDENT
+                if (role.includes('STUDENT')) {
+                    const [resMyClasses, resAllStudents] = await Promise.all([
+                        axiosClient.get('/registration/my-classes'),
+                        axiosClient.get('/students?includeInactive=true').catch(() => [])
+                    ]);
+                    setMyClasses(resMyClasses || []);
+
+                    if (resAllStudents && resAllStudents.length > 0) {
+                        const currentStudent = resAllStudents.find(s => s.studentCode === username || s.id === studentId);
+                        setStudentInfo(currentStudent || null);
+                    }
+                }
+            } catch (err) {
+                console.error("Lỗi kết nối dữ liệu Dashboard:", err);
+            } finally {
+                setLoading(false);
             }
-            resetAllForms();
-            loadSubjects();
-        } catch (err) { alert(err || 'Có lỗi xảy ra!'); }
-    };
-
-    const handleOpenEditSubject = (sub) => {
-        setIsEditMode(true);
-        setEditingId(sub.id);
-        setSubjectForm({ code: sub.code, name: sub.name, credits: sub.credits });
-    };
-
-    const handleDeleteSubject = async (id, name) => {
-        if (window.confirm(`⚠️ Bạn có chắc chắn muốn XÓA HOÀN TOÀN môn học [${name}] không?`)) {
-            try {
-                await axiosClient.delete(`/subjects/${id}`);
-                alert('Đã loại bỏ môn học thành công!');
-                loadSubjects();
-            } catch (err) { alert(err || 'Không thể xóa môn học này!'); }
-        }
-    };
-
-    // ==================== 📅 XỬ LÝ KHỐI LỚP HỌC PHẦN (COURSE CLASSES) ====================
-    const handleSaveClass = async (e) => {
-        e.preventDefault();
-        for (let slot of scheduleSlots) {
-            if (!slot.room.trim()) { alert('Vui lòng điền phòng học cho tất cả các buổi!'); return; }
-        }
-
-        const compiledSchedule = scheduleSlots
-            .map(slot => `${slot.day} ${slot.shift} - Phòng ${slot.room.trim()}`)
-            .join(' | ');
-
-        const payload = {
-            ...classForm,
-            subjectId: Number(classForm.subjectId),
-            maxStudents: Number(classForm.maxStudents),
-            schedule: compiledSchedule
         };
+        loadDashboardData();
+    }, [role, username, studentId, teacherId]);
 
-        try {
-            if (isEditMode) {
-                await axiosClient.put(`/course-classes/${editingId}`, payload);
-                alert('Cập nhật lớp học phần và điều chỉnh thời khóa biểu đồng bộ thành công!');
-            } else {
-                await axiosClient.post('/course-classes', payload);
-                alert('Mở lớp học phần mới và xếp lịch biểu thành công!');
-            }
-            resetAllForms();
-            loadCourseClasses();
-        } catch (err) { alert(err || 'Có lỗi xảy ra!'); }
+    const getPeriodStatusText = (period) => {
+        if (!period) return { text: 'Chưa rõ', color: 'var(--text-muted)' };
+        if (!period.isActive) return { text: '🔒 Đã đóng cổng', color: 'var(--color-danger)' };
+        const now = new Date();
+        const start = new Date(period.startTime);
+        const end = new Date(period.endTime);
+        if (now < start) return { text: '⏳ Chờ giờ hẹn', color: 'var(--color-warning)' };
+        if (now > end) return { text: '⏰ Hết hạn đóng cổng', color: 'var(--color-danger)' };
+        return { text: '🟢 ĐANG MỞ REALTIME', color: 'var(--color-success)' };
     };
 
-    const handleOpenEditClass = (cls) => {
-        setIsEditMode(true);
-        setEditingId(cls.id);
-        setClassForm({
-            code: cls.code,
-            semester: cls.semester,
-            subjectId: cls.subjectId || '',
-            teacherId: cls.teacherId || '',
-            maxStudents: cls.maxStudents || 60
-        });
-        // Giải mã chuỗi schedule ngược lại thành dạng mảng ô checkbox tương tác
-        setScheduleSlots(parseScheduleToSlots(cls.schedule));
-    };
+    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px' }}>Đang tổng hợp dữ liệu hệ thống đào tạo...</div>;
 
-    const handleDeleteClass = async (id, code) => {
-        if (window.confirm(`⚠️ Bạn có chắc chắn muốn HỦY LỚP và XÓA lớp học phần [${code}] không?\nTất cả lịch học và danh sách sinh viên đăng ký lớp này sẽ bị hủy bỏ.`)) {
-            try {
-                await axiosClient.delete(`/course-classes/${id}`);
-                alert('Đã xóa bỏ hoàn toàn lớp học phần khỏi hệ thống!');
-                loadCourseClasses();
-            } catch (err) { alert(err || 'Không thể xóa lớp học phần này!'); }
-        }
-    };
+    // ==================== 🏛️ VÙNG 1: ĐẠI TU GIÀU CHI TIẾT DÀNH CHO ADMIN ====================
+    if (role.includes('ADMIN')) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'left' }}>
 
-    return (
-        <div style={{ color: 'var(--text-main)' }}>
-            <h2 style={{ color: 'var(--text-cyan)', marginBottom: 'var(--spacing-xl)' }}>🏛️ TRUNG TÂM ĐIỀU PHỐI ĐÀO TẠO & LỊCH TRÌNH ĐỒNG BỘ</h2>
-
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                <button onClick={() => setSubTab('departments')} style={{ ...subTabBtn, backgroundColor: subTab === 'departments' ? 'var(--color-primary)' : 'var(--color-surface)' }}>Quản Lý Khoa</button>
-                <button onClick={() => setSubTab('subjects')} style={{ ...subTabBtn, backgroundColor: subTab === 'subjects' ? 'var(--color-primary)' : 'var(--color-surface)' }}>Quản Lý Môn Học</button>
-                <button onClick={() => setSubTab('classes')} style={{ ...subTabBtn, backgroundColor: subTab === 'classes' ? 'var(--color-primary)' : 'var(--color-surface)' }}>Lớp Học Phần & Xếp Lịch</button>
-            </div>
-
-            {/* PHÂN HỆ QUẢN LÝ KHOA */}
-            {subTab === 'departments' && (
-                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-                    <form onSubmit={handleSaveDept} style={formStyle}>
-                        <h4>{isEditMode ? '📝 HIỆU CHỈNH THÔNG TIN KHOA' : '➕ THÊM KHOA CHUYÊN MÔN MỚI'}</h4>
-                        <input type="text" placeholder="Mã Khoa (VD: CNTT)" value={deptForm.code} onChange={e => setDeptForm({...deptForm, code: e.target.value})} required style={inputStyle} disabled={isEditMode} />
-                        <input type="text" placeholder="Tên Khoa (VD: Công nghệ thông tin)" value={deptForm.name} onChange={e => setDeptForm({...deptForm, name: e.target.value})} required style={inputStyle} />
-                        <div style={{display:'flex', gap:'10px'}}>
-                            <button type="submit" style={submitBtnStyle}>{isEditMode ? 'Cập Nhật' : 'Thêm Mới'}</button>
-                            {isEditMode && <button type="button" onClick={resetAllForms} style={{...submitBtnStyle, backgroundColor:'#6c757d'}}>Hủy</button>}
-                        </div>
-                    </form>
-                    <div style={{ flex: 1, minWidth: '350px' }}>
-                        <table style={tableStyle}>
-                            <thead><tr style={thStyle}><th>ID</th><th>Mã Khoa</th><th>Tên Khoa</th><th style={{textAlign:'center'}}>Hành Động</th></tr></thead>
-                            <tbody>
-                            {departments.map(d => (
-                                <tr key={d.id} style={trStyle}>
-                                    <td>{d.id}</td><td style={{color:'var(--text-cyan)', fontWeight:'bold'}}>{d.code}</td><td>{d.name}</td>
-                                    <td style={{textAlign:'center'}}>
-                                        <button onClick={() => handleOpenEditDept(d)} style={actionBtnStyle}>Sửa</button>
-                                        <button onClick={() => handleDeleteDept(d.id, d.name)} style={{...actionBtnStyle, backgroundColor:'var(--color-danger)'}}>Xóa</button>
-                                    </td>
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
-                    </div>
+                {/* Thanh trạng thái đỉnh điều khiển */}
+                <div style={panelStyle}>
+                    <h2 style={{ margin: '0 0 5px 0', color: 'var(--text-cyan)' }}>🏛️ TRUNG TÂM GIÁM SÁT ĐÀO TẠO ĐA NHIỆM (ADMIN CONSOLE)</h2>
+                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>Chào mừng Quản trị viên tối cao. Dưới đây là bảng phân tích chi tiết dữ liệu vận hành lõi.</p>
                 </div>
-            )}
 
-            {/* PHÂN HỆ QUẢN LÝ MÔN HỌC */}
-            {subTab === 'subjects' && (
-                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-                    <form onSubmit={handleSaveSubject} style={formStyle}>
-                        <h4>{isEditMode ? '📝 HIỆU CHỈNH THÔNG TIN MÔN' : '➕ THÊM MÔN HỌC HỆ THỐNG'}</h4>
-                        <input type="text" placeholder="Mã Môn Học (VD: INT3110)" value={subjectForm.code} onChange={e => setSubjectForm({...subjectForm, code: e.target.value})} required style={inputStyle} disabled={isEditMode} />
-                        <input type="text" placeholder="Tên Môn Học (VD: Lập trình Spring Boot)" value={subjectForm.name} onChange={e => setSubjectForm({...subjectForm, name: e.target.value})} required style={inputStyle} />
-                        <input type="number" placeholder="Số tín chỉ" value={subjectForm.credits} onChange={e => setSubjectForm({...subjectForm, credits: e.target.value})} required style={inputStyle} />
-                        <div style={{display:'flex', gap:'10px'}}>
-                            <button type="submit" style={submitBtnStyle}>{isEditMode ? 'Cập Nhật' : 'Thêm Mới'}</button>
-                            {isEditMode && <button type="button" onClick={resetAllForms} style={{...submitBtnStyle, backgroundColor:'#6c757d'}}>Hủy</button>}
-                        </div>
-                    </form>
-                    <div style={{ flex: 1, minWidth: '350px' }}>
-                        <table style={tableStyle}>
-                            <thead><tr style={thStyle}><th>ID</th><th>Mã Môn</th><th>Tên Môn Học</th><th>Tín Chỉ</th><th style={{textAlign:'center'}}>Hành Động</th></tr></thead>
-                            <tbody>
-                            {subjects.map(s => (
-                                <tr key={s.id} style={trStyle}>
-                                    <td>{s.id}</td><td style={{color:'var(--color-warning)', fontWeight:'bold'}}>{s.code}</td><td>{s.name}</td><td>{s.credits} tín</td>
-                                    <td style={{textAlign:'center'}}>
-                                        <button onClick={() => handleOpenEditSubject(s)} style={actionBtnStyle}>Sửa</button>
-                                        <button onClick={() => handleDeleteSubject(s.id, s.name)} style={{...actionBtnStyle, backgroundColor:'var(--color-danger)'}}>Xóa</button>
-                                    </td>
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {/* PHÂN HỆ LỚP HỌC PHẦN ĐAN XEN BUỔI ĐỘNG */}
-            {subTab === 'classes' && (
-                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-                    <form onSubmit={handleSaveClass} style={{ ...formStyle, width: '460px' }}>
-                        <h4>{isEditMode ? '📝 ĐIỀU CHỈNH LỚP HỌC PHẦN & LỊCH BIỂU' : '📅 MỞ LỚP HỌC PHẦN & XẾP LỊCH TRÌNH'}</h4>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                            <input type="text" placeholder="Mã Lớp HP (VD: LHP_CNPM_01)" value={classForm.code} onChange={e => setClassForm({...classForm, code: e.target.value})} required style={inputStyle} disabled={isEditMode} />
-                            <input type="text" placeholder="Học kỳ (VD: HK1-2026)" value={classForm.semester} onChange={e => setClassForm({...classForm, semester: e.target.value})} required style={inputStyle} />
-                        </div>
-
-                        <select value={classForm.subjectId} onChange={e => setClassForm({...classForm, subjectId: e.target.value})} required style={inputStyle}>
-                            <option value="">-- Chọn Môn Học --</option>
-                            {subjects.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code})</option>)}
-                        </select>
-
-                        <select value={classForm.teacherId} onChange={e => setClassForm({...classForm, teacherId: e.target.value})} required style={inputStyle}>
-                            <option value="">-- Chọn Giảng Viên Đứng Lớp --</option>
-                            {teachers.map(t => <option key={t.id} value={t.id}>{t.lastName} {t.firstName} ({t.teacherCode})</option>)}
-                        </select>
-
-                        <input type="number" placeholder="Sĩ số tối đa" value={classForm.maxStudents} onChange={e => setClassForm({...classForm, maxStudents: e.target.value})} required style={inputStyle} />
-
-                        {/* Cấu phần buổi học động */}
-                        <div style={{ padding: '12px', backgroundColor: 'var(--color-bg)', borderRadius: '6px', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <label style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-cyan)' }}>📆 Cấu hình chi tiết các buổi học:</label>
-                                <button type="button" onClick={handleAddSlot} style={{ padding: '4px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>
-                                    + Thêm buổi học
-                                </button>
+                {/* Khối Card số liệu chi tiết sâu (Deep Metrics Grid) */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '15px' }}>
+                    {/* Card Sinh viên */}
+                    <div style={deepCardStyle}>
+                        <div style={{fontSize: '24px'}}>👥</div>
+                        <div style={{flex: 1}}>
+                            <div style={cardTitleStyle}>QUẢN LÝ SINH VIÊN</div>
+                            <div style={cardValueStyle}>{adminMetrics.totalStudents} <span style={{fontSize:'12px', fontWeight:'normal'}}>Tổng số</span></div>
+                            <div style={subMetricStyle}>
+                                <span style={{color:'var(--color-success)'}}>● Đang học: {adminMetrics.activeStudents}</span>
+                                <span style={{color:'var(--color-danger)'}}>● Khóa: {adminMetrics.lockedStudents}</span>
                             </div>
+                        </div>
+                    </div>
+                    {/* Card Giảng viên */}
+                    <div style={deepCardStyle}>
+                        <div style={{fontSize: '24px'}}>💼</div>
+                        <div style={{flex: 1}}>
+                            <div style={cardTitleStyle}>QUẢN LÝ GIẢNG VIÊN</div>
+                            <div style={cardValueStyle}>{adminMetrics.totalTeachers} <span style={{fontSize:'12px', fontWeight:'normal'}}>Nhân sự</span></div>
+                            <div style={subMetricStyle}>
+                                <span style={{color:'var(--color-success)'}}>● Đang dạy: {adminMetrics.activeTeachers}</span>
+                                <span style={{color:'var(--color-danger)'}}>● Khóa: {adminMetrics.lockedTeachers}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {/* Card Đào tạo */}
+                    <div style={deepCardStyle}>
+                        <div style={{fontSize: '24px'}}>📘</div>
+                        <div style={{flex: 1}}>
+                            <div style={cardTitleStyle}>HỆ THỐNG ĐÀO TẠO</div>
+                            <div style={cardValueStyle}>{adminMetrics.totalSubjects} <span style={{fontSize:'12px', fontWeight:'normal'}}>Môn học</span></div>
+                            <div style={subMetricStyle}>
+                                <span style={{color:'var(--text-cyan)'}}>● Lớp HP hệ thống: {adminMetrics.totalClasses}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {/* Card Điều phối đăng ký */}
+                    <div style={deepCardStyle}>
+                        <div style={{fontSize: '24px'}}>⏰</div>
+                        <div style={{flex: 1}}>
+                            <div style={cardTitleStyle}>ĐIỀU PHỐI TÍN CHỈ</div>
+                            <div style={cardValueStyle}>{adminMetrics.openClasses} <span style={{fontSize:'12px', fontWeight:'normal'}}>Lớp mở đăng ký</span></div>
+                            <div style={subMetricStyle}>
+                                <span style={{color:'var(--color-warning)'}}>● Tổng số đợt hẹn: {allPeriods.length} đợt</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                            {scheduleSlots.map((slot, index) => (
-                                <div key={index} style={{ display: 'flex', gap: '6px', alignItems: 'center', backgroundColor: 'var(--color-surface)', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
-                                    <select value={slot.day} onChange={e => handleSlotChange(index, 'day', e.target.value)} style={{ ...inputStyle, padding: '5px', fontSize: '12px', flex: 1 }}>
-                                        {daysOfWeek.map(d => <option key={d} value={d}>{d}</option>)}
-                                    </select>
+                {/* KHỐI 2 BẢNG CHI TIẾT: LỊCH SỬ KHUNG GIỜ VÀ SYSTEM HEALTH */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.2fr', gap: '20px', flexWrap: 'wrap' }}>
 
-                                    <select value={slot.shift} onChange={e => handleSlotChange(index, 'shift', e.target.value)} style={{ ...inputStyle, padding: '5px', fontSize: '12px', flex: 1.5 }}>
-                                        {shifts.map(s => <option key={s} value={s}>{s}</option>)}
-                                    </select>
+                    {/* Bảng trái: Lịch sử toàn bộ các đợt mở cổng */}
+                    <div style={panelStyle}>
+                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--text-cyan)' }}>📋 LỊCH SỬ VÀ TIẾN ĐỘ CÁC ĐỢT MỞ ĐĂNG KÝ TÍN CHỈ</h4>
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={dashboardTableStyle}>
+                                <thead>
+                                <tr style={thStyle}>
+                                    <th>Mã Đợt</th><th>Học Kỳ</th><th>Thời Gian Bắt Đầu</th><th>Thời Gian Kết Thúc</th><th style={{textAlign:'center'}}>Trạng Thái Thực Tế</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {allPeriods.map((p) => {
+                                    const stat = getPeriodStatusText(p);
+                                    return (
+                                        <tr key={p.id} style={trStyle}>
+                                            <td style={{fontWeight:'bold', color:'var(--text-muted)'}}>#RP_{p.id}</td>
+                                            <td style={{fontWeight:'bold', color:'white'}}>{p.semester}</td>
+                                            <td style={{fontSize:'12px'}}>{new Date(p.startTime).toLocaleString('vi-VN')}</td>
+                                            <td style={{fontSize:'12px'}}>{new Date(p.endTime).toLocaleString('vi-VN')}</td>
+                                            <td style={{textAlign:'center', fontSize:'12px', color: stat.color, fontWeight:'bold'}}>{stat.text}</td>
+                                        </tr>
+                                    );
+                                })}
+                                {allPeriods.length === 0 && (
+                                    <tr><td colSpan="5" style={{textAlign:'center', color:'var(--text-muted)', padding:'10px'}}>Chưa có dữ liệu lịch sử đợt mở.</td></tr>
+                                )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
 
-                                    <input type="text" placeholder="Phòng" value={slot.room} onChange={e => handleSlotChange(index, 'room', e.target.value)} required style={{ ...inputStyle, padding: '5px', fontSize: '12px', width: '80px' }} />
+                    {/* Bảng phải: Giám sát Hệ thống / Audit Logs giả lập */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        {/* Hộp System Performance */}
+                        <div style={panelStyle}>
+                            <h4 style={{ margin: '0 0 10px 0', color: 'var(--color-warning)' }}>🖥️ MONITOR SYSTEM HEALTH</h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px' }}>
+                                <div style={logItemStyle}>🚀 Server Status: <span style={{color:'var(--color-success)', fontWeight:'bold'}}>ONLINE</span></div>
+                                <div style={logItemStyle}>⚙️ Core Version: <span>v2.4.0-Stable</span></div>
+                                <div style={logItemStyle}>🧠 RAM Allocated: <span>412MB / 1024MB</span></div>
+                                <div style={logItemStyle}>⚡ DB Pool: <span style={{color:'var(--text-cyan)'}}>Active (8/20)</span></div>
+                            </div>
+                        </div>
 
-                                    <button type="button" onClick={() => handleRemoveSlot(index)} disabled={scheduleSlots.length === 1} style={{ padding: '5px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
-                                        Xóa
-                                    </button>
+                        {/* Hộp Nhật ký hành động nhanh */}
+                        <div style={panelStyle}>
+                            <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-cyan)' }}>📑 SYSTEM AUDIT LOGS (NHẬT KÝ THỜI GIAN THỰC)</h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', maxHeight: '140px', overflowY: 'auto', color: 'var(--text-muted)' }}>
+                                <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>⏱️ [Just Now] Admin vừa thực hiện quy trình kiểm tra đồng bộ mảng dữ liệu.</div>
+                                <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>🔑 [5 mins ago] Tài khoản mã số gán khóa học vừa nạp cấu hình thành công.</div>
+                                <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>🗄️ [10 mins ago] JPA Hibernate đồng bộ hóa cột dữ liệu trường `cohort` thành công.</div>
+                                <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>🔒 [30 mins ago] Cấu hình Filter Security bảo mật tầng URL định tuyến mở cổng thành công.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        );
+    }
+
+    // ==================== 💼 VÙNG 2: GIAO DIỆN DÀNH CHO GIẢNG VIÊN (TEACHER) ====================
+    if (role.includes('TEACHER')) {
+        return (
+            <div style={containerStyle}>
+                <div style={panelStyle}>
+                    <h2 style={{ margin: '0 0 5px 0', color: 'var(--text-cyan)' }}>💼 CỔNG THÔNG TIN TỔNG QUAN GIẢNG VIÊN</h2>
+                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>Xin chào Thầy/Cô <b>{username}</b>. Dưới đây là tóm tắt danh sách lớp đảm nhiệm trong học kỳ.</p>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2.5fr', gap: '20px', flexWrap: 'wrap' }}>
+                    <div style={{ ...cardStyle, justifyContent: 'center', textAlign: 'center', padding: '30px' }}>
+                        <div>
+                            <div style={cardTitleStyle}>HỌC PHẦN ĐANG ĐẢM NHIỆM</div>
+                            <div style={{...cardValueStyle, fontSize:'36px', color:'var(--text-cyan)', marginTop:'8px'}}>{teacherClasses.length} Lớp</div>
+                        </div>
+                    </div>
+                    <div style={panelStyle}>
+                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--color-warning)', borderBottom: '1px solid var(--color-border)', paddingBottom: '6px' }}>📅 THỜI KHÓA BIỂU GIẢNG DẠY CỦA THẦY/CÔ</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                            {teacherClasses.map((c, i) => (
+                                <div key={i} style={itemStyle}>
+                                    📖 <b>Lớp học phần: {c.code}</b> — Môn: {c.subjectName} | ⏰ Lịch lên lớp: <span style={{color:'var(--color-warning)', fontWeight:'bold'}}>{c.schedule || 'Chưa xếp lịch'}</span>
                                 </div>
                             ))}
+                            {teacherClasses.length === 0 && <p style={{color:'var(--text-muted)', margin:0}}>Học kỳ này Thầy/Cô chưa có lịch phân công giảng dạy.</p>}
                         </div>
-
-                        <div style={{display:'flex', gap:'10px'}}>
-                            <button type="submit" style={submitBtnStyle}>{isEditMode ? 'Cập Nhật Lớp' : 'Mở Lớp Học Phần'}</button>
-                            {isEditMode && <button type="button" onClick={resetAllForms} style={{...submitBtnStyle, backgroundColor:'#6c757d'}}>Hủy bỏ</button>}
-                        </div>
-                    </form>
-
-                    <div style={{ flex: 1, minWidth: '450px' }}>
-                        <table style={tableStyle}>
-                            <thead><tr style={thStyle}><th>Mã Lớp HP</th><th>Môn Học</th><th>Giảng Viên</th><th>Thời Khóa Biểu Đồng Bộ</th><th style={{textAlign:'center'}}>Hành Động</th></tr></thead>
-                            <tbody>
-                            {courseClasses.map(c => (
-                                <tr key={c.id} style={trStyle}>
-                                    <td style={{fontWeight:'bold', color:'var(--text-cyan)'}}>{c.code}</td>
-                                    <td>{c.subjectName}</td><td>{c.teacherName || 'Chưa xếp'}</td>
-                                    <td style={{color:'var(--color-warning)', fontWeight:'bold', fontSize: '12px'}}>{c.schedule || 'Chưa xếp lịch'}</td>
-                                    <td style={{textAlign:'center', display:'flex', gap:'4px', justifyContent:'center', padding:'12px 4px'}}>
-                                        <button onClick={() => handleOpenEditClass(c)} style={actionBtnStyle}>Sửa</button>
-                                        <button onClick={() => handleDeleteClass(c.id, c.code)} style={{...actionBtnStyle, backgroundColor:'var(--color-danger)'}}>Xóa</button>
-                                    </td>
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
                     </div>
                 </div>
-            )}
+            </div>
+        );
+    }
+
+    // ==================== 🎓 VÙNG 3: GIAO DIỆN DÀNH CHO SINH VIÊN (STUDENT) ====================
+    if (role.includes('STUDENT')) {
+        const totalCredits = myClasses.reduce((sum, item) => sum + (item.credits || 0), 0);
+        return (
+            <div style={containerStyle}>
+                <div style={panelStyle}>
+                    <h2 style={{ margin: '0 0 5px 0', color: 'var(--text-cyan)' }}>🎓 CỔNG THÔNG TIN SINH VIÊN TRA CỨU HỒ SƠ</h2>
+                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>Quản lý thông tin lý lịch cá nhân và sơ đồ lịch trình lên lớp tuần cá nhân.</p>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', flexWrap: 'wrap' }}>
+                    <div style={panelStyle}>
+                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--text-cyan)', borderBottom:'1px solid var(--color-border)', paddingBottom:'6px' }}>👤 HỒ SƠ LÝ LỊCH CÁ NHÂN SV</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
+                            <div>• Mã số sinh viên: <b style={{color:'var(--color-warning)'}}>{studentInfo?.studentCode || username}</b></div>
+                            <div>• Họ và tên học viên: <b>{studentInfo ? `${studentInfo.lastName} ${studentInfo.firstName}` : 'Học viên'}</b></div>
+                            <div>• Lớp hành chính gốc: <span style={{color:'var(--text-cyan)', fontWeight:'bold'}}>{studentInfo?.className || 'Chưa xếp lớp'}</span></div>
+                            <div>• Niên khóa đào tạo: <b style={{color:'var(--color-success)'}}>{studentInfo?.cohort || 'Khóa 1'}</b></div>
+                            <div>• Hộp thư nhà trường: <span style={{color:'var(--text-muted)'}}>{studentInfo?.email || 'Chưa cấp'}</span></div>
+                        </div>
+                    </div>
+
+                    <div style={panelStyle}>
+                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--color-warning)', borderBottom:'1px solid var(--color-border)', paddingBottom:'6px' }}>📈 SƠ ĐỒ ĐĂNG KÝ HỌC PHẦN HỌC KỲ</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                <div style={metricBoxStyle}>
+                                    <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--text-cyan)' }}>{myClasses.length}</div>
+                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop:'2px' }}>MÔN ĐÃ ĐK</div>
+                                </div>
+                                <div style={metricBoxStyle}>
+                                    <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--color-success)' }}>{totalCredits}</div>
+                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop:'2px' }}>TỔNG TÍN CHỈ</div>
+                                </div>
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                                💡 <b>Lưu ý cấu trúc:</b> Sinh viên chủ động rà soát Thời khóa biểu bên dưới để tránh trùng lặp khung giờ ca học đan xen động!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style={panelStyle}>
+                    <h4 style={{ margin: '0 0 10px 0', color: 'var(--color-success)' }}>📅 THỜI KHÓA BIỂU LỊCH HỌC TUẦN CỦA BẠN</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                        {myClasses.map((reg, i) => (
+                            <div key={i} style={itemStyle}>
+                                📝 <b>Mã lớp học phần: {reg.courseClassCode}</b> — Tên môn: {reg.subjectName} ({reg.credits} tín) | 📅 Lịch học: <span style={{color:'var(--color-success)', fontWeight:'bold'}}>{reg.schedule || 'Chưa xếp lịch'}</span>
+                            </div>
+                        ))}
+                        {myClasses.length === 0 && (
+                            <p style={{color:'var(--text-muted)', margin: 0, padding: '10px 0'}}>Bạn chưa thực hiện thao tác chọn đăng ký lớp học phần nào trong học kỳ này.</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return null;
+}
+
+// --- CẤU HÌNH INLINE CSS DESIGN CHUẨN ĐẸP ---
+const containerStyle = { display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'left' };
+const panelStyle = { backgroundColor: 'var(--color-surface)', padding: '15px 20px', borderRadius: '6px', border: '1px solid var(--color-border)' };
+const cardStyle = { display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' };
+const deepCardStyle = { display: 'flex', gap: '15px', backgroundColor: 'var(--color-surface)', padding: '18px 15px', borderRadius: '6px', border: '1px solid var(--color-border)' };
+const cardTitleStyle = { fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', letterSpacing: '0.3px' };
+const cardValueStyle = { fontSize: '20px', fontWeight: 'bold', color: 'white', marginTop: '2px', marginBottom: '6px' };
+const subMetricStyle = { display: 'flex', gap: '10px', fontSize: '11px', fontWeight: 'bold' };
+const itemStyle = { padding: '8px 12px', backgroundColor: 'var(--color-bg)', borderRadius: '4px', borderLeft: '3px solid var(--color-primary)' };
+const metricBoxStyle = { backgroundColor: 'var(--color-bg)', padding: '12px', borderRadius: '6px', textAlign: 'center', minWidth: '95px', border: '1px solid var(--color-border)' };
+const logItemStyle = { padding: '6px', backgroundColor: 'var(--color-bg)', borderRadius: '4px', color: 'var(--text-main)' };
+
+// Style bảng bổ sung chuyên nghiệp
+const dashboardTableStyle = { width: '100%', borderCollapse: 'collapse', marginTop: '5px' };
+const thStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', textAlign: 'left', padding: '8px', fontSize: '13px' };
+const trStyle = { borderBottom: '1px solid var(--color-border)', padding: '8px' };
+</file>
+
+<file path="student-management-ui/src/pages/SchedulePage.jsx">
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
+
+export default function SchedulePage() {
+    const userRole = localStorage.getItem('roles') || '';
+    const username = localStorage.getItem('username') || '';
+    const teacherId = localStorage.getItem('teacherId') || '';
+    const isTeacher = userRole.includes('TEACHER');
+    const isStudent = userRole.includes('STUDENT');
+
+    const [scheduleList, setScheduleList] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    // Khung danh sách 7 cột Thứ từ Thứ 2 đến Chủ Nhật nằm ngang
+    const daysOfWeek = [
+        { key: '2', label: 'Thứ 2' },
+        { key: '3', label: 'Thứ 3' },
+        { key: '4', label: 'Thứ 4' },
+        { key: '5', label: 'Thứ 5' },
+        { key: '6', label: 'Thứ 6' },
+        { key: '7', label: 'Thứ 7' },
+        { key: 'CN', label: 'Chủ Nhật' }
+    ];
+
+    useEffect(() => {
+        if (isTeacher || isStudent) {
+            fetchScheduleData();
+        }
+    }, [isTeacher, isStudent]);
+
+    const fetchScheduleData = async () => {
+        try {
+            setLoading(true);
+            setError('');
+            if (isTeacher) {
+                const response = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
+                setScheduleList(response || []);
+            } else if (isStudent) {
+                const response = await axiosClient.get('/registration/my-classes');
+                setScheduleList(response || []);
+            }
+        } catch (err) {
+            setError('Không thể kết nối cơ sở dữ liệu lịch trình hệ thống!');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 🔥 THUẬT TOÁN GỘP MÔN VÀO THỨ - TỰ ĐỘNG SẮP XẾP THEO THỨ TỰ SÁNG -> CHIỀU -> TỐI
+    const getDayData = (dayKey) => {
+        const items = scheduleList.filter(item => {
+            const schedStr = (item.schedule || '').toLowerCase();
+            if (!schedStr) return false;
+
+            let isMatchedDay = false;
+            if (dayKey === 'CN' && (schedStr.includes('chủ nhật') || schedStr.includes('cn'))) isMatchedDay = true;
+            else if (schedStr.includes(`thứ ${dayKey}`) || schedStr.includes(`t${dayKey}`)) isMatchedDay = true;
+
+            return isMatchedDay;
+        });
+
+        return items.map(item => {
+            const schedStr = (item.schedule || '').toLowerCase();
+            let priority = 1;
+
+            if (schedStr.includes('sáng')) {
+                priority = 1;
+            } else if (schedStr.includes('chiều')) {
+                priority = 2;
+            } else if (schedStr.includes('tối')) {
+                priority = 3;
+            } else {
+                const tietMatch = schedStr.match(/tiết\s*(\d+)/);
+                if (tietMatch) {
+                    const startTiet = parseInt(tietMatch[1], 10);
+                    if (startTiet >= 6 && startTiet <= 10) {
+                        priority = 2;
+                    } else if (startTiet >= 11) {
+                        priority = 3;
+                    }
+                }
+            }
+            return { ...item, priority };
+        }).sort((a, b) => a.priority - b.priority); // Sắp xếp tăng dần theo mốc thời gian Sáng -> Chiều -> Tối trong ngày
+    };
+
+    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px' }}>Đang nạp dữ liệu lịch trình tuần...</div>;
+    if (error) return <div style={{ color: 'var(--color-danger)', textAlign: 'center', padding: '40px', fontWeight: 'bold' }}>⚠️ {error}</div>;
+
+    return (
+        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)', textAlign: 'left' }}>
+            <div style={{ marginBottom: '25px', borderBottom: '1px solid var(--color-border)', paddingBottom: '10px' }}>
+                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>
+                    {isTeacher ? '📅 LỊCH DẠY CỦA GIẢNG VIÊN' : '📅 LỊCH HỌC CỦA SINH VIÊN'}
+                </h2>
+                <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+                    {isTeacher
+                        ? `Xin chào Thầy/Cô ${username}. Xem lịch trình giảng dạy chi tiết học phần đảm nhiệm.`
+                        : `Mã số học viên: ${username}. Hệ thống thời khóa biểu cá nhân phân tách theo ngày.`
+                    }
+                </p>
+            </div>
+
+            <div style={{ overflowX: 'auto', backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '8px', border: '1px solid var(--color-border)', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>
+                <table style={matrixTableStyle}>
+                    <thead>
+                    <tr style={thRowStyle}>
+                        {daysOfWeek.map(day => (
+                            <th key={day.key} style={dayHeaderStyle}>{day.label}</th>
+                        ))}
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr style={trStyle}>
+                        {daysOfWeek.map(day => {
+                            const cellItems = getDayData(day.key);
+
+                            return (
+                                <td key={day.key} style={cellTdStyle}>
+                                    {cellItems.map((item, idx) => (
+                                        <div key={idx} style={{
+                                            ...miniCardStyle,
+                                            borderTop: isTeacher ? '3px solid var(--color-warning)' : '3px solid var(--color-success)'
+                                        }}>
+                                            {/* 🔥 ĐÃ BỎ: Dòng hiển thị nhãn Ca Sáng/Chiều/Tối cũ đã xóa hoàn toàn tại đây */}
+
+                                            {/* Tên Môn Học */}
+                                            <div style={miniSubjectStyle}>
+                                                {item.subjectName}
+                                            </div>
+
+                                            {/* Cấu trúc căn giữa: Nhãn hàng trên - Giá trị hàng dưới */}
+                                            <div style={miniInfoBlock}>
+                                                <span style={labelStyle}>Mã lớp HP:</span>
+                                                <b style={{ color: 'var(--text-cyan)', fontSize: '13px' }}>{isTeacher ? item.code : item.courseClassCode}</b>
+                                            </div>
+
+                                            {isTeacher ? (
+                                                <div style={miniInfoBlock}>
+                                                    <span style={labelStyle}>Sĩ số lớp:</span>
+                                                    <b style={{ color: 'white', fontSize: '13px' }}>{item.registeredStudents} SV</b>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div style={miniInfoBlock}>
+                                                        <span style={labelStyle}>Số tín chỉ:</span>
+                                                        <b style={{ color: 'var(--color-warning)', fontSize: '13px' }}>{item.credits} tín</b>
+                                                    </div>
+                                                    <div style={miniInfoBlock}>
+                                                        <span style={labelStyle}>Cán bộ GD:</span>
+                                                        <b style={{ color: 'white', fontSize: '13px' }}>{item.teacherName || 'Chưa xếp'}</b>
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            <div style={miniScheduleBox}>
+                                                📍 {item.schedule}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {cellItems.length === 0 && (
+                                        <div style={{ color: 'rgba(255,255,255,0.03)', fontSize: '12px', fontStyle: 'italic', textAlign: 'center', padding: '40px 0' }}>
+                                            Trống lịch
+                                        </div>
+                                    )}
+                                </td>
+                            );
+                        })}
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }
 
-const subTabBtn = { padding: '8px 16px', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' };
-const formStyle = { width: '320px', display: 'flex', flexDirection: 'column', gap: '12px', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)', height: 'fit-content' };
-const inputStyle = { padding: '10px', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px', outline: 'none' };
-const submitBtnStyle = { padding: '12px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', flex: 1 };
-const actionBtnStyle = { padding: '3px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' };
-const tableStyle = { width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' };
-const thStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', backgroundColor: 'var(--color-surface-hover)', textAlign: 'left', padding: '10px' };
-const trStyle = { borderBottom: '1px solid var(--color-border)', padding: '10px' };
+const matrixTableStyle = { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: '1050px' };
+const thRowStyle = { backgroundColor: 'var(--color-bg)', borderBottom: '2px solid var(--text-cyan)' };
+const dayHeaderStyle = { padding: '12px 6px', color: 'var(--text-cyan)', fontSize: '14px', fontWeight: 'bold', border: '1px solid var(--color-border)', textAlign: 'center' };
+const trStyle = { borderBottom: '1px solid var(--color-border)' };
+const cellTdStyle = { padding: '8px 5px', border: '1px solid var(--color-border)', verticalAlign: 'top', backgroundColor: 'rgba(255, 255, 255, 0.005)', width: '14.28%' };
 
-export default TrainingPage;
+const miniCardStyle = {
+    backgroundColor: 'var(--color-bg)',
+    padding: '12px 8px',
+    borderRadius: '5px',
+    border: '1px solid var(--color-border)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '3px',
+    marginBottom: '8px',
+    textAlign: 'center',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.18)'
+};
+
+const miniSubjectStyle = {
+    fontSize: '13.5px',
+    fontWeight: 'bold',
+    color: 'white',
+    whiteSpace: 'normal',
+    wordBreak: 'break-word',
+    lineHeight: '1.3',
+    marginBottom: '8px'
+};
+
+const miniInfoBlock = {
+    margin: '5px 0',
+    display: 'block',
+    textAlign: 'center'
+};
+
+const labelStyle = {
+    display: 'block',
+    fontSize: '11px',
+    color: 'var(--text-muted)',
+    marginBottom: '2px'
+};
+
+const miniScheduleBox = {
+    marginTop: '6px',
+    padding: '6px 4px',
+    backgroundColor: 'var(--color-surface-hover)',
+    borderRadius: '4px',
+    fontSize: '11px',
+    color: 'var(--color-warning)',
+    whiteSpace: 'normal',
+    wordBreak: 'break-word',
+    lineHeight: '1.4',
+    textAlign: 'center'
+};
+
+const primaryBtnStyle = { padding: '8px 24px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' };
 </file>
 
 <file path=".gitattributes">
@@ -1290,202 +1544,6 @@ public class DepartmentController {
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/RegistrationController.java">
-package com.dangdepzaivaio.StudentManagement.controller;
-
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassStatResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
-import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
-import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
-import com.dangdepzaivaio.StudentManagement.entity.User;
-import com.dangdepzaivaio.StudentManagement.exception.AppException;
-import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
-import com.dangdepzaivaio.StudentManagement.mapper.StudentMapper;
-import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
-import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
-import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
-import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
-import com.dangdepzaivaio.StudentManagement.service.impl.RegistrationServiceImpl;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-
-@RestController
-@RequestMapping("/registration")
-@RequiredArgsConstructor
-public class RegistrationController {
-
-    private final RegistrationServiceImpl registrationService;
-    private final RegistrationPeriodRepository periodRepository;
-    private final CourseClassRepository courseClassRepository;
-    private final GradeRepository gradeRepository;
-    private final UserRepository userRepository;
-    private final CourseClassMapper courseClassMapper;
-    private final StudentMapper studentMapper;
-
-    @PostMapping("/periods")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<RegistrationPeriod> createPeriod(@RequestBody RegistrationPeriod period) {
-        period.setIsActive(true);
-        return new ApiResponse<>(1000, "Mo cong dang ky tin chi thanh cong", periodRepository.save(period));
-    }
-
-    @GetMapping("/periods")
-    // 🔥 ĐÃ SỬA: Cho phép cả Học sinh và Giáo viên gọi API này để xem lịch đóng/mở cổng công khai
-    @PreAuthorize("hasAnyRole('ADMIN', 'STUDENT', 'TEACHER')")
-    public ApiResponse<List<RegistrationPeriod>> getPeriods() {
-        return new ApiResponse<>(1000, "Lay danh sach cong dang ky thanh cong", periodRepository.findAll());
-    }
-
-    @PutMapping("/periods/{id}/open")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<RegistrationPeriod> openPeriod(@PathVariable Long id) {
-        RegistrationPeriod period = periodRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
-        period.setIsActive(true);
-        return new ApiResponse<>(1000, "Da mo cong dang ky", periodRepository.save(period));
-    }
-
-    @PutMapping("/periods/{id}/close")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<RegistrationPeriod> closePeriod(@PathVariable Long id) {
-        RegistrationPeriod period = periodRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
-        period.setIsActive(false);
-        return new ApiResponse<>(1000, "Da dong cong dang ky", periodRepository.save(period));
-    }
-
-    @GetMapping("/statistics")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<CourseClassStatResponse>> getStats() {
-        return new ApiResponse<>(1000, "Tai thong ke dang ky thanh cong", courseClassRepository.getRegistrationStatistics());
-    }
-
-    @PutMapping("/course-class/{id}/toggle")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<CourseClassResponse> toggleCourseClass(@PathVariable Long id) {
-        CourseClass courseClass = getCourseClass(id);
-        courseClass.setOpenForRegistration(!courseClass.isOpenForRegistration());
-        return new ApiResponse<>(1000, "Cap nhat trang thai lop hoc phan thanh cong",
-                toResponseWithCount(courseClassRepository.save(courseClass)));
-    }
-
-    @PutMapping("/course-class/{id}/open")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<CourseClassResponse> openCourseClass(@PathVariable Long id) {
-        CourseClass courseClass = getCourseClass(id);
-        courseClass.setOpenForRegistration(true);
-        return new ApiResponse<>(1000, "Da mo lop hoc phan cho dang ky",
-                toResponseWithCount(courseClassRepository.save(courseClass)));
-    }
-
-    @PutMapping("/course-class/{id}/close")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<CourseClassResponse> closeCourseClass(@PathVariable Long id) {
-        CourseClass courseClass = getCourseClass(id);
-        courseClass.setOpenForRegistration(false);
-        return new ApiResponse<>(1000, "Da dong lop hoc phan",
-                toResponseWithCount(courseClassRepository.save(courseClass)));
-    }
-
-    @GetMapping("/teacher/{teacherId}/classes")
-    @PreAuthorize("hasRole('TEACHER')")
-    public ApiResponse<List<CourseClassResponse>> getTeacherClasses(@PathVariable String teacherId) {
-        assertTeacherSelf(teacherId);
-        List<CourseClassResponse> list = courseClassRepository.findByTeacherId(teacherId).stream()
-                .map(this::toResponseWithCount)
-                .toList();
-        return new ApiResponse<>(1000, "Tai lich giang day thanh cong", list);
-    }
-
-    @GetMapping("/classes/{classId}/students")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
-    public ApiResponse<List<StudentResponse>> getStudentsInCourseClass(@PathVariable Long classId) {
-        assertTeacherAssignedIfNeeded(classId);
-        List<StudentResponse> list = gradeRepository.findByCourseClassId(classId).stream()
-                .map(g -> studentMapper.toResponse(g.getStudent()))
-                .toList();
-        return new ApiResponse<>(1000, "Tai danh sach sinh vien lop hoc phan thanh cong", list);
-    }
-
-    @GetMapping("/open-course-classes")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ApiResponse<List<CourseClassResponse>> getOpenCourseClasses() {
-        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan dang mo thanh cong",
-                registrationService.getOpenCourseClasses());
-    }
-
-    @GetMapping("/my-classes")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ApiResponse<List<GradeResponse>> getMyRegisteredClasses() {
-        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan da dang ky thanh cong",
-                registrationService.getCurrentStudentRegistrations());
-    }
-
-    @PostMapping("/enroll")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ApiResponse<String> enroll(@RequestParam Long courseClassId) {
-        registrationService.registerCourseClass(courseClassId);
-        return new ApiResponse<>(1000, "Dang ky lop hoc phan thanh cong", "OK");
-    }
-
-    @DeleteMapping("/unenroll")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ApiResponse<String> unenroll(@RequestParam Long courseClassId) {
-        registrationService.cancelRegistration(courseClassId);
-        return new ApiResponse<>(1000, "Huy dang ky lop hoc phan thanh cong", "OK");
-    }
-
-    private CourseClass getCourseClass(Long id) {
-        return courseClassRepository.findByIdWithSubjectAndTeacher(id)
-                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
-    }
-
-    private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
-        courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
-        return courseClassMapper.toResponse(courseClass);
-    }
-
-    private void assertTeacherSelf(String teacherId) {
-        User user = currentUser();
-        if (!user.getId().equals(teacherId)) {
-            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
-        }
-    }
-
-    private void assertTeacherAssignedIfNeeded(Long courseClassId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        boolean isTeacher = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_TEACHER"));
-        if (!isTeacher) {
-            return;
-        }
-
-        CourseClass courseClass = getCourseClass(courseClassId);
-        String email = authentication.getName();
-        if (courseClass.getTeacher() == null
-                || courseClass.getTeacher().getUser() == null
-                || !email.equalsIgnoreCase(courseClass.getTeacher().getUser().getEmail())) {
-            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
-        }
-    }
-
-    private User currentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
-    }
-}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/AuthenticationRequest.java">
 package com.dangdepzaivaio.StudentManagement.dto.request;
 
@@ -1741,40 +1799,6 @@ public class Department extends BaseEntity {
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/RegistrationPeriod.java">
-package com.dangdepzaivaio.StudentManagement.entity;
-
-import jakarta.persistence.*;
-import lombok.*;
-import java.time.LocalDateTime;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Entity
-@Table(name = "registration_periods")
-public class RegistrationPeriod extends BaseEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "semester", nullable = false, length = 20)
-    private String semester; // Ví dụ: HK1-2026
-
-    @Column(name = "start_time", nullable = false)
-    private LocalDateTime startTime;
-
-    @Column(name = "end_time", nullable = false)
-    private LocalDateTime endTime;
-
-    @Column(name = "is_active", nullable = false)
-    private Boolean isActive = true;
-}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Role.java">
 package com.dangdepzaivaio.StudentManagement.entity;
 
@@ -1893,42 +1917,6 @@ public interface DepartmentMapper {
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/GradeMapper.java">
-package com.dangdepzaivaio.StudentManagement.mapper;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
-import com.dangdepzaivaio.StudentManagement.entity.Grade;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.MappingTarget;
-
-@Mapper(componentModel = "spring")
-public interface GradeMapper {
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "student", ignore = true)
-    @Mapping(target = "courseClass", ignore = true)
-    Grade toEntity(GradeRequest request);
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "student", ignore = true)
-    @Mapping(target = "courseClass", ignore = true)
-    void updateEntityFromRequest(GradeRequest request, @MappingTarget Grade grade);
-
-    @Mapping(target = "studentId", source = "student.id")
-    @Mapping(target = "studentCode", source = "student.studentCode")
-    @Mapping(target = "studentName", expression = "java(grade.getStudent().getFirstName() + \" \" + grade.getStudent().getLastName())")
-    @Mapping(target = "courseClassId", source = "courseClass.id")
-    @Mapping(target = "courseClassCode", source = "courseClass.code")
-    @Mapping(target = "subjectName", source = "courseClass.subject.name")
-    @Mapping(target = "credits", source = "courseClass.subject.credits")
-    @Mapping(target = "teacherName", expression = "java(grade.getCourseClass().getTeacher() != null ? grade.getCourseClass().getTeacher().getLastName() + \" \" + grade.getCourseClass().getTeacher().getFirstName() : \"Chưa phân công\")")
-    @Mapping(target = "schedule", source = "courseClass.schedule")
-    GradeResponse toResponse(Grade grade);
-}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/TeacherMapper.java">
 package com.dangdepzaivaio.StudentManagement.mapper;
 
@@ -1977,6 +1965,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -1985,6 +1974,7 @@ public interface RegistrationPeriodRepository extends JpaRepository<Registration
     @Query("SELECT r FROM RegistrationPeriod r WHERE r.semester = :semester AND r.isActive = true " +
             "AND :now BETWEEN r.startTime AND r.endTime")
     Optional<RegistrationPeriod> findActivePeriod(@Param("semester") String semester, @Param("now") LocalDateTime now);
+    List<RegistrationPeriod> findAllByIsActiveTrue();
 }
 </file>
 
@@ -2272,133 +2262,6 @@ public class RegistrationServiceImpl {
     private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
         courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
         return courseClassMapper.toResponse(courseClass);
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/TeacherServiceImpl.java">
-package com.dangdepzaivaio.StudentManagement.service.impl;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.TeacherUpdateRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
-import com.dangdepzaivaio.StudentManagement.entity.Department;
-import com.dangdepzaivaio.StudentManagement.entity.Role;
-import com.dangdepzaivaio.StudentManagement.entity.Teacher;
-import com.dangdepzaivaio.StudentManagement.entity.User;
-import com.dangdepzaivaio.StudentManagement.exception.AppException;
-import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.mapper.TeacherMapper;
-import com.dangdepzaivaio.StudentManagement.repository.DepartmentRepository;
-import com.dangdepzaivaio.StudentManagement.repository.RoleRepository;
-import com.dangdepzaivaio.StudentManagement.repository.TeacherRepository;
-import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
-import com.dangdepzaivaio.StudentManagement.service.TeacherService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.Set;
-
-@Service
-@RequiredArgsConstructor
-public class TeacherServiceImpl implements TeacherService {
-
-    private final TeacherRepository teacherRepository;
-    private final UserRepository userRepository;
-    private final DepartmentRepository departmentRepository;
-    private final RoleRepository roleRepository;
-    private final TeacherMapper teacherMapper;
-    private final PasswordEncoder passwordEncoder;
-
-    @Override
-    @Transactional
-    public TeacherResponse createTeacher(TeacherCreationRequest request) {
-        if (teacherRepository.existsByTeacherCode(request.teacherCode())) {
-            throw new AppException(ErrorCode.TEACHER_CODE_EXISTED);
-        }
-
-        Department dept = departmentRepository.findById(request.departmentId())
-                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
-
-        long nextIndex = userRepository.countByIdStartingWith("GV_") + 1;
-        String generatedId = String.format("GV_%02d", nextIndex);
-
-        User user = User.builder()
-                .id(generatedId)
-                .username(request.teacherCode())
-                .password(passwordEncoder.encode("password1234"))
-                .email(request.teacherCode().toLowerCase() + "@open.edu.vn")
-                .isActive(true)
-                .build();
-
-        Role teacherRole = roleRepository.findByName("TEACHER")
-                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
-        user.setRoles(Set.of(teacherRole));
-
-        // 🔥 SỬA DÒNG NÀY: Hứng lấy đối tượng Managed trả về từ hàm save()
-        User managedUser = userRepository.save(user);
-
-        Teacher teacher = teacherMapper.toEntity(request);
-
-        // 🔥 SỬA DÒNG NÀY: Gắn đối tượng managedUser (đã an toàn) vào thay vì biến user gốc
-        teacher.setUser(managedUser);
-
-        teacher.setDepartment(dept);
-        teacher.setActive(true);
-
-        return teacherMapper.toResponse(teacherRepository.save(teacher));
-    }
-
-    @Override
-    public List<TeacherResponse> getAllTeachers() {
-        return teacherRepository.findAllTeachersWithJoinFetch().stream()
-                .map(teacherMapper::toResponse)
-                .toList();
-    }
-
-    @Override
-    public TeacherResponse getTeacherById(String id) {
-        return teacherRepository.findById(id)
-                .map(teacherMapper::toResponse)
-                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
-    }
-
-    @Override
-    @Transactional
-    public TeacherResponse updateTeacher(String id, TeacherUpdateRequest request) {
-        Teacher teacher = teacherRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
-
-        teacher.setFirstName(request.firstName());
-        teacher.setLastName(request.lastName());
-        teacher.setDateOfBirth(request.dateOfBirth());
-        teacher.setGender(request.gender());
-        teacher.setPhoneNumber(request.phoneNumber());
-
-        return teacherMapper.toResponse(teacherRepository.save(teacher));
-    }
-
-    @Override
-    @Transactional
-    public void disableTeacher(String id) {
-        Teacher teacher = teacherRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
-        teacher.setActive(false);
-        if (teacher.getUser() != null) teacher.getUser().setActive(false);
-        teacherRepository.save(teacher);
-    }
-
-    @Override
-    @Transactional
-    public void enableTeacher(String id) {
-        Teacher teacher = teacherRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
-        teacher.setActive(true);
-        if (teacher.getUser() != null) teacher.getUser().setActive(true);
-        teacherRepository.save(teacher);
     }
 }
 </file>
@@ -3125,6 +2988,2377 @@ createRoot(document.getElementById('root')).render(
 )
 </file>
 
+<file path="student-management-ui/src/pages/TrainingPage.jsx">
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
+
+function TrainingPage() {
+    const [subTab, setSubTab] = useState('departments');
+    const [departments, setDepartments] = useState([]);
+    const [subjects, setSubjects] = useState([]);
+    const [courseClasses, setCourseClasses] = useState([]);
+    const [teachers, setTeachers] = useState([]);
+
+    // --- TRẠNG THÁI CHẾ ĐỘ SỬA (EDIT MODE STATES) ---
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingId, setEditingId] = useState(null);
+
+    // Form states
+    const [deptForm, setDeptForm] = useState({ code: '', name: '' });
+    const [subjectForm, setSubjectForm] = useState({ code: '', name: '', credits: 3 });
+    const [classForm, setClassForm] = useState({ code: '', semester: 'HK1-2026', subjectId: '', teacherId: '', maxStudents: 60 });
+
+    // Quản lý danh sách các buổi học động
+    const [scheduleSlots, setScheduleSlots] = useState([
+        { day: 'Thứ 2', shift: 'Sáng (Tiết 1-4)', room: '' }
+    ]);
+
+    const daysOfWeek = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
+    const shifts = ['Sáng (Tiết 1-4)', 'Chiều (Tiết 5-8)', 'Tối (Tiết 9-12)'];
+
+    useEffect(() => {
+        loadDepartments();
+        loadSubjects();
+        loadCourseClasses();
+        loadTeachers();
+    }, []);
+
+    // Mỗi khi chuyển đổi tiểu ban (subTab), tự động hủy trạng thái sửa cũ để tránh xung đột form
+    useEffect(() => {
+        resetAllForms();
+    }, [subTab]);
+
+    const loadDepartments = async () => { try { const data = await axiosClient.get('/departments'); setDepartments(data); } catch (e) { console.error(e); } };
+    const loadSubjects = async () => { try { const data = await axiosClient.get('/subjects'); setSubjects(data); } catch (e) { console.error(e); } };
+    const loadCourseClasses = async () => { try { const data = await axiosClient.get('/course-classes'); setCourseClasses(data); } catch (e) { console.error(e); } };
+    const loadTeachers = async () => { try { const data = await axiosClient.get('/teachers'); setTeachers(data); } catch (e) { console.error(e); } };
+
+    const resetAllForms = () => {
+        setIsEditMode(false);
+        setEditingId(null);
+        setDeptForm({ code: '', name: '' });
+        setSubjectForm({ code: '', name: '', credits: 3 });
+        setClassForm({ code: '', semester: 'HK1-2026', subjectId: '', teacherId: '', maxStudents: 60 });
+        setScheduleSlots([{ day: 'Thứ 2', shift: 'Sáng (Tiết 1-4)', room: '' }]);
+    };
+
+    // --- THUẬT TOÁN ĐỌC NGƯỢC CHUỖI LỊCH (SCHEDULE DECODER) ---
+    // Biến đổi chuỗi "Thứ 2 Sáng (Tiết 1-4) - Phòng 402 | Thứ 6 Chiều (Tiết 5-8) - Phòng 301" thành mảng Object cấu trúc ban đầu
+    const parseScheduleToSlots = (scheduleStr) => {
+        if (!scheduleStr) return [{ day: 'Thứ 2', shift: 'Sáng (Tiết 1-4)', room: '' }];
+        try {
+            const parts = scheduleStr.split(' | ');
+            return parts.map(part => {
+                const subParts = part.split(' - ');
+                const dayShift = subParts[0]; // "Thứ 2 Sáng (Tiết 1-4)"
+                const roomPart = subParts[1] || ''; // "Phòng 402"
+
+                const roomValue = roomPart.replace('Phòng ', '').trim();
+                const foundDay = daysOfWeek.find(d => dayShift.startsWith(d)) || 'Thứ 2';
+                const shiftValue = dayShift.replace(foundDay, '').trim();
+
+                return { day: foundDay, shift: shiftValue || 'Sáng (Tiết 1-4)', room: roomValue };
+            });
+        } catch (e) {
+            return [{ day: 'Thứ 2', shift: 'Sáng (Tiết 1-4)', room: '' }];
+        }
+    };
+
+    // --- TÁC VỤ CHO LỊCH ĐỘNG ---
+    const handleAddSlot = () => setScheduleSlots([...scheduleSlots, { day: 'Thứ 2', shift: 'Sáng (Tiết 1-4)', room: '' }]);
+    const handleRemoveSlot = (index) => {
+        if (scheduleSlots.length === 1) return;
+        setScheduleSlots(scheduleSlots.filter((_, i) => i !== index));
+    };
+    const handleSlotChange = (index, field, value) => {
+        const updatedSlots = [...scheduleSlots];
+        updatedSlots[index][field] = value;
+        setScheduleSlots(updatedSlots);
+    };
+
+    // ==================== 🏛️ XỬ LÝ KHỐI KHOA (DEPARTMENTS) ====================
+    const handleSaveDept = async (e) => {
+        e.preventDefault();
+        try {
+            if (isEditMode) {
+                await axiosClient.put(`/departments/${editingId}`, deptForm);
+                alert('Cập nhật thông tin khoa thành công!');
+            } else {
+                await axiosClient.post('/departments', deptForm);
+                alert('Thêm khoa chuyên môn mới thành công!');
+            }
+            resetAllForms();
+            loadDepartments();
+        } catch (err) { alert(err || 'Có lỗi xảy ra!'); }
+    };
+
+    const handleOpenEditDept = (dept) => {
+        setIsEditMode(true);
+        setEditingId(dept.id);
+        setDeptForm({ code: dept.code, name: dept.name });
+    };
+
+    const handleDeleteDept = async (id, name) => {
+        if (window.confirm(`⚠️ Bạn có chắc chắn muốn XÓA HOÀN TOÀN khoa [${name}] không?\nHành động này có thể ảnh hưởng đến giảng viên thuộc khoa.`)) {
+            try {
+                await axiosClient.delete(`/departments/${id}`);
+                alert('Đã xóa khoa ra khỏi hệ thống thành công!');
+                loadDepartments();
+            } catch (err) { alert(err || 'Không thể xóa khoa này do có ràng buộc dữ liệu!'); }
+        }
+    };
+
+    // ==================== 📘 XỬ LÝ KHỐI MÔN HỌC (SUBJECTS) ====================
+    const handleSaveSubject = async (e) => {
+        e.preventDefault();
+        try {
+            if (isEditMode) {
+                await axiosClient.put(`/subjects/${editingId}`, subjectForm);
+                alert('Cập nhật thông tin môn học thành công!');
+            } else {
+                await axiosClient.post('/subjects', subjectForm);
+                alert('Thêm môn học hệ thống mới thành công!');
+            }
+            resetAllForms();
+            loadSubjects();
+        } catch (err) { alert(err || 'Có lỗi xảy ra!'); }
+    };
+
+    const handleOpenEditSubject = (sub) => {
+        setIsEditMode(true);
+        setEditingId(sub.id);
+        setSubjectForm({ code: sub.code, name: sub.name, credits: sub.credits });
+    };
+
+    const handleDeleteSubject = async (id, name) => {
+        if (window.confirm(`⚠️ Bạn có chắc chắn muốn XÓA HOÀN TOÀN môn học [${name}] không?`)) {
+            try {
+                await axiosClient.delete(`/subjects/${id}`);
+                alert('Đã loại bỏ môn học thành công!');
+                loadSubjects();
+            } catch (err) { alert(err || 'Không thể xóa môn học này!'); }
+        }
+    };
+
+    // ==================== 📅 XỬ LÝ KHỐI LỚP HỌC PHẦN (COURSE CLASSES) ====================
+    const handleSaveClass = async (e) => {
+        e.preventDefault();
+        for (let slot of scheduleSlots) {
+            if (!slot.room.trim()) { alert('Vui lòng điền phòng học cho tất cả các buổi!'); return; }
+        }
+
+        const compiledSchedule = scheduleSlots
+            .map(slot => `${slot.day} ${slot.shift} - Phòng ${slot.room.trim()}`)
+            .join(' | ');
+
+        const payload = {
+            ...classForm,
+            subjectId: Number(classForm.subjectId),
+            maxStudents: Number(classForm.maxStudents),
+            schedule: compiledSchedule
+        };
+
+        try {
+            if (isEditMode) {
+                await axiosClient.put(`/course-classes/${editingId}`, payload);
+                alert('Cập nhật lớp học phần và điều chỉnh thời khóa biểu đồng bộ thành công!');
+            } else {
+                await axiosClient.post('/course-classes', payload);
+                alert('Mở lớp học phần mới và xếp lịch biểu thành công!');
+            }
+            resetAllForms();
+            loadCourseClasses();
+        } catch (err) { alert(err || 'Có lỗi xảy ra!'); }
+    };
+
+    const handleOpenEditClass = (cls) => {
+        setIsEditMode(true);
+        setEditingId(cls.id);
+        setClassForm({
+            code: cls.code,
+            semester: cls.semester,
+            subjectId: cls.subjectId || '',
+            teacherId: cls.teacherId || '',
+            maxStudents: cls.maxStudents || 60
+        });
+        // Giải mã chuỗi schedule ngược lại thành dạng mảng ô checkbox tương tác
+        setScheduleSlots(parseScheduleToSlots(cls.schedule));
+    };
+
+    const handleDeleteClass = async (id, code) => {
+        if (window.confirm(`⚠️ Bạn có chắc chắn muốn HỦY LỚP và XÓA lớp học phần [${code}] không?\nTất cả lịch học và danh sách sinh viên đăng ký lớp này sẽ bị hủy bỏ.`)) {
+            try {
+                await axiosClient.delete(`/course-classes/${id}`);
+                alert('Đã xóa bỏ hoàn toàn lớp học phần khỏi hệ thống!');
+                loadCourseClasses();
+            } catch (err) { alert(err || 'Không thể xóa lớp học phần này!'); }
+        }
+    };
+
+    return (
+        <div style={{ color: 'var(--text-main)' }}>
+            <h2 style={{ color: 'var(--text-cyan)', marginBottom: 'var(--spacing-xl)' }}>🏛️ TRUNG TÂM ĐIỀU PHỐI ĐÀO TẠO & LỊCH TRÌNH ĐỒNG BỘ</h2>
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                <button onClick={() => setSubTab('departments')} style={{ ...subTabBtn, backgroundColor: subTab === 'departments' ? 'var(--color-primary)' : 'var(--color-surface)' }}>Quản Lý Khoa</button>
+                <button onClick={() => setSubTab('subjects')} style={{ ...subTabBtn, backgroundColor: subTab === 'subjects' ? 'var(--color-primary)' : 'var(--color-surface)' }}>Quản Lý Môn Học</button>
+                <button onClick={() => setSubTab('classes')} style={{ ...subTabBtn, backgroundColor: subTab === 'classes' ? 'var(--color-primary)' : 'var(--color-surface)' }}>Lớp Học Phần & Xếp Lịch</button>
+            </div>
+
+            {/* PHÂN HỆ QUẢN LÝ KHOA */}
+            {subTab === 'departments' && (
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                    <form onSubmit={handleSaveDept} style={formStyle}>
+                        <h4>{isEditMode ? '📝 HIỆU CHỈNH THÔNG TIN KHOA' : '➕ THÊM KHOA CHUYÊN MÔN MỚI'}</h4>
+                        <input type="text" placeholder="Mã Khoa (VD: CNTT)" value={deptForm.code} onChange={e => setDeptForm({...deptForm, code: e.target.value})} required style={inputStyle} disabled={isEditMode} />
+                        <input type="text" placeholder="Tên Khoa (VD: Công nghệ thông tin)" value={deptForm.name} onChange={e => setDeptForm({...deptForm, name: e.target.value})} required style={inputStyle} />
+                        <div style={{display:'flex', gap:'10px'}}>
+                            <button type="submit" style={submitBtnStyle}>{isEditMode ? 'Cập Nhật' : 'Thêm Mới'}</button>
+                            {isEditMode && <button type="button" onClick={resetAllForms} style={{...submitBtnStyle, backgroundColor:'#6c757d'}}>Hủy</button>}
+                        </div>
+                    </form>
+                    <div style={{ flex: 1, minWidth: '350px' }}>
+                        <table style={tableStyle}>
+                            <thead><tr style={thStyle}><th>ID</th><th>Mã Khoa</th><th>Tên Khoa</th><th style={{textAlign:'center'}}>Hành Động</th></tr></thead>
+                            <tbody>
+                            {departments.map(d => (
+                                <tr key={d.id} style={trStyle}>
+                                    <td>{d.id}</td><td style={{color:'var(--text-cyan)', fontWeight:'bold'}}>{d.code}</td><td>{d.name}</td>
+                                    <td style={{textAlign:'center'}}>
+                                        <button onClick={() => handleOpenEditDept(d)} style={actionBtnStyle}>Sửa</button>
+                                        <button onClick={() => handleDeleteDept(d.id, d.name)} style={{...actionBtnStyle, backgroundColor:'var(--color-danger)'}}>Xóa</button>
+                                    </td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* PHÂN HỆ QUẢN LÝ MÔN HỌC */}
+            {subTab === 'subjects' && (
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                    <form onSubmit={handleSaveSubject} style={formStyle}>
+                        <h4>{isEditMode ? '📝 HIỆU CHỈNH THÔNG TIN MÔN' : '➕ THÊM MÔN HỌC HỆ THỐNG'}</h4>
+                        <input type="text" placeholder="Mã Môn Học (VD: INT3110)" value={subjectForm.code} onChange={e => setSubjectForm({...subjectForm, code: e.target.value})} required style={inputStyle} disabled={isEditMode} />
+                        <input type="text" placeholder="Tên Môn Học (VD: Lập trình Spring Boot)" value={subjectForm.name} onChange={e => setSubjectForm({...subjectForm, name: e.target.value})} required style={inputStyle} />
+                        <input type="number" placeholder="Số tín chỉ" value={subjectForm.credits} onChange={e => setSubjectForm({...subjectForm, credits: e.target.value})} required style={inputStyle} />
+                        <div style={{display:'flex', gap:'10px'}}>
+                            <button type="submit" style={submitBtnStyle}>{isEditMode ? 'Cập Nhật' : 'Thêm Mới'}</button>
+                            {isEditMode && <button type="button" onClick={resetAllForms} style={{...submitBtnStyle, backgroundColor:'#6c757d'}}>Hủy</button>}
+                        </div>
+                    </form>
+                    <div style={{ flex: 1, minWidth: '350px' }}>
+                        <table style={tableStyle}>
+                            <thead><tr style={thStyle}><th>ID</th><th>Mã Môn</th><th>Tên Môn Học</th><th>Tín Chỉ</th><th style={{textAlign:'center'}}>Hành Động</th></tr></thead>
+                            <tbody>
+                            {subjects.map(s => (
+                                <tr key={s.id} style={trStyle}>
+                                    <td>{s.id}</td><td style={{color:'var(--color-warning)', fontWeight:'bold'}}>{s.code}</td><td>{s.name}</td><td>{s.credits} tín</td>
+                                    <td style={{textAlign:'center'}}>
+                                        <button onClick={() => handleOpenEditSubject(s)} style={actionBtnStyle}>Sửa</button>
+                                        <button onClick={() => handleDeleteSubject(s.id, s.name)} style={{...actionBtnStyle, backgroundColor:'var(--color-danger)'}}>Xóa</button>
+                                    </td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* PHÂN HỆ LỚP HỌC PHẦN ĐAN XEN BUỔI ĐỘNG */}
+            {subTab === 'classes' && (
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                    <form onSubmit={handleSaveClass} style={{ ...formStyle, width: '460px' }}>
+                        <h4>{isEditMode ? '📝 ĐIỀU CHỈNH LỚP HỌC PHẦN & LỊCH BIỂU' : '📅 MỞ LỚP HỌC PHẦN & XẾP LỊCH TRÌNH'}</h4>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            <input type="text" placeholder="Mã Lớp HP (VD: LHP_CNPM_01)" value={classForm.code} onChange={e => setClassForm({...classForm, code: e.target.value})} required style={inputStyle} disabled={isEditMode} />
+                            <input type="text" placeholder="Học kỳ (VD: HK1-2026)" value={classForm.semester} onChange={e => setClassForm({...classForm, semester: e.target.value})} required style={inputStyle} />
+                        </div>
+
+                        <select value={classForm.subjectId} onChange={e => setClassForm({...classForm, subjectId: e.target.value})} required style={inputStyle}>
+                            <option value="">-- Chọn Môn Học --</option>
+                            {subjects.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code})</option>)}
+                        </select>
+
+                        <select value={classForm.teacherId} onChange={e => setClassForm({...classForm, teacherId: e.target.value})} required style={inputStyle}>
+                            <option value="">-- Chọn Giảng Viên Đứng Lớp --</option>
+                            {teachers.map(t => <option key={t.id} value={t.id}>{t.lastName} {t.firstName} ({t.teacherCode})</option>)}
+                        </select>
+
+                        <input type="number" placeholder="Sĩ số tối đa" value={classForm.maxStudents} onChange={e => setClassForm({...classForm, maxStudents: e.target.value})} required style={inputStyle} />
+
+                        {/* Cấu phần buổi học động */}
+                        <div style={{ padding: '12px', backgroundColor: 'var(--color-bg)', borderRadius: '6px', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <label style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-cyan)' }}>📆 Cấu hình chi tiết các buổi học:</label>
+                                <button type="button" onClick={handleAddSlot} style={{ padding: '4px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>
+                                    + Thêm buổi học
+                                </button>
+                            </div>
+
+                            {scheduleSlots.map((slot, index) => (
+                                <div key={index} style={{ display: 'flex', gap: '6px', alignItems: 'center', backgroundColor: 'var(--color-surface)', padding: '8px', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
+                                    <select value={slot.day} onChange={e => handleSlotChange(index, 'day', e.target.value)} style={{ ...inputStyle, padding: '5px', fontSize: '12px', flex: 1 }}>
+                                        {daysOfWeek.map(d => <option key={d} value={d}>{d}</option>)}
+                                    </select>
+
+                                    <select value={slot.shift} onChange={e => handleSlotChange(index, 'shift', e.target.value)} style={{ ...inputStyle, padding: '5px', fontSize: '12px', flex: 1.5 }}>
+                                        {shifts.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+
+                                    <input type="text" placeholder="Phòng" value={slot.room} onChange={e => handleSlotChange(index, 'room', e.target.value)} required style={{ ...inputStyle, padding: '5px', fontSize: '12px', width: '80px' }} />
+
+                                    <button type="button" onClick={() => handleRemoveSlot(index)} disabled={scheduleSlots.length === 1} style={{ padding: '5px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
+                                        Xóa
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div style={{display:'flex', gap:'10px'}}>
+                            <button type="submit" style={submitBtnStyle}>{isEditMode ? 'Cập Nhật Lớp' : 'Mở Lớp Học Phần'}</button>
+                            {isEditMode && <button type="button" onClick={resetAllForms} style={{...submitBtnStyle, backgroundColor:'#6c757d'}}>Hủy bỏ</button>}
+                        </div>
+                    </form>
+
+                    <div style={{ flex: 1, minWidth: '450px' }}>
+                        <table style={tableStyle}>
+                            <thead><tr style={thStyle}><th>Mã Lớp HP</th><th>Môn Học</th><th>Giảng Viên</th><th>Thời Khóa Biểu Đồng Bộ</th><th style={{textAlign:'center'}}>Hành Động</th></tr></thead>
+                            <tbody>
+                            {courseClasses.map(c => (
+                                <tr key={c.id} style={trStyle}>
+                                    <td style={{fontWeight:'bold', color:'var(--text-cyan)'}}>{c.code}</td>
+                                    <td>{c.subjectName}</td><td>{c.teacherName || 'Chưa xếp'}</td>
+                                    <td style={{color:'var(--color-warning)', fontWeight:'bold', fontSize: '12px'}}>{c.schedule || 'Chưa xếp lịch'}</td>
+                                    <td style={{textAlign:'center', display:'flex', gap:'4px', justifyContent:'center', padding:'12px 4px'}}>
+                                        <button onClick={() => handleOpenEditClass(c)} style={actionBtnStyle}>Sửa</button>
+                                        <button onClick={() => handleDeleteClass(c.id, c.code)} style={{...actionBtnStyle, backgroundColor:'var(--color-danger)'}}>Xóa</button>
+                                    </td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const subTabBtn = { padding: '8px 16px', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' };
+const formStyle = { width: '320px', display: 'flex', flexDirection: 'column', gap: '12px', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)', height: 'fit-content' };
+const inputStyle = { padding: '10px', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px', outline: 'none' };
+const submitBtnStyle = { padding: '12px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', flex: 1 };
+const actionBtnStyle = { padding: '3px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' };
+const tableStyle = { width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' };
+const thStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', backgroundColor: 'var(--color-surface-hover)', textAlign: 'left', padding: '10px' };
+const trStyle = { borderBottom: '1px solid var(--color-border)', padding: '10px' };
+
+export default TrainingPage;
+</file>
+
+<file path="student-management-ui/vite.config.js">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/AuthenticationController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.AuthenticationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.AuthenticationResponse;
+import com.dangdepzaivaio.StudentManagement.service.impl.AuthenticationService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/auth")
+@RequiredArgsConstructor
+public class AuthenticationController {
+
+    private final AuthenticationService authenticationService;
+
+    @PostMapping("/login")
+    public ApiResponse<AuthenticationResponse> login(@RequestBody AuthenticationRequest request) {
+        var result = authenticationService.authenticate(request);
+        return new ApiResponse<>(1000, "Đăng nhập hệ thống thành công!", result);
+    }
+
+    @PostMapping("/change-password")
+    public ApiResponse<String> changePassword(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String newPassword = request.get("newPassword");
+        authenticationService.changePasswordFirstLogin(username, newPassword);
+        return new ApiResponse<>(1000, "Đổi mật khẩu lần đầu thành công!", "Mật khẩu mới đã được áp dụng.");
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/GradeController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse;
+import com.dangdepzaivaio.StudentManagement.service.GradeService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/grades")
+@RequiredArgsConstructor
+public class GradeController {
+
+    private final GradeService gradeService;
+
+    @PostMapping
+    public ApiResponse<GradeResponse> inputGrade(@RequestBody @Valid GradeRequest request) {
+        return new ApiResponse<>(1000, "Nhập và quy đổi điểm số thành công!", gradeService.inputGrade(request));
+    }
+
+    @GetMapping("/student/{studentId}")
+    public ApiResponse<List<GradeResponse>> getGradesByStudent(@PathVariable String studentId) { // 🔥 String
+        return new ApiResponse<>(1000, "Lấy bảng điểm chi tiết của sinh viên thành công!", gradeService.getGradesByStudent(studentId));
+    }
+
+    @PutMapping("/{id}")
+    public ApiResponse<GradeResponse> updateGrade(@PathVariable Long id, @RequestBody @Valid GradeRequest request) {
+        return new ApiResponse<>(1000, "Sửa đổi và cập nhật lại điểm số thành công!", gradeService.updateGrade(id, request));
+    }
+
+    @GetMapping
+    public ApiResponse<List<GradeResponse>> getAll() {
+        return new ApiResponse<>(1000, "Lấy toàn bộ danh sách điểm thành công!", gradeService.getAllGrades());
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<String> deleteGrade(@PathVariable Long id) {
+        gradeService.deleteGrade(id);
+        return new ApiResponse<>(1000, "Xóa đầu điểm thành công!", "Đầu điểm có ID " + id + " đã bị loại bỏ hoàn toàn.");
+    }
+
+    @GetMapping("/student/{studentId}/summary")
+    public ApiResponse<StudentAcademicSummaryResponse> getAcademicSummary(@PathVariable String studentId) { // 🔥 String
+        return new ApiResponse<>(1000, "Tổng hợp kết quả học tập và tính GPA thành công!", gradeService.getAcademicSummary(studentId));
+    }
+
+    @GetMapping("/{id}")
+    public ApiResponse<GradeResponse> getGradeById(@PathVariable Long id) {
+        return new ApiResponse<>(1000, "Lấy chi tiết thông tin điểm số thành công!", gradeService.getGradeById(id));
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/RegistrationController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassStatResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
+import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
+import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
+import com.dangdepzaivaio.StudentManagement.mapper.StudentMapper;
+import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
+import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
+import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import com.dangdepzaivaio.StudentManagement.service.impl.RegistrationServiceImpl;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/registration")
+@RequiredArgsConstructor
+public class RegistrationController {
+
+    private final RegistrationServiceImpl registrationService;
+    private final RegistrationPeriodRepository periodRepository;
+    private final CourseClassRepository courseClassRepository;
+    private final GradeRepository gradeRepository;
+    private final UserRepository userRepository;
+    private final CourseClassMapper courseClassMapper;
+    private final StudentMapper studentMapper;
+
+    @PostMapping("/periods")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<RegistrationPeriod> createPeriod(@RequestBody RegistrationPeriod period) {
+        period.setIsActive(true);
+        return new ApiResponse<>(1000, "Mo cong dang ky tin chi thanh cong", periodRepository.save(period));
+    }
+
+    @GetMapping("/periods")
+    // 🔥 ĐÃ SỬA: Cho phép cả Học sinh và Giáo viên gọi API này để xem lịch đóng/mở cổng công khai
+    @PreAuthorize("hasAnyRole('ADMIN', 'STUDENT', 'TEACHER')")
+    public ApiResponse<List<RegistrationPeriod>> getPeriods() {
+        return new ApiResponse<>(1000, "Lay danh sach cong dang ky thanh cong", periodRepository.findAll());
+    }
+
+    @PutMapping("/periods/{id}/open")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<RegistrationPeriod> openPeriod(@PathVariable Long id) {
+        RegistrationPeriod period = periodRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
+        period.setIsActive(true);
+        return new ApiResponse<>(1000, "Da mo cong dang ky", periodRepository.save(period));
+    }
+
+    @PutMapping("/periods/{id}/close")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<RegistrationPeriod> closePeriod(@PathVariable Long id) {
+        RegistrationPeriod period = periodRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
+        period.setIsActive(false);
+        return new ApiResponse<>(1000, "Da dong cong dang ky", periodRepository.save(period));
+    }
+
+    @GetMapping("/statistics")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<List<CourseClassStatResponse>> getStats() {
+        return new ApiResponse<>(1000, "Tai thong ke dang ky thanh cong", courseClassRepository.getRegistrationStatistics());
+    }
+
+    @PutMapping("/course-class/{id}/toggle")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<CourseClassResponse> toggleCourseClass(@PathVariable Long id) {
+        CourseClass courseClass = getCourseClass(id);
+        courseClass.setOpenForRegistration(!courseClass.isOpenForRegistration());
+        return new ApiResponse<>(1000, "Cap nhat trang thai lop hoc phan thanh cong",
+                toResponseWithCount(courseClassRepository.save(courseClass)));
+    }
+
+    @PutMapping("/course-class/{id}/open")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<CourseClassResponse> openCourseClass(@PathVariable Long id) {
+        CourseClass courseClass = getCourseClass(id);
+        courseClass.setOpenForRegistration(true);
+        return new ApiResponse<>(1000, "Da mo lop hoc phan cho dang ky",
+                toResponseWithCount(courseClassRepository.save(courseClass)));
+    }
+
+    @PutMapping("/course-class/{id}/close")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<CourseClassResponse> closeCourseClass(@PathVariable Long id) {
+        CourseClass courseClass = getCourseClass(id);
+        courseClass.setOpenForRegistration(false);
+        return new ApiResponse<>(1000, "Da dong lop hoc phan",
+                toResponseWithCount(courseClassRepository.save(courseClass)));
+    }
+
+    @GetMapping("/teacher/{teacherId}/classes")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ApiResponse<List<CourseClassResponse>> getTeacherClasses(@PathVariable String teacherId) {
+        assertTeacherSelf(teacherId);
+        List<CourseClassResponse> list = courseClassRepository.findByTeacherId(teacherId).stream()
+                .map(this::toResponseWithCount)
+                .toList();
+        return new ApiResponse<>(1000, "Tai lich giang day thanh cong", list);
+    }
+
+    @GetMapping("/classes/{classId}/students")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public ApiResponse<List<StudentResponse>> getStudentsInCourseClass(@PathVariable Long classId) {
+        assertTeacherAssignedIfNeeded(classId);
+        List<StudentResponse> list = gradeRepository.findByCourseClassId(classId).stream()
+                .map(g -> studentMapper.toResponse(g.getStudent()))
+                .toList();
+        return new ApiResponse<>(1000, "Tai danh sach sinh vien lop hoc phan thanh cong", list);
+    }
+
+    @GetMapping("/open-course-classes")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<List<CourseClassResponse>> getOpenCourseClasses() {
+        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan dang mo thanh cong",
+                registrationService.getOpenCourseClasses());
+    }
+
+    @GetMapping("/my-classes")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<List<GradeResponse>> getMyRegisteredClasses() {
+        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan da dang ky thanh cong",
+                registrationService.getCurrentStudentRegistrations());
+    }
+
+    @PostMapping("/enroll")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<String> enroll(@RequestParam Long courseClassId) {
+        registrationService.registerCourseClass(courseClassId);
+        return new ApiResponse<>(1000, "Dang ky lop hoc phan thanh cong", "OK");
+    }
+
+    @DeleteMapping("/unenroll")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<String> unenroll(@RequestParam Long courseClassId) {
+        registrationService.cancelRegistration(courseClassId);
+        return new ApiResponse<>(1000, "Huy dang ky lop hoc phan thanh cong", "OK");
+    }
+
+    private CourseClass getCourseClass(Long id) {
+        return courseClassRepository.findByIdWithSubjectAndTeacher(id)
+                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
+    }
+
+    private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
+        courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
+        return courseClassMapper.toResponse(courseClass);
+    }
+
+    private void assertTeacherSelf(String teacherId) {
+        User user = currentUser();
+        if (!user.getId().equals(teacherId)) {
+            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
+        }
+    }
+
+    private void assertTeacherAssignedIfNeeded(Long courseClassId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isTeacher = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_TEACHER"));
+        if (!isTeacher) {
+            return;
+        }
+
+        CourseClass courseClass = getCourseClass(courseClassId);
+        String email = authentication.getName();
+        if (courseClass.getTeacher() == null
+                || courseClass.getTeacher().getUser() == null
+                || !email.equalsIgnoreCase(courseClass.getTeacher().getUser().getEmail())) {
+            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
+        }
+    }
+
+    private User currentUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/SubjectController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse; // Đổi import sang DTO Response
+import com.dangdepzaivaio.StudentManagement.service.SubjectService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/subjects")
+@RequiredArgsConstructor
+public class SubjectController {
+
+    private final SubjectService subjectService;
+
+    @PostMapping
+    public ApiResponse<SubjectResponse> createSubject(@RequestBody @Valid SubjectRequest request) {
+        return new ApiResponse<>(1000, "Tạo môn học thành công!", subjectService.createSubject(request));
+    }
+
+    @GetMapping
+    public ApiResponse<List<SubjectResponse>> getAllSubjects() {
+        return new ApiResponse<>(1000, "Lấy danh sách môn học thành công!", subjectService.getAllSubjects());
+    }
+
+    @GetMapping("/{subjectId}")
+    public ApiResponse<SubjectResponse> getSubject(@PathVariable Long subjectId) {
+        return new ApiResponse<>(1000, "Lấy chi tiết môn học thành công!", subjectService.getSubjectById(subjectId));
+    }
+
+    @PutMapping("/{subjectId}")
+    public ApiResponse<SubjectResponse> updateSubject(@PathVariable Long subjectId, @RequestBody @Valid SubjectRequest request) {
+        return new ApiResponse<>(1000, "Cập nhật môn học thành công!", subjectService.updateSubject(subjectId, request));
+    }
+
+    @DeleteMapping("/{subjectId}")
+    public ApiResponse<String> deleteSubject(@PathVariable Long subjectId) {
+        subjectService.deleteSubject(subjectId);
+        return new ApiResponse<>(1000, "Xóa môn học thành công!", "Môn học có ID " + subjectId + " đã bị xóa hoàn toàn.");
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/TeacherController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
+import com.dangdepzaivaio.StudentManagement.service.TeacherService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/teachers")
+@RequiredArgsConstructor
+public class TeacherController {
+
+    private final TeacherService teacherService;
+
+    @PostMapping
+    public ApiResponse<TeacherResponse> createTeacher(@RequestBody @Valid TeacherCreationRequest request) {
+        return new ApiResponse<>(1000, "Cap tai khoan giang vien thanh cong", teacherService.createTeacher(request));
+    }
+
+    @GetMapping
+    public ApiResponse<List<TeacherResponse>> getAll() {
+        return new ApiResponse<>(1000, "Lay danh sach giang vien thanh cong", teacherService.getAllTeachers());
+    }
+
+    @GetMapping("/{teacherId}")
+    public ApiResponse<TeacherResponse> getTeacher(@PathVariable String teacherId) {
+        return new ApiResponse<>(1000, "Lay chi tiet giang vien thanh cong", teacherService.getTeacherById(teacherId));
+    }
+
+    @PutMapping("/{teacherId}")
+    public ApiResponse<TeacherResponse> updateTeacher(@PathVariable String teacherId, @RequestBody @Valid TeacherUpdateRequest request) {
+        return new ApiResponse<>(1000, "Cap nhat giang vien thanh cong", teacherService.updateTeacher(teacherId, request));
+    }
+
+    @PutMapping("/{teacherId}/enable")
+    public ApiResponse<String> enableTeacher(@PathVariable String teacherId) {
+        teacherService.enableTeacher(teacherId);
+        return new ApiResponse<>(1000, "Mo khoa tai khoan giang vien thanh cong", "ID: " + teacherId);
+    }
+
+    @DeleteMapping("/{teacherId}")
+    public ApiResponse<String> deleteTeacher(@PathVariable String teacherId) {
+        teacherService.disableTeacher(teacherId);
+        return new ApiResponse<>(1000, "Khoa tai khoan giang vien thanh cong", "ID: " + teacherId);
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/CourseClassRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+public record CourseClassRequest(
+        @NotBlank(message = "Ma lop hoc phan khong duoc de trong")
+        String code,
+
+        @NotBlank(message = "Hoc ky khong duoc de trong")
+        String semester,
+
+        @NotNull(message = "ID mon hoc khong duoc de trong")
+        Long subjectId,
+
+        String teacherId,
+
+        @Min(value = 1, message = "Si so toi da phai lon hon 0")
+        Integer maxStudents,
+
+        String schedule,
+
+        Boolean openForRegistration
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/GradeRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+
+public record GradeRequest(
+        @NotNull(message = "ID sinh viên không được để trống")
+        String studentId, // 🔥 Đã đổi sang String
+
+        @NotNull(message = "ID lớp học phần không được để trống")
+        Long courseClassId,
+
+        @Min(value = 0, message = "Điểm chuyên cần không được nhỏ hơn 0")
+        @Max(value = 10, message = "Điểm chuyên cần không được lớn hơn 10")
+        Double attendanceGrade,
+
+        @Min(value = 0, message = "Điểm giữa kỳ không được nhỏ hơn 0")
+        @Max(value = 10, message = "Điểm giữa kỳ không được lớn hơn 10")
+        Double midtermGrade,
+
+        @Min(value = 0, message = "Điểm cuốii kỳ không được nhỏ hơn 0")
+        @Max(value = 10, message = "Điểm cuối kỳ không được lớn hơn 10")
+        Double finalGrade
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentCreationRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
+
+public record StudentCreationRequest(
+        @NotBlank(message = "Mã sinh viên không được để trống")
+        @Size(max = 20, message = "Mã sinh viên không vượt quá 20 ký tự")
+        String studentCode,
+
+        @NotBlank(message = "Tên sinh viên không được để trống")
+        String firstName,
+
+        @NotBlank(message = "Họ và tên đệm không được để trống")
+        String lastName,
+
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+
+        @NotNull(message = "ID lớp hành chính không được để trống")
+        Long classId,
+
+        // 🔥 THÊM MỚI: Đón nhận niên khóa học truyền từ form tạo
+        @NotBlank(message = "Khóa học sinh viên không được để trống")
+        String cohort
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentUpdateRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import java.time.LocalDate;
+
+public record StudentUpdateRequest(
+        @NotBlank(message = "Tên sinh viên không được để trống")
+        String firstName,
+
+        @NotBlank(message = "Họ và tên đệm không được để trống")
+        String lastName,
+
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+        Long classId,
+        Boolean active,
+
+        // 🔥 THÊM MỚI: Cho phép sửa đổi đợt khóa học khi hiệu chỉnh hồ sơ
+        String cohort
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/CourseClassResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+public record CourseClassResponse(
+        Long id,
+        String code,
+        String semester,
+        Long subjectId,
+        String subjectCode,
+        String subjectName,
+        Integer credits,
+        String teacherId,
+        String teacherName,
+        Integer maxStudents,
+        long registeredStudents,
+        String schedule,
+        boolean openForRegistration
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentAcademicSummaryResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+import java.util.List;
+
+public record StudentAcademicSummaryResponse(
+        String studentId,        // 🔥 Đã đổi sang String
+        String studentCode,
+        String studentName,
+        String className,
+        List<GradeResponse> details,
+        Integer totalCredits,
+        Double gpaSystem10,
+        Double gpaSystem4
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+import java.time.LocalDate;
+
+public record StudentResponse(
+        String id,
+        String studentCode,
+        String firstName,
+        String lastName,
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+        boolean active,
+        String username,
+        String email,
+        Long classId,
+        String className,
+
+        // 🔥 THÊM MỚI: Trường dữ liệu phản hồi khóa học từ Database thật ra ngoài UI
+        String cohort,
+        String departmentName
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/TeacherResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+import java.time.LocalDate;
+
+public record TeacherResponse(
+        String id,          // PHẢI LÀ String
+        String teacherCode,
+        String firstName,
+        String lastName,
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+        boolean active,
+        String username,
+        String email,
+        String departmentName
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/UserResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+import java.util.Set;
+
+public record UserResponse(
+        String id, // 🔥 Đã đổi sang String
+        String username,
+        String email,
+        boolean active,
+        Set<String> roles
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Grade.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "grades", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"student_id", "course_class_id"}) // Một SV chỉ có 1 dòng điểm trong 1 lớp học phần
+})
+public class Grade extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // Nhiều dòng điểm thuộc về một Sinh viên
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "student_id", nullable = false)
+    private Student student;
+
+    // Nhiều dòng điểm thuộc về một Lớp học phần
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_class_id", nullable = false)
+    private CourseClass courseClass;
+
+    @Column(name = "attendance_grade")
+    private Double attendanceGrade; // Điểm chuyên cần
+
+    @Column(name = "midterm_grade")
+    private Double midtermGrade; // Điểm giữa kỳ
+
+    @Column(name = "final_grade")
+    private Double finalGrade; // Điểm cuối kỳ
+
+    @Column(name = "overall_grade")
+    private Double overallGrade; // Điểm tổng kết hệ 10
+
+    @Column(name = "letter_grade", length = 5)
+    private String letterGrade; // Điểm chữ (A, B+, B, C...)
+
+    // BỔ SUNG THÊM DÒNG NÀY
+    @Column(name = "grade_4")
+    private Double grade4; // Điểm số hệ 4 (Ví dụ: 3.5, 4.0)
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/RegistrationPeriod.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "registration_periods")
+public class RegistrationPeriod extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "semester", nullable = false, length = 20)
+    private String semester; // Ví dụ: HK1-2026
+
+    @Column(name = "start_time", nullable = false)
+    private LocalDateTime startTime;
+
+    @Column(name = "end_time", nullable = false)
+    private LocalDateTime endTime;
+
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Teacher.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDate;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "teachers")
+public class Teacher extends BaseEntity {
+
+    @Id
+    @Column(name = "id", length = 20)
+    private String id; // 🔥 Khóa chính kiểu Chuỗi đồng bộ với User
+
+    @Column(name = "teacher_code", nullable = false, unique = true, length = 20)
+    private String teacherCode;
+
+    @Column(name = "first_name", nullable = false, length = 50)
+    private String firstName;
+
+    @Column(name = "last_name", nullable = false, length = 100)
+    private String lastName;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(name = "gender", length = 10)
+    private String gender;
+
+    @Column(name = "phone_number", length = 15)
+    private String phoneNumber;
+
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId // 🔥 Ép khóa chính trùng vẹn với User liên kết
+    @JoinColumn(name = "id")
+    private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id", nullable = false)
+    private Department department;
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/exception/GlobalExceptionHandler.java">
+package com.dangdepzaivaio.StudentManagement.exception;
+
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    // 1. Bắt toàn bộ các lỗi Runtime không xác định (Tránh làm lộ log hệ thống ra ngoài)
+    // 1. Bắt toàn bộ các lỗi Runtime không xác định và trả thẳng tên lỗi ra Postman
+    @ExceptionHandler(value = Exception.class)
+    public ResponseEntity<ApiResponse<Object>> handlingRuntimeException(Exception exception) {
+
+        // Tạo câu thông báo chi tiết: Lấy tên Class của lỗi + Tin nhắn lỗi gốc
+        String detailedMessage = exception.getClass().getSimpleName() + " -> " + exception.getMessage();
+
+        ApiResponse<Object> apiResponse = new ApiResponse<>(
+                ErrorCode.UNCATEGORIZED_EXCEPTION.getCode(),
+                detailedMessage, // Trả thẳng câu này ra ngoài Postman thay vì câu "Lỗi hệ thống không xác định"
+                null
+        );
+        return ResponseEntity.status(ErrorCode.UNCATEGORIZED_EXCEPTION.getStatusCode()).body(apiResponse);
+    }
+
+    // 2. Bắt lỗi nghiệp vụ hệ thống do chúng ta chủ động throw (AppException)
+    @ExceptionHandler(value = AppException.class)
+    public ResponseEntity<ApiResponse<Object>> handlingAppException(AppException exception) {
+        ErrorCode errorCode = exception.getErrorCode();
+        ApiResponse<Object> apiResponse = new ApiResponse<>(
+                errorCode.getCode(),
+                errorCode.getMessage(),
+                null
+        );
+        return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
+    }
+
+    // 3. Bắt toàn bộ lỗi Validation đầu vào từ DTO Records (@NotBlank, @Size, @Email)
+    @ExceptionHandler(value = MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<Object>> handlingValidation(MethodArgumentNotValidException exception) {
+        String defaultMessage = exception.getFieldError().getDefaultMessage();
+
+        ApiResponse<Object> apiResponse = new ApiResponse<>(
+                ErrorCode.VALIDATION_ERROR.getCode(),
+                defaultMessage, // Trả ra chính xác câu thông báo lỗi bạn viết ở Record DTO
+                null
+        );
+        return ResponseEntity.status(ErrorCode.VALIDATION_ERROR.getStatusCode()).body(apiResponse);
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/CourseClassMapper.java">
+package com.dangdepzaivaio.StudentManagement.mapper;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.CourseClassRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
+import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
+import com.dangdepzaivaio.StudentManagement.entity.Subject;
+import com.dangdepzaivaio.StudentManagement.entity.Teacher;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
+@Mapper(componentModel = "spring")
+public interface CourseClassMapper {
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "subject", ignore = true)
+    @Mapping(target = "teacher", ignore = true)
+    @Mapping(target = "registeredStudents", ignore = true)
+    CourseClass toEntity(CourseClassRequest request);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "subject", ignore = true)
+    @Mapping(target = "teacher", ignore = true)
+    @Mapping(target = "registeredStudents", ignore = true)
+    void updateEntityFromRequest(CourseClassRequest request, @MappingTarget CourseClass courseClass);
+
+    default CourseClassResponse toResponse(CourseClass courseClass) {
+        if (courseClass == null) {
+            return null;
+        }
+
+        Subject subject = courseClass.getSubject();
+        Teacher teacher = courseClass.getTeacher();
+        String teacherName = teacher == null
+                ? null
+                : (safe(teacher.getLastName()) + " " + safe(teacher.getFirstName())).trim();
+
+        return new CourseClassResponse(
+                courseClass.getId(),
+                courseClass.getCode(),
+                courseClass.getSemester(),
+                subject == null ? null : subject.getId(),
+                subject == null ? null : subject.getCode(),
+                subject == null ? null : subject.getName(),
+                subject == null ? null : subject.getCredits(),
+                teacher == null ? null : teacher.getId(),
+                teacherName == null || teacherName.isBlank() ? null : teacherName,
+                courseClass.getMaxStudents(),
+                courseClass.getRegisteredStudents(),
+                courseClass.getSchedule(),
+                courseClass.isOpenForRegistration()
+        );
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/GradeMapper.java">
+package com.dangdepzaivaio.StudentManagement.mapper;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Grade;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
+@Mapper(componentModel = "spring")
+public interface GradeMapper {
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "student", ignore = true)
+    @Mapping(target = "courseClass", ignore = true)
+    Grade toEntity(GradeRequest request);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "student", ignore = true)
+    @Mapping(target = "courseClass", ignore = true)
+    void updateEntityFromRequest(GradeRequest request, @MappingTarget Grade grade);
+
+    @Mapping(target = "studentId", source = "student.id")
+    @Mapping(target = "studentCode", source = "student.studentCode")
+    @Mapping(target = "studentName", expression = "java(grade.getStudent().getFirstName() + \" \" + grade.getStudent().getLastName())")
+    @Mapping(target = "courseClassId", source = "courseClass.id")
+    @Mapping(target = "courseClassCode", source = "courseClass.code")
+    @Mapping(target = "subjectName", source = "courseClass.subject.name")
+    @Mapping(target = "credits", source = "courseClass.subject.credits")
+    @Mapping(target = "teacherName", expression = "java(grade.getCourseClass().getTeacher() != null ? grade.getCourseClass().getTeacher().getLastName() + \" \" + grade.getCourseClass().getTeacher().getFirstName() : \"Chưa phân công\")")
+    @Mapping(target = "schedule", source = "courseClass.schedule")
+    GradeResponse toResponse(Grade grade);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/SubjectMapper.java">
+package com.dangdepzaivaio.StudentManagement.mapper;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse; // Thêm import này
+import com.dangdepzaivaio.StudentManagement.entity.Subject;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
+@Mapper(componentModel = "spring")
+public interface SubjectMapper {
+
+    @Mapping(target = "id", ignore = true)
+    Subject toEntity(SubjectRequest request);
+
+    @Mapping(target = "id", ignore = true)
+    void updateEntityFromRequest(SubjectRequest request, @MappingTarget Subject subject);
+
+    // BỔ SUNG HÀM NÀY: Chuyển đổi thực thể sang DTO phẳng sạch sẽ
+    SubjectResponse toResponse(Subject subject);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/UserMapper.java">
+package com.dangdepzaivaio.StudentManagement.mapper;
+
+import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.entity.Role;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Mapper(componentModel = "spring")
+public interface UserMapper {
+
+    @Mapping(target = "roles", source = "roles")
+    UserResponse toResponse(User user);
+
+    // Hàm chuyển đổi custom: Ép danh sách thực thể Role thành bộ tên chuỗi gọn gàng
+    default Set<String> mapRoles(Set<Role> roles) {
+        if (roles == null) return null;
+        return roles.stream()
+                .map(Role::getName)
+                .collect(Collectors.toSet());
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/ClassRepository.java">
+package com.dangdepzaivaio.StudentManagement.repository;
+
+import com.dangdepzaivaio.StudentManagement.entity.Class;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+
+@Repository
+public interface ClassRepository extends JpaRepository<Class, Long> {
+    List<Class> findByDepartmentId(Long departmentId);
+    boolean existsByName(String name);
+    boolean existsByDepartmentId(Long departmentId);
+    @org.springframework.data.jpa.repository.Query("SELECT c FROM Class c JOIN FETCH c.department")
+    List<Class> findAllClassesWithJoinFetch();
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/TeacherRepository.java">
+package com.dangdepzaivaio.StudentManagement.repository;
+
+import com.dangdepzaivaio.StudentManagement.entity.Teacher;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface TeacherRepository extends JpaRepository<Teacher, String> {
+    boolean existsByTeacherCode(String teacherCode);
+    Optional<Teacher> findByTeacherCode(String teacherCode);
+
+    @Query("SELECT t FROM Teacher t JOIN FETCH t.user JOIN FETCH t.department")
+    List<Teacher> findAllTeachersWithJoinFetch();
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/GradeService.java">
+package com.dangdepzaivaio.StudentManagement.service;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse;
+import java.util.List;
+
+public interface GradeService {
+    GradeResponse inputGrade(GradeRequest request);
+    List<GradeResponse> getGradesByStudent(String studentId); // 🔥 Sửa sang String
+    GradeResponse updateGrade(Long id, GradeRequest request);
+    List<GradeResponse> getAllGrades();
+    GradeResponse getGradeById(Long id);
+    void deleteGrade(Long id);
+    StudentAcademicSummaryResponse getAcademicSummary(String studentId); // 🔥 Sửa sang String
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/ClassServiceImpl.java">
+package com.dangdepzaivaio.StudentManagement.service.impl;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.ClassRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ClassResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Class;
+import com.dangdepzaivaio.StudentManagement.entity.Department;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.ClassMapper;
+import com.dangdepzaivaio.StudentManagement.repository.ClassRepository;
+import com.dangdepzaivaio.StudentManagement.repository.DepartmentRepository;
+import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
+import com.dangdepzaivaio.StudentManagement.service.ClassService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class ClassServiceImpl implements ClassService {
+    // 🔥 ĐÃ GOM TOÀN BỘ KHAI BÁO LÊN ĐẦU CLASS THEO ĐÚNG CHUẨN LOMBOK
+    private final ClassRepository classRepository;
+    private final DepartmentRepository departmentRepository;
+    private final StudentRepository studentRepository;
+    private final ClassMapper classMapper;
+
+    @Override
+    @Transactional
+    public ClassResponse createClass(ClassRequest request) {
+        if (classRepository.existsByName(request.name())) {
+            throw new AppException(ErrorCode.CLASS_EXISTED);
+        }
+        Department department = departmentRepository.findById(request.departmentId())
+                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
+
+        Class studentClass = classMapper.toEntity(request);
+        studentClass.setDepartment(department);
+        return classMapper.toResponse(classRepository.save(studentClass));
+    }
+
+    @Override
+    public List<ClassResponse> getAllClasses() {
+        return classRepository.findAllClassesWithJoinFetch().stream()
+                .map(classMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public ClassResponse updateClass(Long id, ClassRequest request) {
+        Class studentClass = classRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+
+        if (!studentClass.getName().equals(request.name()) && classRepository.existsByName(request.name())) {
+            throw new AppException(ErrorCode.CLASS_EXISTED);
+        }
+
+        Department department = departmentRepository.findById(request.departmentId())
+                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
+
+        classMapper.updateEntityFromRequest(request, studentClass);
+        studentClass.setDepartment(department);
+        return classMapper.toResponse(classRepository.save(studentClass));
+    }
+
+    @Override
+    @Transactional
+    public void deleteClass(Long id) {
+        Class studentClass = classRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+
+        if (studentRepository.existsByStudentClassId(id)) {
+            throw new AppException(ErrorCode.CLASS_HAS_STUDENTS);
+        }
+
+        classRepository.delete(studentClass);
+    }
+
+    @Override
+    public ClassResponse getClassById(Long id) {
+        Class adminClass = classRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
+        return classMapper.toResponse(adminClass);
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/TeacherServiceImpl.java">
+package com.dangdepzaivaio.StudentManagement.service.impl;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.TeacherUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Department;
+import com.dangdepzaivaio.StudentManagement.entity.Role;
+import com.dangdepzaivaio.StudentManagement.entity.Teacher;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.TeacherMapper;
+import com.dangdepzaivaio.StudentManagement.repository.DepartmentRepository;
+import com.dangdepzaivaio.StudentManagement.repository.RoleRepository;
+import com.dangdepzaivaio.StudentManagement.repository.TeacherRepository;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import com.dangdepzaivaio.StudentManagement.service.TeacherService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Set;
+
+@Service
+@RequiredArgsConstructor
+public class TeacherServiceImpl implements TeacherService {
+
+    private final TeacherRepository teacherRepository;
+    private final UserRepository userRepository;
+    private final DepartmentRepository departmentRepository;
+    private final RoleRepository roleRepository;
+    private final TeacherMapper teacherMapper;
+    private final PasswordEncoder passwordEncoder;
+
+    @Override
+    @Transactional
+    public TeacherResponse createTeacher(TeacherCreationRequest request) {
+        if (teacherRepository.existsByTeacherCode(request.teacherCode())) {
+            throw new AppException(ErrorCode.TEACHER_CODE_EXISTED);
+        }
+
+        Department dept = departmentRepository.findById(request.departmentId())
+                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
+
+        long nextIndex = userRepository.countByIdStartingWith("GV_") + 1;
+        String generatedId = String.format("GV_%02d", nextIndex);
+
+        User user = User.builder()
+                .id(generatedId)
+                .username(request.teacherCode())
+                .password(passwordEncoder.encode("password1234"))
+                .email(request.teacherCode().toLowerCase() + "@open.edu.vn")
+                .isActive(true)
+                .build();
+
+        Role teacherRole = roleRepository.findByName("TEACHER")
+                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
+        user.setRoles(Set.of(teacherRole));
+
+        // 🔥 SỬA DÒNG NÀY: Hứng lấy đối tượng Managed trả về từ hàm save()
+        User managedUser = userRepository.save(user);
+
+        Teacher teacher = teacherMapper.toEntity(request);
+
+        // 🔥 SỬA DÒNG NÀY: Gắn đối tượng managedUser (đã an toàn) vào thay vì biến user gốc
+        teacher.setUser(managedUser);
+
+        teacher.setDepartment(dept);
+        teacher.setActive(true);
+
+        return teacherMapper.toResponse(teacherRepository.save(teacher));
+    }
+
+    @Override
+    public List<TeacherResponse> getAllTeachers() {
+        return teacherRepository.findAllTeachersWithJoinFetch().stream()
+                .map(teacherMapper::toResponse)
+                .toList();
+    }
+
+    @Override
+    public TeacherResponse getTeacherById(String id) {
+        return teacherRepository.findById(id)
+                .map(teacherMapper::toResponse)
+                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
+    }
+
+    @Override
+    @Transactional
+    public TeacherResponse updateTeacher(String id, TeacherUpdateRequest request) {
+        Teacher teacher = teacherRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
+
+        teacher.setFirstName(request.firstName());
+        teacher.setLastName(request.lastName());
+        teacher.setDateOfBirth(request.dateOfBirth());
+        teacher.setGender(request.gender());
+        teacher.setPhoneNumber(request.phoneNumber());
+
+        return teacherMapper.toResponse(teacherRepository.save(teacher));
+    }
+
+    @Override
+    @Transactional
+    public void disableTeacher(String id) {
+        Teacher teacher = teacherRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
+        teacher.setActive(false);
+        if (teacher.getUser() != null) teacher.getUser().setActive(false);
+        teacherRepository.save(teacher);
+    }
+
+    @Override
+    @Transactional
+    public void enableTeacher(String id) {
+        Teacher teacher = teacherRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
+        teacher.setActive(true);
+        if (teacher.getUser() != null) teacher.getUser().setActive(true);
+        teacherRepository.save(teacher);
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/SubjectService.java">
+package com.dangdepzaivaio.StudentManagement.service;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse; // Sửa import này
+import java.util.List;
+
+public interface SubjectService {
+    SubjectResponse createSubject(SubjectRequest request);
+    List<SubjectResponse> getAllSubjects();
+    SubjectResponse getSubjectById(Long id);
+    SubjectResponse updateSubject(Long id, SubjectRequest request);
+    void deleteSubject(Long id);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/StudentManagementApplication.java">
+package com.dangdepzaivaio.StudentManagement;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.scheduling.annotation.EnableScheduling; // 🔥 THÊM DÒNG NÀY
+
+@SpringBootApplication
+@EnableJpaAuditing
+@EnableScheduling // 🔥 THÊM ANNOTATION NÀY ĐỂ KÍCH HOẠT TÍNH NĂNG HẸN GIỜ TỰ ĐỘNG CHỐT SỔ ĐÓNG CỔNG
+public class StudentManagementApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(StudentManagementApplication.class, args);
+	}
+
+}
+</file>
+
+<file path="student-management-ui/README.md">
+# React + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+Tiến độ Dự án (Project Progress)
+Markdown
+- [x] Đồng bộ toàn vẹn cấu trúc mã chuỗi tự sinh (AD, HS_xx, GV_xx) ở cả 2 phân hệ.
+- [x] Chuyển đổi luồng xác thực bảo mật hệ thống sang Email trường cấp (`@open.edu.vn`).
+- [x] Xây dựng phân hệ Đăng ký tín chỉ Realtime (Tự động mở/đóng cổng, thống kê lớp học phần).
+- [x] Triển khai bộ lắng nghe trạng thái tab (Visibility API) để kiểm soát phiên làm việc 15 phút.
+- [x] Dọn dẹp môi trường, tối ưu MapStruct ánh xạ phẳng và dập tắt hoàn toàn log Hibernate SQ
+</file>
+
+<file path="student-management-ui/src/pages/GradePage.jsx">
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
+
+export default function GradePage() {
+    const userRole = localStorage.getItem('roles') || '';
+    const username = localStorage.getItem('username') || '';
+    const loggedInStudentId = localStorage.getItem('studentId') || '';
+
+    const isTeacher = userRole.includes('TEACHER');
+    const isAdmin = userRole.includes('ADMIN');
+    const isStudent = userRole.includes('STUDENT');
+
+    // --- STATES NẠP DỮ LIỆU GỐC TỪ DATABASE ---
+    const [allGrades, setAllGrades] = useState([]);
+    const [allStudents, setAllStudents] = useState([]);
+    const [departments, setDepartments] = useState([]);
+    const [classList, setClassList] = useState([]);
+
+    // --- STATES GIÁ TRỊ BỘ LỌC ĐANG CHỌN ---
+    const [selectedCohort, setSelectedCohort] = useState('');
+    const [selectedDept, setSelectedDept] = useState('');
+    const [selectedClass, setSelectedClass] = useState('');
+
+    // --- STATES DROPDOWN ĐAN XEN ĐỘNG (DASHBOARD CASCADING) ---
+    const [cohortOptions, setCohortOptions] = useState([]);
+    const [deptOptions, setDeptOptions] = useState([]);
+    const [classOptions, setClassOptions] = useState([]);
+
+    // --- STATES QUẢN LÝ BẢNG ĐIỂM HIỂN THỊ REALTIME ---
+    const [displayGrades, setDisplayGrades] = useState([]);
+    const [editGradesMap, setEditGradesMap] = useState({});
+    const [isBulkEdit, setIsBulkEdit] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState({ text: '', isError: false });
+
+    // --- STATE ĐỘC QUYỀN CHO SINH VIÊN ---
+    const [studentSummary, setStudentSummary] = useState(null);
+
+    // ==================== 🔄 LUỒNG LOAD DỮ LIỆU BAN ĐẦU ====================
+    useEffect(() => {
+        if (isAdmin || isTeacher) {
+            loadSystemInitialData();
+        }
+        if (isStudent && loggedInStudentId) {
+            fetchStudentTranscript(loggedInStudentId);
+        }
+    }, [isStudent, loggedInStudentId]);
+
+    // BỘ LỌC REALTIME KẾT HỢP ĐAN XEN CASCADING 2 CHIỀU
+    useEffect(() => {
+        if (allStudents.length === 0) return;
+
+        const availCohorts = allStudents.filter(s =>
+            (!selectedDept || s.departmentName === departments.find(d => d.id === Number(selectedDept))?.name) &&
+            (!selectedClass || s.classId === Number(selectedClass))
+        ).map(s => s.cohort).filter(Boolean);
+        setCohortOptions([...new Set(availCohorts)].sort());
+
+        const availDeptNames = allStudents.filter(s =>
+            (!selectedCohort || s.cohort === selectedCohort) &&
+            (!selectedClass || s.classId === Number(selectedClass))
+        ).map(s => s.departmentName).filter(Boolean);
+        setDeptOptions(departments.filter(d => availDeptNames.includes(d.name)));
+
+        const availClassIds = allStudents.filter(s =>
+            (!selectedCohort || s.cohort === selectedCohort) &&
+            (!selectedDept || s.departmentName === departments.find(d => d.id === Number(selectedDept))?.name)
+        ).map(s => s.classId).filter(Boolean);
+        setClassOptions(classList.filter(c => availClassIds.includes(c.id)));
+
+        recalculateFiltersAndData();
+    }, [selectedCohort, selectedDept, selectedClass, allGrades, allStudents, departments, classList]);
+
+    const showMessage = (text, isError = false) => {
+        setMessage({ text, isError });
+        setTimeout(() => setMessage({ text: '', isError: false }), 4000);
+    };
+
+    const loadSystemInitialData = async () => {
+        try {
+            setLoading(true);
+            const [deptsData, classesData, studentsData, gradesData] = await Promise.all([
+                axiosClient.get('/departments'),
+                axiosClient.get('/classes'),
+                axiosClient.get('/students?includeInactive=false'),
+                axiosClient.get('/grades').catch(() => [])
+            ]);
+
+            setDepartments(deptsData || []);
+            setClassList(classesData || []);
+            setAllStudents(studentsData || []);
+            setAllGrades(gradesData || []);
+        } catch (err) {
+            showMessage('Không thể nạp cơ sở dữ liệu hệ thống học phần!', true);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const recalculateFiltersAndData = () => {
+        let filtered = allGrades.map(grade => {
+            const studentObj = allStudents.find(s => s.id === grade.studentId);
+            return {
+                ...grade,
+                studentCode: studentObj?.studentCode || 'N/A',
+                studentName: studentObj ? `${studentObj.lastName} ${studentObj.firstName}` : 'Ẩn danh',
+                cohort: studentObj?.cohort || 'Khóa 1',
+                classId: studentObj?.classId || null,
+                departmentName: studentObj?.departmentName || ''
+            };
+        });
+
+        if (selectedCohort) filtered = filtered.filter(g => g.cohort === selectedCohort);
+        if (selectedDept) {
+            const deptObj = departments.find(d => d.id === Number(selectedDept));
+            if (deptObj) filtered = filtered.filter(g => g.departmentName === deptObj.name);
+        }
+        if (selectedClass) filtered = filtered.filter(g => g.classId === Number(selectedClass));
+
+        setDisplayGrades(filtered);
+
+        const newEditMap = {};
+        filtered.forEach(g => {
+            newEditMap[g.id] = {
+                cc: g.attendanceGrade !== undefined && g.attendanceGrade !== null ? String(g.attendanceGrade) : '',
+                gk: g.midtermGrade !== undefined && g.midtermGrade !== null ? String(g.midtermGrade) : '',
+                ck: g.finalGrade !== undefined && g.finalGrade !== null ? String(g.finalGrade) : '',
+                studentId: g.studentId,
+                courseClassId: g.courseClassId
+            };
+        });
+        setEditGradesMap(newEditMap);
+    };
+
+    const fetchStudentTranscript = async (studentId) => {
+        try {
+            setLoading(true);
+            const data = await axiosClient.get(`/grades/student/${studentId}/summary`);
+            setStudentSummary(data);
+        } catch (err) {
+            showMessage('Không thể tải bảng điểm tích lũy cá nhân!', true);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGradeInputChange = (gradeId, field, value) => {
+        if (value !== '') {
+            if (!/^\d*\.?\d*$/.test(value)) return;
+            const num = parseFloat(value);
+            if (!isNaN(num) && (num < 0 || num > 10)) return;
+        }
+        setEditGradesMap(prev => ({
+            ...prev,
+            [gradeId]: { ...prev[gradeId], [field]: value }
+        }));
+    };
+
+    const handleBulkSave = async () => {
+        try {
+            setLoading(true);
+            const savePromises = displayGrades.map(g => {
+                const editData = editGradesMap[g.id];
+                return axiosClient.put(`/grades/${g.id}`, {
+                    studentId: editData.studentId,
+                    courseClassId: editData.courseClassId,
+                    attendanceGrade: editData.cc === '' ? 0 : Number(editData.cc),
+                    midtermGrade: editData.gk === '' ? 0 : Number(editData.gk),
+                    finalGrade: editData.ck === '' ? 0 : Number(editData.ck)
+                });
+            });
+
+            await Promise.all(savePromises);
+            showMessage('Đã cập nhật đồng bộ toàn bộ bảng điểm lớp học thành công!');
+            setIsBulkEdit(false);
+
+            const gradesData = await axiosClient.get('/grades').catch(() => []);
+            setAllGrades(gradesData);
+        } catch (err) {
+            showMessage(err || 'Có lỗi xảy ra trong quá trình thực thi lưu bảng điểm!', true);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeptChange = (deptId) => {
+        setSelectedDept(deptId);
+        setSelectedClass('');
+    };
+
+    const handleClassChange = (classId) => {
+        setSelectedClass(classId);
+        if (classId) {
+            const clsObj = classList.find(c => c.id === Number(classId));
+            if (clsObj) {
+                const matchedDept = departments.find(d => d.name === clsObj.departmentName);
+                if (matchedDept) setSelectedDept(String(matchedDept.id));
+            }
+        }
+    };
+
+    const getAdminAggregatedRows = () => {
+        let filteredStudents = [...allStudents];
+        if (selectedCohort) filteredStudents = filteredStudents.filter(s => s.cohort === selectedCohort);
+        if (selectedDept) {
+            const deptObj = departments.find(d => d.id === Number(selectedDept));
+            if (deptObj) filteredStudents = filteredStudents.filter(s => s.departmentName === deptObj.name);
+        }
+        if (selectedClass) filteredStudents = filteredStudents.filter(s => s.classId === Number(selectedClass));
+
+        return filteredStudents.map((student, index) => {
+            const studentGrades = allGrades.filter(g => g.studentId === student.id);
+            let overallAvg = 0;
+            let letterGrade = '-';
+
+            if (studentGrades.length > 0) {
+                const validValues = studentGrades.map(g => g.overallGrade).filter(v => v !== undefined && v !== null);
+                if (validValues.length > 0) {
+                    overallAvg = validValues.reduce((sum, v) => sum + v, 0) / validValues.length;
+                    const num = parseFloat(overallAvg.toFixed(2));
+                    if (num >= 9.0) letterGrade = 'A';
+                    else if (num >= 8.5) letterGrade = 'B+';
+                    else if (num >= 8.0) letterGrade = 'B';
+                    else if (num >= 7.0) letterGrade = 'C+';
+                    else if (num >= 6.5) letterGrade = 'C';
+                    else if (num >= 5.5) letterGrade = 'D+';
+                    else if (num >= 4.0) letterGrade = 'D';
+                    else letterGrade = 'F';
+                }
+            }
+
+            return {
+                ...student,
+                stt: index + 1,
+                studentName: `${student.lastName} ${student.firstName}`,
+                gpa: studentGrades.length > 0 ? overallAvg.toFixed(2) : '-',
+                letterGrade: letterGrade
+            };
+        });
+    };
+
+    const adminRows = getAdminAggregatedRows();
+
+    // ==================== 🎓 GIAO DIỆN 1: SINH VIÊN (STUDENT VIEW) ====================
+    if (isStudent) {
+        return (
+            <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)', textAlign: 'left' }}>
+                <div style={{ marginBottom: '20px' }}>
+                    <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>📋 XEM ĐIỂM HỌC TẬP</h2>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>Hồ sơ kết quả kết quả học tập và tích lũy cá nhân.</p>
+                </div>
+
+                {loading ? (
+                    <p style={{textAlign:'center', color:'var(--text-muted)'}}>Đang tải bảng điểm học viên...</p>
+                ) : studentSummary ? (
+                    <div>
+                        {/* Khối Card tóm tắt tích lũy cá nhân */}
+                        <div style={{ display: 'flex', gap: '20px', marginBottom: '25px', flexWrap: 'wrap' }}>
+                            <div style={{ flex: 1, minWidth: '150px', backgroundColor: 'var(--color-primary)', padding: '15px', borderRadius: '6px', textAlign: 'center' }}>
+                                <span style={{ fontSize: '13px', opacity: 0.9 }}>Tín Chỉ Tích Lũy</span>
+                                <h2 style={{ margin: '5px 0 0 0' }}>{studentSummary.totalCredits || 0} tín</h2>
+                            </div>
+                            <div style={{ flex: 1, minWidth: '150px', backgroundColor: 'var(--color-success)', padding: '15px', borderRadius: '6px', textAlign: 'center' }}>
+                                <span style={{ fontSize: '13px', opacity: 0.9 }}>GPA Hệ 10</span>
+                                <h2 style={{ margin: '5px 0 0 0' }}>{studentSummary.gpa10 !== undefined ? studentSummary.gpa10 : studentSummary.gpaSystem10 || 0}</h2>
+                            </div>
+                            <div style={{ flex: 1, minWidth: '150px', backgroundColor: 'var(--color-warning)', padding: '15px', borderRadius: '6px', textAlign: 'center', color: '#000' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 'bold' }}>GPA Hệ 4</span>
+                                <h2 style={{ margin: '5px 0 0 0' }}>{studentSummary.gpa4 !== undefined ? studentSummary.gpa4 : studentSummary.gpaSystem4 || 0}</h2>
+                            </div>
+                        </div>
+
+                        {/* Bảng chi tiết điểm các học phần */}
+                        <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={tableStyle}>
+                                    <thead>
+                                    <tr style={thStyle}>
+                                        <th>Môn Học Học Phần</th>
+                                        <th>Mã Lớp HP</th>
+                                        <th style={thCenterStyle}>Chuyên cần</th>
+                                        <th style={thCenterStyle}>Giữa kỳ</th>
+                                        <th style={thCenterStyle}>Cuối kỳ</th>
+                                        <th style={thCenterStyle}>Tổng Kết</th>
+                                        <th style={thCenterStyle}>Điểm Chữ</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {studentSummary.details?.map((d, i) => (
+                                        <tr key={i} style={trStyle}>
+                                            <td style={{ fontWeight: 'bold' }}>{d.subjectName}</td>
+                                            <td style={{ color: 'var(--text-cyan)', fontWeight: 'bold' }}>{d.courseClassCode}</td>
+                                            <td style={{ textAlign: 'center' }}>{d.attendanceGrade !== null && d.attendanceGrade !== undefined ? d.attendanceGrade : '-'}</td>
+                                            <td style={{ textAlign: 'center' }}>{d.midtermGrade !== null && d.midtermGrade !== undefined ? d.midtermGrade : '-'}</td>
+                                            <td style={{ textAlign: 'center' }}>{d.finalGrade !== null && d.finalGrade !== undefined ? d.finalGrade : '-'}</td>
+                                            <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--color-success)' }}>{d.overallGrade}</td>
+                                            <td style={{ textAlign: 'center', fontWeight: 'bold', color: d.letterGrade === 'F' ? 'var(--color-danger)' : 'var(--color-success)' }}>{d.letterGrade}</td>
+                                        </tr>
+                                    ))}
+                                    {(!studentSummary.details || studentSummary.details.length === 0) && (
+                                        <tr>
+                                            <td colSpan="7" style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)' }}>Chưa có dữ liệu điểm môn học nào được ghi nhận.</td>
+                                        </tr>
+                                    )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <p style={{ color: 'var(--text-muted)' }}>Chưa có dữ liệu kết quả học tập nào.</p>
+                )}
+            </div>
+        );
+    }
+
+    // ==================== 👨‍🏫 GIÁO VIÊN & QUẢN TRỊ VIÊN (ADMIN & TEACHER) ====================
+    return (
+        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)', textAlign: 'left' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
+                <div>
+                    <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>
+                        {isTeacher ? '👨‍🏫 BẢNG NHẬP ĐIỂM THÀNH PHẦN' : '🏛️ BẢNG ĐIỂM TỔNG HỢP TOÀN TRƯỜNG'}
+                    </h2>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+                        {isTeacher ? 'Quyền hạn Giảng viên: Sửa để gõ điểm và chọn Lưu để cập nhật.' : 'Quyền hạn Quản trị viên: Theo dõi điểm số tổng kết tích lũy của từng học viên.'}
+                    </p>
+                </div>
+
+                {displayGrades.length > 0 && isTeacher && (
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        {!isBulkEdit ? (
+                            <button onClick={() => setIsBulkEdit(true)} style={primaryBtnStyle}>Sửa</button>
+                        ) : (
+                            <>
+                                <button onClick={() => { setIsBulkEdit(false); recalculateFiltersAndData(); }} style={{ ...primaryBtnStyle, backgroundColor: '#6c757d' }}>Hủy</button>
+                                <button onClick={handleBulkSave} style={{ ...primaryBtnStyle, backgroundColor: 'var(--color-success)' }}>Lưu</button>
+                            </>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {message.text && (
+                <div style={{ padding: '12px', marginBottom: '20px', backgroundColor: message.isError ? 'var(--color-danger)' : 'var(--color-primary)', color: 'white', borderRadius: '4px', fontWeight: 'bold' }}>
+                    {message.text}
+                </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '15px', marginBottom: '25px', backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', flexWrap: 'wrap' }}>
+                <div style={{ flex: '1', minWidth: '140px' }}>
+                    <label style={labelStyle}>⏳ Lọc theo Khóa học:</label>
+                    <select value={selectedCohort} onChange={(e) => setSelectedCohort(e.target.value)} style={selectStyle}>
+                        <option value="">-- Tất cả các Khóa --</option>
+                        {cohortOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                </div>
+
+                <div style={{ flex: '1', minWidth: '180px' }}>
+                    <label style={labelStyle}>🏛️ Lọc theo Khoa:</label>
+                    <select value={selectedDept} onChange={(e) => handleDeptChange(e.target.value)} style={selectStyle}>
+                        <option value="">-- Tất cả các Khoa --</option>
+                        {deptOptions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                </div>
+
+                <div style={{ flex: '1.2', minWidth: '180px' }}>
+                    <label style={labelStyle}>👥 Lọc theo Lớp hành chính:</label>
+                    <select value={selectedClass} onChange={(e) => handleClassChange(e.target.value)} style={selectStyle}>
+                        <option value="">-- Tất cả các Lớp --</option>
+                        {classOptions.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+                    </select>
+                </div>
+            </div>
+
+            <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                {loading ? (
+                    <p style={{textAlign:'center', color:'var(--text-muted)'}}>Đang đồng bộ cơ sở dữ liệu điểm số...</p>
+                ) : isAdmin ? (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={tableStyle}>
+                            <thead>
+                            <tr style={thStyle}>
+                                <th style={{ width: '60px' }}>STT</th>
+                                <th>Mã Sinh Viên</th>
+                                <th>Họ Và Tên Học Viên</th>
+                                <th>Lớp Hành Chính</th>
+                                <th>Khoa Chuyên Môn</th>
+                                <th>Niên Khóa</th>
+                                <th style={thCenterStyle}>GPA Tích Lũy</th>
+                                <th style={thCenterStyle}>Điểm Chữ Tổng Hợp</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {adminRows.map((row) => (
+                                <tr key={row.id} style={trStyle}>
+                                    <td>{row.stt}</td>
+                                    <td style={{ fontWeight: 'bold', color: 'var(--color-warning)' }}>{row.studentCode}</td>
+                                    <td>{row.studentName}</td>
+                                    <td>{row.className || 'Chưa xếp'}</td>
+                                    <td style={{ color: 'var(--text-cyan)' }}>{row.departmentName || 'Chưa xếp'}</td>
+                                    <td>{row.cohort}</td>
+                                    <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--color-success)', fontSize: '15px' }}>{row.gpa}</td>
+                                    <td style={{ textAlign: 'center', fontWeight: 'bold', color: row.letterGrade === 'F' ? 'var(--color-danger)' : 'var(--color-success)' }}>{row.letterGrade}</td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={tableStyle}>
+                            <thead>
+                            <tr style={thStyle}>
+                                <th style={{ width: '50px' }}>STT</th>
+                                <th style={{ width: '150px' }}>Sinh Viên / Mã Số</th>
+                                <th>Môn Học Phần</th>
+                                <th>Mã Lớp HP</th>
+                                <th style={{ ...thCenterStyle, width: '120px' }}>Chuyên cần</th>
+                                <th style={{ ...thCenterStyle, width: '120px' }}>Giữa kỳ</th>
+                                <th style={{ ...thCenterStyle, width: '120px' }}>Cuối kỳ</th>
+                                <th style={thCenterStyle}>Tổng Kết</th>
+                                <th style={thCenterStyle}>Điểm Chữ</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {displayGrades.map((g, index) => {
+                                const editRow = editGradesMap[g.id] || { cc: '', gk: '', ck: '' };
+                                const ccVal = editRow.cc === '' ? 0 : parseFloat(editRow.cc);
+                                const gkVal = editRow.gk === '' ? 0 : parseFloat(editRow.gk);
+                                const ckVal = editRow.ck === '' ? 0 : parseFloat(editRow.ck);
+                                const currentFinal = ((ccVal * 0.1) + (gkVal * 0.3) + (ckVal * 0.6)).toFixed(2);
+
+                                return (
+                                    <tr key={g.id} style={trStyle}>
+                                        <td>{index + 1}</td>
+                                        <td>
+                                            <b>{g.studentName}</b><br/>
+                                            <span style={{fontSize:'12px', color:'var(--color-warning)', fontWeight:'bold'}}>{g.studentCode}</span>
+                                        </td>
+                                        <td style={{fontWeight:'500'}}>{g.subjectName}</td>
+                                        <td style={{color:'var(--text-cyan)', fontWeight:'bold'}}>{g.courseClassCode}</td>
+                                        <td style={{ width: '120px', textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                <input
+                                                    type="text" value={editRow.cc} disabled={!isBulkEdit}
+                                                    onChange={(e) => handleGradeInputChange(g.id, 'cc', e.target.value)}
+                                                    style={{ ...gradeInputStyle, backgroundColor: isBulkEdit ? 'var(--color-bg)' : 'rgba(255,255,255,0.02)' }}
+                                                />
+                                            </div>
+                                        </td>
+                                        <td style={{ width: '120px', textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                <input
+                                                    type="text" value={editRow.gk} disabled={!isBulkEdit}
+                                                    onChange={(e) => handleGradeInputChange(g.id, 'gk', e.target.value)}
+                                                    style={{ ...gradeInputStyle, backgroundColor: isBulkEdit ? 'var(--color-bg)' : 'rgba(255,255,255,0.02)' }}
+                                                />
+                                            </div>
+                                        </td>
+                                        <td style={{ width: '120px', textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                <input
+                                                    type="text" value={editRow.ck} disabled={!isBulkEdit}
+                                                    onChange={(e) => handleGradeInputChange(g.id, 'ck', e.target.value)}
+                                                    style={{ ...gradeInputStyle, backgroundColor: isBulkEdit ? 'var(--color-bg)' : 'rgba(255,255,255,0.02)' }}
+                                                />
+                                            </div>
+                                        </td>
+                                        <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--color-success)', fontSize: '15px' }}>
+                                            {isBulkEdit ? currentFinal : g.overallGrade}
+                                        </td>
+                                        <td style={{ textAlign: 'center', fontWeight: 'bold', color: g.letterGrade === 'F' ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                                            {g.letterGrade}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+const labelStyle = { display: 'block', fontSize: '13px', marginBottom: '6px', fontWeight: 'bold', color: 'var(--text-cyan)', textAlign: 'left' };
+const selectStyle = { width: '100%', padding: '10px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', outline: 'none', cursor: 'pointer' };
+const gradeInputStyle = { width: '65px', padding: '6px', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', textAlign: 'center', outline: 'none', transition: 'all 0.2s' };
+const primaryBtnStyle = { padding: '8px 24px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' };
+const tableStyle = { width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)' };
+const thStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', backgroundColor: 'var(--color-surface-hover)', textAlign: 'left', padding: '12px' };
+const thCenterStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', backgroundColor: 'var(--color-surface-hover)', textAlign: 'center', padding: '12px' };
+const trStyle = { borderBottom: '1px solid var(--color-border)', padding: '12px' };
+</file>
+
+<file path="student-management-ui/src/pages/LoginPage.jsx">
+import React, { useState } from 'react';
+import axiosClient from '../api/axiosClient';
+
+function LoginPage() {
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+
+    // Các State quản lý trạng thái ẩn/hiển thị của từng ô mật khẩu độc lập
+    const [showPassword, setShowPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    const [isFirstLoginMode, setIsFirstLoginMode] = useState(false);
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+
+        try {
+            const data = await axiosClient.post('/auth/login', { username, password });
+
+            // ✅ FIX: Java serialize boolean field "isFirstLogin" thành "firstLogin" trong JSON
+            if (data.firstLogin) {
+                setIsFirstLoginMode(true);
+                alert("Hệ thống phát hiện đây là lần đầu bạn đăng nhập. Bạn bắt buộc phải đổi mật khẩu để bảo mật tài khoản!");
+            } else {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('username', data.username);
+                localStorage.setItem('roles', data.roles);
+                localStorage.setItem('userId', data.userId);
+
+                if (data.studentId) localStorage.setItem('studentId', data.studentId);
+                if (data.teacherId) localStorage.setItem('teacherId', data.teacherId);
+
+                window.location.href = '/';
+            }
+        } catch (err) {
+            setError(err || 'Email hoặc mật khẩu không chính xác!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleChangePassword = async (e) => {
+        e.preventDefault();
+        setError('');
+
+        if (newPassword.length < 6) {
+            setError('Mật khẩu mới phải từ 6 ký tự trở lên!');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setError('Mật khẩu xác nhận không trùng khớp!');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            await axiosClient.post('/auth/change-password', { username, newPassword });
+            alert('Đổi mật khẩu thành công mượt mà! Vui lòng đăng nhập lại bằng mật khẩu mới của bạn.');
+            setIsFirstLoginMode(false);
+            setPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+            // Reset trạng thái mắt về ẩn
+            setShowPassword(false);
+            setShowNewPassword(false);
+            setShowConfirmPassword(false);
+        } catch (err) {
+            setError(err || 'Có lỗi phát sinh khi đổi mật khẩu.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div style={{ maxWidth: '400px', margin: '100px auto', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--text-main)' }}>
+
+            {/* GIAO DIỆN 1: FORM BẮT BUỘC ĐỔI MẬT KHẨU LẦN ĐẦU */}
+            {isFirstLoginMode ? (
+                <form onSubmit={handleChangePassword}>
+                    <h2 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)', color: 'var(--color-warning)' }}>🔒 ĐỔI MẬT KHẨU LẦN ĐẦU</h2>
+                    {error && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>{error}</div>}
+
+                    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                        <label style={{ display: 'block', marginBottom: '4px' }}>Mật khẩu mới:</label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showNewPassword ? "text" : "password"}
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                required
+                                style={inputStyle}
+                            />
+                            <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} style={eyeButtonStyle}>
+                                {showNewPassword ? '👁️' : '🙈'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
+                        <label style={{ display: 'block', marginBottom: '4px' }}>Xác nhận mật khẩu mới:</label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showConfirmPassword ? "text" : "password"}
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                                style={inputStyle}
+                            />
+                            <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={eyeButtonStyle}>
+                                {showConfirmPassword ? '👁️' : '🙈'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" disabled={loading} style={buttonStyle}>
+                        {loading ? 'Đang xử lý...' : 'Xác Nhận Thay Đổi'}
+                    </button>
+                </form>
+            ) : (
+                /* GIAO DIỆN 2: FORM ĐĂNG NHẬP MẶC ĐỊNH */
+                <form onSubmit={handleLogin}>
+                    <h2 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)', color: 'var(--text-cyan)' }}>ĐĂNG NHẬP HỆ THỐNG</h2>
+                    {error && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>{error}</div>}
+
+                    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                        {/* 🔥 SỬA: Đổi nhãn từ Tên đăng nhập thành Email */}
+                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Email đăng nhập (@open.edu.vn):</label>
+                        <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required style={inputStyleForUsername} />
+                    </div>
+
+                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
+                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Mật khẩu:</label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                style={inputStyle}
+                            />
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} style={eyeButtonStyle}>
+                                {showPassword ? '👁️' : '🙈'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" disabled={loading} style={buttonStyle}>
+                        {loading ? 'Đang xác thực...' : 'Đăng Nhập'}
+                    </button>
+                </form>
+            )}
+        </div>
+    );
+}
+
+// Style dùng chung cho ô nhập Mật khẩu (Có chừa khoảng trống phải 40px cho nút mắt)
+const inputStyle = {
+    width: '100%',
+    padding: 'var(--spacing-sm)',
+    paddingRight: '40px', // Chống tràn đè chữ lên icon mắt
+    borderRadius: '4px',
+    border: '1px solid var(--color-border)',
+    backgroundColor: 'var(--color-surface-hover)',
+    color: 'var(--text-main)',
+    boxSizing: 'border-box',
+    outline: 'none'
+};
+
+// Style riêng cho Username không cần căn lề phải chừa khoảng trống nút mắt
+const inputStyleForUsername = {
+    width: '100%',
+    padding: 'var(--spacing-sm)',
+    borderRadius: '4px',
+    border: '1px solid var(--color-border)',
+    backgroundColor: 'var(--color-surface-hover)',
+    color: 'var(--text-main)',
+    boxSizing: 'border-box',
+    outline: 'none'
+};
+
+// Định vị nút Icon Mắt tuyệt đối nằm đè gọn gàng bên phải ô Input
+const eyeButtonStyle = {
+    position: 'absolute',
+    right: '10px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    border: 'none',
+    backgroundColor: 'transparent',
+    cursor: 'pointer',
+    fontSize: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    padding: 0,
+    userSelect: 'none'
+};
+
+const buttonStyle = { width: '100%', padding: 'var(--spacing-sm)', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' };
+
+export default LoginPage;
+</file>
+
 <file path="student-management-ui/src/pages/RegistrationPage.jsx">
 import React, { useState, useEffect } from 'react';
 import axiosClient from '../api/axiosClient';
@@ -3152,9 +5386,41 @@ export default function RegistrationPage() {
     const [isRegistrationTime, setIsRegistrationTime] = useState(false);
     const [activePeriodInfo, setActivePeriodInfo] = useState(null);
 
+    // 🔥 STATE ĐẾM GIÂY REALTIME: Đồng bộ thời gian thực cho cả hệ thống và bảng lịch sử
+    const [tick, setTick] = useState(Date.now());
+
     useEffect(() => {
         refreshData();
     }, [role]);
+
+    // Kích hoạt bộ đếm nhịp chạy ngầm mỗi 1 giây
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setTick(Date.now());
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    // Tự động đóng/mở cổng chọn môn cho Sinh viên khi đồng hồ chạm mốc giờ hẹn
+    useEffect(() => {
+        if (role.includes('STUDENT') && activePeriodInfo) {
+            const now = new Date();
+            const start = new Date(activePeriodInfo.startTime);
+            const end = new Date(activePeriodInfo.endTime);
+
+            if (activePeriodInfo.isActive && now >= start && now <= end) {
+                if (!isRegistrationTime) {
+                    setIsRegistrationTime(true);
+                    fetchOpenClassesForStudent(activePeriodInfo.semester);
+                }
+            } else {
+                if (isRegistrationTime) {
+                    setIsRegistrationTime(false);
+                    setAvailableClasses([]);
+                }
+            }
+        }
+    }, [tick, activePeriodInfo, role]);
 
     const refreshData = () => {
         if (role.includes('ADMIN')) {
@@ -3176,18 +5442,19 @@ export default function RegistrationPage() {
     // ==================== 🛠️ NGHIỆP VỤ ADMIN ====================
     const loadAdminPeriodsAndClasses = async () => {
         try {
-            // 1. Tải lịch sử tất cả các đợt mở cổng từ DB
             const periodsData = await axiosClient.get('/registration/periods');
             if (periodsData && periodsData.length > 0) {
                 const sortedPeriods = [...periodsData].sort((a, b) => b.id - a.id);
                 setAllPeriods(sortedPeriods);
-                // Mặc định chọn đợt mới nhất để hiển thị chi tiết
-                if (!selectedPeriod) {
+
+                if (selectedPeriod) {
+                    const updated = sortedPeriods.find(p => p.id === selectedPeriod.id);
+                    setSelectedPeriod(updated || sortedPeriods[0]);
+                } else {
                     setSelectedPeriod(sortedPeriods[0]);
                 }
             }
 
-            // 2. Tải toàn bộ danh sách lớp học phần thật từ hệ thống
             const classesData = await axiosClient.get('/course-classes');
             setCourseClasses(classesData);
         } catch (err) { showMessage('Không thể tải dữ liệu quản trị hệ thống', true); }
@@ -3199,16 +5466,7 @@ export default function RegistrationPage() {
             await axiosClient.post('/registration/periods', periodForm);
             showMessage('Kích hoạt cấu hình khung giờ và lưu đợt mở đăng ký học kỳ mới thành công!');
             setPeriodForm({ semester: 'HK1-2026', startTime: '', endTime: '' });
-
-            // Tải lại dữ liệu đợt mới vừa tạo
-            const periodsData = await axiosClient.get('/registration/periods');
-            if (periodsData && periodsData.length > 0) {
-                const sortedPeriods = [...periodsData].sort((a, b) => b.id - a.id);
-                setAllPeriods(sortedPeriods);
-                setSelectedPeriod(sortedPeriods[0]); // Chuyển vùng xem chi tiết sang đợt mới nhất
-            }
-            const classesData = await axiosClient.get('/course-classes');
-            setCourseClasses(classesData);
+            refreshData();
         } catch (err) { showMessage(err || 'Lỗi kích hoạt khung giờ', true); }
     };
 
@@ -3217,13 +5475,7 @@ export default function RegistrationPage() {
         try {
             await axiosClient.put(`/registration/periods/${id}/close`);
             showMessage('Đã đóng cổng và hủy kích hoạt khung giờ thành công!');
-            // Cập nhật lại trạng thái hiển thị
-            const periodsData = await axiosClient.get('/registration/periods');
-            if (periodsData && periodsData.length > 0) {
-                const sortedPeriods = [...periodsData].sort((a, b) => b.id - a.id);
-                setAllPeriods(sortedPeriods);
-                setSelectedPeriod(sortedPeriods.find(p => p.id === id) || sortedPeriods[0]);
-            }
+            refreshData();
         } catch (err) { showMessage(err || 'Không thể thực hiện hủy kích hoạt!', true); }
     };
 
@@ -3231,7 +5483,6 @@ export default function RegistrationPage() {
         try {
             await axiosClient.put(`/registration/course-class/${id}/toggle`);
             showMessage(`Cập nhật trạng thái tích chọn mở lớp học phần thành công!`);
-            // Làm tươi danh sách lớp
             const classesData = await axiosClient.get('/course-classes');
             setCourseClasses(classesData);
         } catch (err) { showMessage(err || 'Không thể thay đổi trạng thái tích chọn môn', true); }
@@ -3255,13 +5506,23 @@ export default function RegistrationPage() {
     };
 
     // ==================== 🎓 NGHIỆP VỤ STUDENT ====================
+    const fetchOpenClassesForStudent = async (semester) => {
+        try {
+            const allSystemClasses = await axiosClient.get('/course-classes');
+            const filteredOpenClasses = allSystemClasses.filter(
+                c => c.openForRegistration === true && c.semester === semester
+            );
+            setAvailableClasses(filteredOpenClasses);
+        } catch (err) { console.error(err); }
+    };
+
     const loadStudentRegistrationFlow = async () => {
         try {
             const periods = await axiosClient.get('/registration/periods');
             let period = null;
             if (periods && periods.length > 0) {
                 const sorted = [...periods].sort((a, b) => b.id - a.id);
-                period = sorted[0]; // Bóc đợt cấu hình mới nhất
+                period = sorted[0];
                 setActivePeriodInfo(period);
             }
 
@@ -3272,12 +5533,7 @@ export default function RegistrationPage() {
 
                 if (now >= start && now <= end) {
                     setIsRegistrationTime(true);
-                    // 🔥 ĐÃ SỬA VÁ LỖI CHÍ MẠNG: Lấy từ /course-classes của DB thật và thực hiện lọc thông minh phía Client
-                    const allSystemClasses = await axiosClient.get('/course-classes');
-                    const filteredOpenClasses = allSystemClasses.filter(
-                        c => c.openForRegistration === true && c.semester === period.semester
-                    );
-                    setAvailableClasses(filteredOpenClasses);
+                    await fetchOpenClassesForStudent(period.semester);
                 } else {
                     setIsRegistrationTime(false);
                     setAvailableClasses([]);
@@ -3315,7 +5571,6 @@ export default function RegistrationPage() {
         return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')} ngày ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
     };
 
-    // 🔥 THÊM MỚI HÀM KIỂM TRA TRẠNG THÁI THỜI GIAN THỰC (Sửa lỗi quá hạn vẫn báo mở ở Admin)
     const renderPeriodStatusLabel = (period) => {
         if (!period) return <span style={{color:'var(--text-muted)'}}>Chưa rõ</span>;
         if (!period.isActive) {
@@ -3353,24 +5608,53 @@ export default function RegistrationPage() {
                     <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
                         <h3 style={{ color: 'var(--text-cyan)', margin: '0 0 12px 0' }}>📂 LỊCH SỬ CÁC ĐỢT MỞ CỔNG ĐĂNG KÝ HỆ THỐNG</h3>
                         <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
-                            {allPeriods.map(p => (
-                                <div
-                                    key={p.id}
-                                    onClick={() => setSelectedPeriod(p)}
-                                    style={{
-                                        padding: '10px 15px',
-                                        backgroundColor: selectedPeriod?.id === p.id ? 'var(--color-primary)' : 'var(--color-bg)',
-                                        border: selectedPeriod?.id === p.id ? '2px solid var(--text-cyan)' : '1px solid var(--color-border)',
-                                        borderRadius: '6px', cursor: 'pointer', minWidth: '220px', transition: 'all 0.2s'
-                                    }}
-                                >
-                                    <div style={{ fontWeight: 'bold', fontSize: '14px' }}>Học kỳ: {p.semester}</div>
-                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Mã đợt: #RP_{p.id}</div>
-                                    <div style={{ fontSize: '11px', marginTop: '6px', color: p.isActive ? 'var(--color-success)' : 'var(--color-danger)', fontWeight: 'bold' }}>
-                                        {p.isActive ? '● Đang hoạt động' : '🔒 Đã hủy/Đóng cổng'}
+                            {allPeriods.map(p => {
+                                const isSelected = selectedPeriod?.id === p.id;
+
+                                // 🔥 ĐÃ SỬA LUỒNG REALTIME: Tính toán nhãn trạng thái chính xác từng giây cho từng ô trong danh sách lịch sử
+                                let statusText = '🔒 Đã hủy/Đóng cổng';
+                                let statusColor = 'var(--color-danger)';
+
+                                if (p.isActive) {
+                                    const now = new Date();
+                                    const start = new Date(p.startTime);
+                                    const end = new Date(p.endTime);
+                                    if (now < start) {
+                                        statusText = '⏳ Chờ mốc giờ';
+                                        statusColor = 'var(--color-warning)';
+                                    } else if (now > end) {
+                                        statusText = '⏰ Đã hết hạn';
+                                        statusColor = 'var(--color-danger)';
+                                    } else {
+                                        statusText = '● Đang hoạt động';
+                                        statusColor = 'var(--color-success)';
+                                    }
+                                }
+
+                                return (
+                                    <div
+                                        key={p.id}
+                                        onClick={() => setSelectedPeriod(p)}
+                                        style={{
+                                            padding: '10px 15px',
+                                            // 🔥 ĐÃ ĐẠI TU UI: Giữ nền tối, nếu click chọn thì bật viền Cyan phát sáng và nhuộm màu chữ để nét căng, dễ nhìn
+                                            backgroundColor: isSelected ? 'rgba(0, 188, 212, 0.08)' : 'var(--color-bg)',
+                                            border: isSelected ? '2px solid var(--text-cyan)' : '1px solid var(--color-border)',
+                                            boxShadow: isSelected ? '0 0 10px rgba(0, 188, 212, 0.25)' : 'none',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            minWidth: '220px',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        <div style={{ fontWeight: 'bold', fontSize: '14px', color: isSelected ? 'var(--text-cyan)' : 'white' }}>Học kỳ: {p.semester}</div>
+                                        <div style={{ fontSize: '12px', color: isSelected ? 'white' : 'var(--text-muted)', marginTop: '4px' }}>Mã đợt: #RP_{p.id}</div>
+                                        <div style={{ fontSize: '11px', marginTop: '6px', color: statusColor, fontWeight: 'bold' }}>
+                                            {statusText}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                             {allPeriods.length === 0 && <p style={{color:'var(--text-muted)', fontSize:'13px'}}>Chưa có dữ liệu lịch sử đợt mở đăng ký.</p>}
                         </div>
                     </div>
@@ -3379,21 +5663,17 @@ export default function RegistrationPage() {
                     {selectedPeriod && (
                         <div style={{ padding: '15px 20px', backgroundColor: 'var(--color-surface)', borderLeft: '5px solid var(--color-success)', borderRadius: '4px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid var(--color-border)' }}>
                             <div>
-                                <h4 style={{ margin: '0 0 6px 0', color: 'var(--color-success)' }}>🟢 KHUNG GIỜ HỆ THỐNG ĐANG LƯU TRỮ VÀ HOẠT ĐỘNG</h4>
-                                {activePeriodInfo ? (
-                                    <div style={{ fontSize: '13px' }}>
-                                        Học kỳ áp dụng: <b style={{color:'var(--text-cyan)'}}>{activePeriodInfo.semester}</b> |
-                                        Thời gian: Từ <b>{formatDate(activePeriodInfo.startTime)}</b> đến <b>{formatDate(activePeriodInfo.endTime)}</b> |
-                                        Trạng thái: {renderPeriodStatusLabel(activePeriodInfo)}  {/* 🔥 GỌI HÀM ĐÃ SỬA TẠI ĐÂY */}
-                                    </div>
-                                ) : (
-                                    <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Chưa có cấu hình lịch đăng ký tín chỉ nào hoạt động. Vui lòng thiết lập ở form bên dưới.</div>
-                                )}
+                                <h4 style={{ margin: '0 0 6px 0', color: 'var(--text-cyan)' }}>🟢 CHI TIẾT ĐỢT ĐANG CHỌN GIÁM SÁT REALTIME</h4>
+                                <div style={{ fontSize: '13px' }}>
+                                    Học kỳ áp dụng: <b style={{color:'var(--color-warning)'}}>{selectedPeriod.semester}</b> |
+                                    Thời gian cấu hình: Từ <b>{formatDate(selectedPeriod.startTime)}</b> đến <b>{formatDate(selectedPeriod.endTime)}</b> |
+                                    Trạng thái thực tế: {renderPeriodStatusLabel(selectedPeriod)}
+                                </div>
                             </div>
 
-                            {activePeriodInfo && activePeriodInfo.isActive && (
+                            {selectedPeriod && selectedPeriod.isActive && (
                                 <button
-                                    onClick={() => handleClosePeriod(activePeriodInfo.id)}
+                                    onClick={() => handleClosePeriod(selectedPeriod.id)}
                                     style={{ padding: '8px 14px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
                                 >
                                     🛑 Hủy Kích Hoạt Đợt Này
@@ -3618,6 +5898,11 @@ function TeacherPage() {
     const [showModal, setShowModal] = useState(false);
     const [modalError, setModalError] = useState('');
 
+    // Khởi tạo chế độ sửa
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingTeacherId, setEditingTeacherId] = useState('');
+
+    // Form States
     const [teacherCode, setTeacherCode] = useState('');
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
@@ -3626,12 +5911,15 @@ function TeacherPage() {
     const [phoneNumber, setPhoneNumber] = useState('');
     const [departmentId, setDepartmentId] = useState('');
 
-    // 🔥 THÊM MỚI: State lưu trữ danh sách khoa chuyên môn phục vụ Dropdown menu
+    // List States dữ liệu gợi ý Dropdown
     const [departmentList, setDepartmentList] = useState([]);
+
+    // STATE TÌM KIẾM MÃ GIẢNG VIÊN
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         fetchTeachers();
-        fetchDepartmentList(); // Nạp sẵn danh sách khoa từ DB lên
+        fetchDepartmentList();
     }, []);
 
     const fetchTeachers = async () => {
@@ -3641,44 +5929,88 @@ function TeacherPage() {
             setTeachers(data);
         } catch (err) {
             console.error(err);
-        } finally {
+        } finally { // 🔥 ĐÃ SỬA: Thay thế từ khóa lỗi 'fill' thành 'finally' chuẩn cú pháp
             setLoading(false);
         }
     };
 
-    // 🔥 THÊM MỚI: Hàm tải danh sách khoa viện chuyên môn thực tế từ DB
     const fetchDepartmentList = async () => {
         try {
             const data = await axiosClient.get('/departments');
             setDepartmentList(data);
         } catch (err) {
-            console.error("Lỗi nạp danh sách khoa gợi ý:", err);
+            console.error("Lỗi nạp danh sách khoa dropdown:", err);
         }
     };
 
-    const handleCreateTeacher = async (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setModalError('');
-        if (!departmentId) {
-            setModalError('Vui lòng chọn Khoa/Viện chuyên môn phù hợp!');
-            return;
-        }
 
-        const payload = { teacherCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, departmentId: Number(departmentId) };
-        try {
-            await axiosClient.post('/teachers', payload);
-            alert(`Cấp tài khoản Giảng viên thành công!\nTài khoản: ${teacherCode}\nMật khẩu mặc định: password1234`);
-            setShowModal(false);
-            resetForm();
-            fetchTeachers();
-        } catch (err) {
-            setModalError(err || 'Lỗi khởi tạo hồ sơ giảng viên.');
+        if (isEditMode) {
+            const payload = { firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber };
+            try {
+                await axiosClient.put(`/teachers/${editingTeacherId}`, payload);
+                alert("Cập nhật thông tin hồ sơ giảng viên thành công!");
+                setShowModal(false);
+                resetForm();
+                fetchTeachers();
+            } catch (err) { setModalError(err || 'Lỗi cập nhật hồ sơ giảng viên.'); }
+        } else {
+            if (!departmentId) { setModalError('Vui lòng chọn Khoa/Viện chuyên môn gợi ý!'); return; }
+            const payload = { teacherCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, departmentId: Number(departmentId) };
+            try {
+                await axiosClient.post('/teachers', payload);
+                alert(`Cấp tài khoản Giảng viên thành công!\nTài khoản: ${teacherCode}\nMật khẩu mặc định: password1234`);
+                setShowModal(false);
+                resetForm();
+                fetchTeachers();
+            } catch (err) { setModalError(err || 'Lỗi khởi tạo hồ sơ giảng viên.'); }
+        }
+    };
+
+    const handleOpenEdit = (t) => {
+        setIsEditMode(true);
+        setEditingTeacherId(t.id);
+        setTeacherCode(t.teacherCode);
+        setFirstName(t.firstName);
+        setLastName(t.lastName);
+        setDateOfBirth(t.dateOfBirth || '');
+        setGender(t.gender || 'Nam');
+        setPhoneNumber(t.phoneNumber || '');
+        setDepartmentId(''); // Khóa chỉnh sửa khoa khi đang sửa thông tin cá nhân để bảo vệ toàn vẹn dữ liệu
+        setShowModal(true);
+    };
+
+    const handleLockTeacher = async (id, code, name) => {
+        if (window.confirm(`Bạn có chắc chắn muốn KHÓA tài khoản giảng viên [${code} - ${name}] không?\nTài khoản này sẽ lập tức bị đóng băng quyền truy cập.`)) {
+            try {
+                await axiosClient.delete(`/teachers/${id}`);
+                alert('Đã khóa hồ sơ và đóng băng tài khoản giảng viên thành công!');
+                fetchTeachers();
+            } catch (err) { alert(err || 'Không thể thực hiện khóa giảng viên!'); }
+        }
+    };
+
+    const handleUnlockTeacher = async (id, code, name) => {
+        if (window.confirm(`Bạn có chắc chắn muốn MỞ KHÓA lại cho giảng viên [${code} - ${name}] không?`)) {
+            try {
+                await axiosClient.put(`/teachers/${id}/enable`);
+                alert('Mở khóa tài khoản và tái khôi phục quyền giảng dạy thành công!');
+                fetchTeachers();
+            } catch (err) { alert(err || 'Không thể thực hiện mở khóa giảng viên!'); }
         }
     };
 
     const resetForm = () => {
         setTeacherCode(''); setFirstName(''); setLastName(''); setDateOfBirth(''); setGender('Nam'); setPhoneNumber(''); setDepartmentId(''); setModalError('');
+        setIsEditMode(false); setEditingTeacherId('');
     };
+
+    // BỘ LỌC TÌM KIẾM MÃ GIẢNG VIÊN REALTIME
+    const filteredTeachers = teachers.filter(t =>
+        t.teacherCode.toLowerCase().includes(searchQuery.trim().toLowerCase())
+    );
 
     if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang tải danh sách giảng viên...</div>;
 
@@ -3686,9 +6018,21 @@ function TeacherPage() {
         <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
                 <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>QUẢN LÝ DANH SÁCH GIẢNG VIÊN</h2>
-                <button onClick={() => setShowModal(true)} style={{ padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-success)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                <button onClick={() => { resetForm(); setShowModal(true); }} style={{ padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-success)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
                     + Cấp Tài Khoản Giảng Viên
                 </button>
+            </div>
+
+            {/* THANH TÌM KIẾM MÃ GIẢNG VIÊN */}
+            <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '13px', marginBottom: '6px', fontWeight: 'bold', color: 'var(--text-cyan)' }}>🔍 Tìm kiếm nhanh theo Mã giảng viên:</label>
+                <input
+                    type="text"
+                    placeholder="Nhập mã số giảng viên cần tìm kiếm..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{ width: '100%', maxWidth: '400px', padding: '8px 12px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', outline: 'none' }}
+                />
             </div>
 
             <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
@@ -3699,52 +6043,67 @@ function TeacherPage() {
                     <th style={{ padding: 'var(--spacing-md)' }}>Khoa Chuyên Môn</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Email Giảng Dạy</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Số Điện Thoại</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Trạng thái hệ thống</th>
+                    <th style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>Hành Động Tác Vụ</th>
                 </tr>
                 </thead>
                 <tbody>
-                {teachers.map((t) => (
-                    <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                {filteredTeachers.map((t) => (
+                    <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)', opacity: t.active ? 1 : 0.55 }}>
                         <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{t.teacherCode}</td>
                         <td style={{ padding: 'var(--spacing-md)' }}>{t.lastName} {t.firstName}</td>
                         <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)' }}>{t.departmentName}</td>
                         <td style={{ padding: 'var(--spacing-md)' }}>{t.gender}</td>
                         <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-muted)' }}>{t.email}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{t.phoneNumber || '-'}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>
+                            {t.active ? <span style={{ color: 'var(--color-success)', fontSize: '12px', fontWeight: 'bold' }}>● Đang giảng dạy</span> : <span style={{ color: 'var(--color-danger)', fontSize: '12px', fontWeight: 'bold' }}>🔒 Đã khóa tài khoản</span>}
+                        </td>
+                        <td style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>
+                            <button onClick={() => handleOpenEdit(t)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', marginRight: '5px', fontWeight: 'bold' }}>Sửa</button>
+                            {t.active ? (
+                                <button onClick={() => handleLockTeacher(t.id, t.teacherCode, t.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Khóa</button>
+                            ) : (
+                                <button onClick={() => handleUnlockTeacher(t.id, t.teacherCode, t.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Mở Khóa</button>
+                            )}
+                        </td>
                     </tr>
                 ))}
+                {filteredTeachers.length === 0 && (
+                    <tr>
+                        <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>Không có dữ liệu giảng viên tương thích với từ khóa tìm kiếm.</td>
+                    </tr>
+                )}
                 </tbody>
             </table>
 
+            {/* MODAL CẤP TÀI KHOẢN / SỬA HỒ SƠ */}
             {showModal && (
                 <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 }}>
                     <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--spacing-xl)', borderRadius: '8px', width: '550px' }}>
-                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>✍️ THÊM MỚI HỒ SƠ GIẢNG VIÊN</h3>
+                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>{isEditMode ? '📝 CẬP NHẬT HỒ SƠ GIẢNG VIÊN' : '✍️ THÊM MỚI HỒ SƠ GIẢNG VIÊN'}</h3>
                         {modalError && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)' }}>{modalError}</div>}
-                        <form onSubmit={handleCreateTeacher}>
+                        <form onSubmit={handleSubmit}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Mã Giảng Viên:</label><input type="text" placeholder="GV2026_01" value={teacherCode} onChange={(e) => setTeacherCode(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Mã Giảng Viên:</label><input type="text" placeholder="GV2026_01" value={teacherCode} onChange={(e) => setTeacherCode(e.target.value)} required disabled={isEditMode} style={inputStyle} /></div>
 
-                                {/* 🔥 ĐÃ SỬA: Thay thế ô input ID Number bằng Dropdown chọn Khoa chuyên môn chuyên nghiệp */}
+                                {/* Dropdown menu bốc từ khoa chuyên môn thật dưới DB */}
                                 <div>
-                                    <label style={{ display: 'block', marginBottom: '4px' }}>Khoa Chuyên Môn:</label>
-                                    <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required style={inputStyle}>
-                                        <option value="">-- Chọn khoa giảng dạy --</option>
-                                        {departmentList.map(dept => (
-                                            <option key={dept.id} value={dept.id}>{dept.name} ({dept.code})</option>
-                                        ))}
+                                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Khoa Chuyên Môn:</label>
+                                    <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required disabled={isEditMode} style={inputStyle}>
+                                        <option value="">{isEditMode ? '-- Không hoán đổi khoa --' : '-- Chọn khoa chuyên môn --'}</option>
+                                        {departmentList.map(dept => <option key={dept.id} value={dept.id}>{dept.name} ({dept.code})</option>)}
                                     </select>
                                 </div>
 
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Họ Và Tên Đệm:</label><input type="text" placeholder="Trần Quốc" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Tên Giảng Viên:</label><input type="text" placeholder="Tuấn" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Giới Tính:</label><select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
-                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px' }}>Số Điện Thoại:</label><input type="text" placeholder="0912345678" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Họ Và Tên Đệm:</label><input type="text" placeholder="Trần Quốc" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Tên Giảng Viên:</label><input type="text" placeholder="Tuấn" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Giới Tính:</label><select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Số Điện Thoại:</label><input type="text" placeholder="0912345678" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
+                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
-                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}>Hủy</button>
-                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}>Khởi Tạo & Cấp TK</button>
+                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Hủy</button>
+                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>{isEditMode ? 'Lưu Thay Đổi' : 'Khởi Tạo & Cấp TK'}</button>
                             </div>
                         </form>
                     </div>
@@ -3756,1750 +6115,6 @@ function TeacherPage() {
 
 const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
 export default TeacherPage;
-</file>
-
-<file path="student-management-ui/vite.config.js">
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
-})
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/AuthenticationController.java">
-package com.dangdepzaivaio.StudentManagement.controller;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.AuthenticationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.AuthenticationResponse;
-import com.dangdepzaivaio.StudentManagement.service.impl.AuthenticationService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import java.util.Map;
-
-@RestController
-@RequestMapping("/auth")
-@RequiredArgsConstructor
-public class AuthenticationController {
-
-    private final AuthenticationService authenticationService;
-
-    @PostMapping("/login")
-    public ApiResponse<AuthenticationResponse> login(@RequestBody AuthenticationRequest request) {
-        var result = authenticationService.authenticate(request);
-        return new ApiResponse<>(1000, "Đăng nhập hệ thống thành công!", result);
-    }
-
-    @PostMapping("/change-password")
-    public ApiResponse<String> changePassword(@RequestBody Map<String, String> request) {
-        String username = request.get("username");
-        String newPassword = request.get("newPassword");
-        authenticationService.changePasswordFirstLogin(username, newPassword);
-        return new ApiResponse<>(1000, "Đổi mật khẩu lần đầu thành công!", "Mật khẩu mới đã được áp dụng.");
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/GradeController.java">
-package com.dangdepzaivaio.StudentManagement.controller;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse;
-import com.dangdepzaivaio.StudentManagement.service.GradeService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
-import java.util.List;
-
-@RestController
-@RequestMapping("/grades")
-@RequiredArgsConstructor
-public class GradeController {
-
-    private final GradeService gradeService;
-
-    @PostMapping
-    public ApiResponse<GradeResponse> inputGrade(@RequestBody @Valid GradeRequest request) {
-        return new ApiResponse<>(1000, "Nhập và quy đổi điểm số thành công!", gradeService.inputGrade(request));
-    }
-
-    @GetMapping("/student/{studentId}")
-    public ApiResponse<List<GradeResponse>> getGradesByStudent(@PathVariable String studentId) { // 🔥 String
-        return new ApiResponse<>(1000, "Lấy bảng điểm chi tiết của sinh viên thành công!", gradeService.getGradesByStudent(studentId));
-    }
-
-    @PutMapping("/{id}")
-    public ApiResponse<GradeResponse> updateGrade(@PathVariable Long id, @RequestBody @Valid GradeRequest request) {
-        return new ApiResponse<>(1000, "Sửa đổi và cập nhật lại điểm số thành công!", gradeService.updateGrade(id, request));
-    }
-
-    @GetMapping
-    public ApiResponse<List<GradeResponse>> getAll() {
-        return new ApiResponse<>(1000, "Lấy toàn bộ danh sách điểm thành công!", gradeService.getAllGrades());
-    }
-
-    @DeleteMapping("/{id}")
-    public ApiResponse<String> deleteGrade(@PathVariable Long id) {
-        gradeService.deleteGrade(id);
-        return new ApiResponse<>(1000, "Xóa đầu điểm thành công!", "Đầu điểm có ID " + id + " đã bị loại bỏ hoàn toàn.");
-    }
-
-    @GetMapping("/student/{studentId}/summary")
-    public ApiResponse<StudentAcademicSummaryResponse> getAcademicSummary(@PathVariable String studentId) { // 🔥 String
-        return new ApiResponse<>(1000, "Tổng hợp kết quả học tập và tính GPA thành công!", gradeService.getAcademicSummary(studentId));
-    }
-
-    @GetMapping("/{id}")
-    public ApiResponse<GradeResponse> getGradeById(@PathVariable Long id) {
-        return new ApiResponse<>(1000, "Lấy chi tiết thông tin điểm số thành công!", gradeService.getGradeById(id));
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/SubjectController.java">
-package com.dangdepzaivaio.StudentManagement.controller;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse; // Đổi import sang DTO Response
-import com.dangdepzaivaio.StudentManagement.service.SubjectService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-
-@RestController
-@RequestMapping("/subjects")
-@RequiredArgsConstructor
-public class SubjectController {
-
-    private final SubjectService subjectService;
-
-    @PostMapping
-    public ApiResponse<SubjectResponse> createSubject(@RequestBody @Valid SubjectRequest request) {
-        return new ApiResponse<>(1000, "Tạo môn học thành công!", subjectService.createSubject(request));
-    }
-
-    @GetMapping
-    public ApiResponse<List<SubjectResponse>> getAllSubjects() {
-        return new ApiResponse<>(1000, "Lấy danh sách môn học thành công!", subjectService.getAllSubjects());
-    }
-
-    @GetMapping("/{subjectId}")
-    public ApiResponse<SubjectResponse> getSubject(@PathVariable Long subjectId) {
-        return new ApiResponse<>(1000, "Lấy chi tiết môn học thành công!", subjectService.getSubjectById(subjectId));
-    }
-
-    @PutMapping("/{subjectId}")
-    public ApiResponse<SubjectResponse> updateSubject(@PathVariable Long subjectId, @RequestBody @Valid SubjectRequest request) {
-        return new ApiResponse<>(1000, "Cập nhật môn học thành công!", subjectService.updateSubject(subjectId, request));
-    }
-
-    @DeleteMapping("/{subjectId}")
-    public ApiResponse<String> deleteSubject(@PathVariable Long subjectId) {
-        subjectService.deleteSubject(subjectId);
-        return new ApiResponse<>(1000, "Xóa môn học thành công!", "Môn học có ID " + subjectId + " đã bị xóa hoàn toàn.");
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/TeacherController.java">
-package com.dangdepzaivaio.StudentManagement.controller;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.TeacherCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.TeacherUpdateRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.TeacherResponse;
-import com.dangdepzaivaio.StudentManagement.service.TeacherService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-
-@RestController
-@RequestMapping("/teachers")
-@RequiredArgsConstructor
-public class TeacherController {
-
-    private final TeacherService teacherService;
-
-    @PostMapping
-    public ApiResponse<TeacherResponse> createTeacher(@RequestBody @Valid TeacherCreationRequest request) {
-        return new ApiResponse<>(1000, "Cap tai khoan giang vien thanh cong", teacherService.createTeacher(request));
-    }
-
-    @GetMapping
-    public ApiResponse<List<TeacherResponse>> getAll() {
-        return new ApiResponse<>(1000, "Lay danh sach giang vien thanh cong", teacherService.getAllTeachers());
-    }
-
-    @GetMapping("/{teacherId}")
-    public ApiResponse<TeacherResponse> getTeacher(@PathVariable String teacherId) {
-        return new ApiResponse<>(1000, "Lay chi tiet giang vien thanh cong", teacherService.getTeacherById(teacherId));
-    }
-
-    @PutMapping("/{teacherId}")
-    public ApiResponse<TeacherResponse> updateTeacher(@PathVariable String teacherId, @RequestBody @Valid TeacherUpdateRequest request) {
-        return new ApiResponse<>(1000, "Cap nhat giang vien thanh cong", teacherService.updateTeacher(teacherId, request));
-    }
-
-    @PutMapping("/{teacherId}/enable")
-    public ApiResponse<String> enableTeacher(@PathVariable String teacherId) {
-        teacherService.enableTeacher(teacherId);
-        return new ApiResponse<>(1000, "Mo khoa tai khoan giang vien thanh cong", "ID: " + teacherId);
-    }
-
-    @DeleteMapping("/{teacherId}")
-    public ApiResponse<String> deleteTeacher(@PathVariable String teacherId) {
-        teacherService.disableTeacher(teacherId);
-        return new ApiResponse<>(1000, "Khoa tai khoan giang vien thanh cong", "ID: " + teacherId);
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/CourseClassRequest.java">
-package com.dangdepzaivaio.StudentManagement.dto.request;
-
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-
-public record CourseClassRequest(
-        @NotBlank(message = "Ma lop hoc phan khong duoc de trong")
-        String code,
-
-        @NotBlank(message = "Hoc ky khong duoc de trong")
-        String semester,
-
-        @NotNull(message = "ID mon hoc khong duoc de trong")
-        Long subjectId,
-
-        String teacherId,
-
-        @Min(value = 1, message = "Si so toi da phai lon hon 0")
-        Integer maxStudents,
-
-        String schedule,
-
-        Boolean openForRegistration
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/GradeRequest.java">
-package com.dangdepzaivaio.StudentManagement.dto.request;
-
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
-
-public record GradeRequest(
-        @NotNull(message = "ID sinh viên không được để trống")
-        String studentId, // 🔥 Đã đổi sang String
-
-        @NotNull(message = "ID lớp học phần không được để trống")
-        Long courseClassId,
-
-        @Min(value = 0, message = "Điểm chuyên cần không được nhỏ hơn 0")
-        @Max(value = 10, message = "Điểm chuyên cần không được lớn hơn 10")
-        Double attendanceGrade,
-
-        @Min(value = 0, message = "Điểm giữa kỳ không được nhỏ hơn 0")
-        @Max(value = 10, message = "Điểm giữa kỳ không được lớn hơn 10")
-        Double midtermGrade,
-
-        @Min(value = 0, message = "Điểm cuốii kỳ không được nhỏ hơn 0")
-        @Max(value = 10, message = "Điểm cuối kỳ không được lớn hơn 10")
-        Double finalGrade
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentCreationRequest.java">
-package com.dangdepzaivaio.StudentManagement.dto.request;
-
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import java.time.LocalDate;
-
-public record StudentCreationRequest(
-        @NotBlank(message = "Mã sinh viên không được để trống")
-        @Size(max = 20, message = "Mã sinh viên không vượt quá 20 ký tự")
-        String studentCode,
-
-        @NotBlank(message = "Tên sinh viên không được để trống")
-        String firstName,
-
-        @NotBlank(message = "Họ và tên đệm không được để trống")
-        String lastName,
-
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber,
-
-        @NotNull(message = "ID lớp hành chính không được để trống")
-        Long classId
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentUpdateRequest.java">
-package com.dangdepzaivaio.StudentManagement.dto.request;
-
-import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDate;
-
-public record StudentUpdateRequest(
-        @NotBlank(message = "Tên sinh viên không được để trống")
-        String firstName,
-
-        @NotBlank(message = "Họ và tên đệm không được để trống")
-        String lastName,
-
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber,
-        Long classId,
-        Boolean active // 🔥 THÊM TRƯỜNG NÀY: Để nhận trạng thái Đang học (true) / Khóa (false) từ form sửa
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/CourseClassResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-public record CourseClassResponse(
-        Long id,
-        String code,
-        String semester,
-        Long subjectId,
-        String subjectCode,
-        String subjectName,
-        Integer credits,
-        String teacherId,
-        String teacherName,
-        Integer maxStudents,
-        long registeredStudents,
-        String schedule,
-        boolean openForRegistration
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/GradeResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-public record GradeResponse(
-        Long id,
-        String studentId,
-        String studentCode,
-        String studentName,
-        Long courseClassId,
-        String courseClassCode,
-        String subjectName,
-        Integer credits,       // 🔥 THÊM MỚI: Số tín chỉ môn học
-        String teacherName,    // 🔥 THÊM MỚI: Tên giảng viên đứng lớp
-        String schedule,       // 🔥 THÊM MỚI: Lịch học thiết kế (Thứ, Tiết, Phòng)
-        Double attendanceGrade,
-        Double midtermGrade,
-        Double finalGrade,
-        Double overallGrade,
-        String letterGrade,
-        Double grade4
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentAcademicSummaryResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-import java.util.List;
-
-public record StudentAcademicSummaryResponse(
-        String studentId,        // 🔥 Đã đổi sang String
-        String studentCode,
-        String studentName,
-        String className,
-        List<GradeResponse> details,
-        Integer totalCredits,
-        Double gpaSystem10,
-        Double gpaSystem4
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-import java.time.LocalDate;
-
-public record StudentResponse(
-        String id, // 🔥 ĐÃ SỬA: Chuyển hoàn toàn sang kiểu dữ liệu String để hứng chuỗi 'HS_01'
-        String studentCode,
-        String firstName,
-        String lastName,
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber,
-        boolean active,
-        String username,
-        String email,
-        Long classId,
-        String className
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/TeacherResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-import java.time.LocalDate;
-
-public record TeacherResponse(
-        String id,          // PHẢI LÀ String
-        String teacherCode,
-        String firstName,
-        String lastName,
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber,
-        boolean active,
-        String username,
-        String email,
-        String departmentName
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/UserResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-import java.util.Set;
-
-public record UserResponse(
-        String id, // 🔥 Đã đổi sang String
-        String username,
-        String email,
-        boolean active,
-        Set<String> roles
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Grade.java">
-package com.dangdepzaivaio.StudentManagement.entity;
-
-import jakarta.persistence.*;
-import lombok.*;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Entity
-@Table(name = "grades", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"student_id", "course_class_id"}) // Một SV chỉ có 1 dòng điểm trong 1 lớp học phần
-})
-public class Grade extends BaseEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    // Nhiều dòng điểm thuộc về một Sinh viên
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "student_id", nullable = false)
-    private Student student;
-
-    // Nhiều dòng điểm thuộc về một Lớp học phần
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "course_class_id", nullable = false)
-    private CourseClass courseClass;
-
-    @Column(name = "attendance_grade")
-    private Double attendanceGrade; // Điểm chuyên cần
-
-    @Column(name = "midterm_grade")
-    private Double midtermGrade; // Điểm giữa kỳ
-
-    @Column(name = "final_grade")
-    private Double finalGrade; // Điểm cuối kỳ
-
-    @Column(name = "overall_grade")
-    private Double overallGrade; // Điểm tổng kết hệ 10
-
-    @Column(name = "letter_grade", length = 5)
-    private String letterGrade; // Điểm chữ (A, B+, B, C...)
-
-    // BỔ SUNG THÊM DÒNG NÀY
-    @Column(name = "grade_4")
-    private Double grade4; // Điểm số hệ 4 (Ví dụ: 3.5, 4.0)
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Teacher.java">
-package com.dangdepzaivaio.StudentManagement.entity;
-
-import jakarta.persistence.*;
-import lombok.*;
-import java.time.LocalDate;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Entity
-@Table(name = "teachers")
-public class Teacher extends BaseEntity {
-
-    @Id
-    @Column(name = "id", length = 20)
-    private String id; // 🔥 Khóa chính kiểu Chuỗi đồng bộ với User
-
-    @Column(name = "teacher_code", nullable = false, unique = true, length = 20)
-    private String teacherCode;
-
-    @Column(name = "first_name", nullable = false, length = 50)
-    private String firstName;
-
-    @Column(name = "last_name", nullable = false, length = 100)
-    private String lastName;
-
-    @Column(name = "date_of_birth")
-    private LocalDate dateOfBirth;
-
-    @Column(name = "gender", length = 10)
-    private String gender;
-
-    @Column(name = "phone_number", length = 15)
-    private String phoneNumber;
-
-    @Builder.Default
-    @Column(name = "is_active", nullable = false)
-    private boolean isActive = true;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @MapsId // 🔥 Ép khóa chính trùng vẹn với User liên kết
-    @JoinColumn(name = "id")
-    private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id", nullable = false)
-    private Department department;
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/exception/GlobalExceptionHandler.java">
-package com.dangdepzaivaio.StudentManagement.exception;
-
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-
-@RestControllerAdvice
-public class GlobalExceptionHandler {
-
-    // 1. Bắt toàn bộ các lỗi Runtime không xác định (Tránh làm lộ log hệ thống ra ngoài)
-    // 1. Bắt toàn bộ các lỗi Runtime không xác định và trả thẳng tên lỗi ra Postman
-    @ExceptionHandler(value = Exception.class)
-    public ResponseEntity<ApiResponse<Object>> handlingRuntimeException(Exception exception) {
-
-        // Tạo câu thông báo chi tiết: Lấy tên Class của lỗi + Tin nhắn lỗi gốc
-        String detailedMessage = exception.getClass().getSimpleName() + " -> " + exception.getMessage();
-
-        ApiResponse<Object> apiResponse = new ApiResponse<>(
-                ErrorCode.UNCATEGORIZED_EXCEPTION.getCode(),
-                detailedMessage, // Trả thẳng câu này ra ngoài Postman thay vì câu "Lỗi hệ thống không xác định"
-                null
-        );
-        return ResponseEntity.status(ErrorCode.UNCATEGORIZED_EXCEPTION.getStatusCode()).body(apiResponse);
-    }
-
-    // 2. Bắt lỗi nghiệp vụ hệ thống do chúng ta chủ động throw (AppException)
-    @ExceptionHandler(value = AppException.class)
-    public ResponseEntity<ApiResponse<Object>> handlingAppException(AppException exception) {
-        ErrorCode errorCode = exception.getErrorCode();
-        ApiResponse<Object> apiResponse = new ApiResponse<>(
-                errorCode.getCode(),
-                errorCode.getMessage(),
-                null
-        );
-        return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
-    }
-
-    // 3. Bắt toàn bộ lỗi Validation đầu vào từ DTO Records (@NotBlank, @Size, @Email)
-    @ExceptionHandler(value = MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Object>> handlingValidation(MethodArgumentNotValidException exception) {
-        String defaultMessage = exception.getFieldError().getDefaultMessage();
-
-        ApiResponse<Object> apiResponse = new ApiResponse<>(
-                ErrorCode.VALIDATION_ERROR.getCode(),
-                defaultMessage, // Trả ra chính xác câu thông báo lỗi bạn viết ở Record DTO
-                null
-        );
-        return ResponseEntity.status(ErrorCode.VALIDATION_ERROR.getStatusCode()).body(apiResponse);
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/CourseClassMapper.java">
-package com.dangdepzaivaio.StudentManagement.mapper;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.CourseClassRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
-import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
-import com.dangdepzaivaio.StudentManagement.entity.Subject;
-import com.dangdepzaivaio.StudentManagement.entity.Teacher;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.MappingTarget;
-
-@Mapper(componentModel = "spring")
-public interface CourseClassMapper {
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "subject", ignore = true)
-    @Mapping(target = "teacher", ignore = true)
-    @Mapping(target = "registeredStudents", ignore = true)
-    CourseClass toEntity(CourseClassRequest request);
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "subject", ignore = true)
-    @Mapping(target = "teacher", ignore = true)
-    @Mapping(target = "registeredStudents", ignore = true)
-    void updateEntityFromRequest(CourseClassRequest request, @MappingTarget CourseClass courseClass);
-
-    default CourseClassResponse toResponse(CourseClass courseClass) {
-        if (courseClass == null) {
-            return null;
-        }
-
-        Subject subject = courseClass.getSubject();
-        Teacher teacher = courseClass.getTeacher();
-        String teacherName = teacher == null
-                ? null
-                : (safe(teacher.getLastName()) + " " + safe(teacher.getFirstName())).trim();
-
-        return new CourseClassResponse(
-                courseClass.getId(),
-                courseClass.getCode(),
-                courseClass.getSemester(),
-                subject == null ? null : subject.getId(),
-                subject == null ? null : subject.getCode(),
-                subject == null ? null : subject.getName(),
-                subject == null ? null : subject.getCredits(),
-                teacher == null ? null : teacher.getId(),
-                teacherName == null || teacherName.isBlank() ? null : teacherName,
-                courseClass.getMaxStudents(),
-                courseClass.getRegisteredStudents(),
-                courseClass.getSchedule(),
-                courseClass.isOpenForRegistration()
-        );
-    }
-
-    private static String safe(String value) {
-        return value == null ? "" : value;
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/SubjectMapper.java">
-package com.dangdepzaivaio.StudentManagement.mapper;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse; // Thêm import này
-import com.dangdepzaivaio.StudentManagement.entity.Subject;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.MappingTarget;
-
-@Mapper(componentModel = "spring")
-public interface SubjectMapper {
-
-    @Mapping(target = "id", ignore = true)
-    Subject toEntity(SubjectRequest request);
-
-    @Mapping(target = "id", ignore = true)
-    void updateEntityFromRequest(SubjectRequest request, @MappingTarget Subject subject);
-
-    // BỔ SUNG HÀM NÀY: Chuyển đổi thực thể sang DTO phẳng sạch sẽ
-    SubjectResponse toResponse(Subject subject);
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/UserMapper.java">
-package com.dangdepzaivaio.StudentManagement.mapper;
-
-import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
-import com.dangdepzaivaio.StudentManagement.entity.User;
-import com.dangdepzaivaio.StudentManagement.entity.Role;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-
-import java.util.Set;
-import java.util.stream.Collectors;
-
-@Mapper(componentModel = "spring")
-public interface UserMapper {
-
-    @Mapping(target = "roles", source = "roles")
-    UserResponse toResponse(User user);
-
-    // Hàm chuyển đổi custom: Ép danh sách thực thể Role thành bộ tên chuỗi gọn gàng
-    default Set<String> mapRoles(Set<Role> roles) {
-        if (roles == null) return null;
-        return roles.stream()
-                .map(Role::getName)
-                .collect(Collectors.toSet());
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/ClassRepository.java">
-package com.dangdepzaivaio.StudentManagement.repository;
-
-import com.dangdepzaivaio.StudentManagement.entity.Class;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-import java.util.List;
-
-@Repository
-public interface ClassRepository extends JpaRepository<Class, Long> {
-    List<Class> findByDepartmentId(Long departmentId);
-    boolean existsByName(String name);
-    boolean existsByDepartmentId(Long departmentId);
-    @org.springframework.data.jpa.repository.Query("SELECT c FROM Class c JOIN FETCH c.department")
-    List<Class> findAllClassesWithJoinFetch();
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/TeacherRepository.java">
-package com.dangdepzaivaio.StudentManagement.repository;
-
-import com.dangdepzaivaio.StudentManagement.entity.Teacher;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
-import java.util.List;
-import java.util.Optional;
-
-@Repository
-public interface TeacherRepository extends JpaRepository<Teacher, String> {
-    boolean existsByTeacherCode(String teacherCode);
-    Optional<Teacher> findByTeacherCode(String teacherCode);
-
-    @Query("SELECT t FROM Teacher t JOIN FETCH t.user JOIN FETCH t.department")
-    List<Teacher> findAllTeachersWithJoinFetch();
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/GradeService.java">
-package com.dangdepzaivaio.StudentManagement.service;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse;
-import java.util.List;
-
-public interface GradeService {
-    GradeResponse inputGrade(GradeRequest request);
-    List<GradeResponse> getGradesByStudent(String studentId); // 🔥 Sửa sang String
-    GradeResponse updateGrade(Long id, GradeRequest request);
-    List<GradeResponse> getAllGrades();
-    GradeResponse getGradeById(Long id);
-    void deleteGrade(Long id);
-    StudentAcademicSummaryResponse getAcademicSummary(String studentId); // 🔥 Sửa sang String
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/ClassServiceImpl.java">
-package com.dangdepzaivaio.StudentManagement.service.impl;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.ClassRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.ClassResponse;
-import com.dangdepzaivaio.StudentManagement.entity.Class;
-import com.dangdepzaivaio.StudentManagement.entity.Department;
-import com.dangdepzaivaio.StudentManagement.exception.AppException;
-import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.mapper.ClassMapper;
-import com.dangdepzaivaio.StudentManagement.repository.ClassRepository;
-import com.dangdepzaivaio.StudentManagement.repository.DepartmentRepository;
-import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
-import com.dangdepzaivaio.StudentManagement.service.ClassService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
-
-@Service
-@RequiredArgsConstructor
-public class ClassServiceImpl implements ClassService {
-    // 🔥 ĐÃ GOM TOÀN BỘ KHAI BÁO LÊN ĐẦU CLASS THEO ĐÚNG CHUẨN LOMBOK
-    private final ClassRepository classRepository;
-    private final DepartmentRepository departmentRepository;
-    private final StudentRepository studentRepository;
-    private final ClassMapper classMapper;
-
-    @Override
-    @Transactional
-    public ClassResponse createClass(ClassRequest request) {
-        if (classRepository.existsByName(request.name())) {
-            throw new AppException(ErrorCode.CLASS_EXISTED);
-        }
-        Department department = departmentRepository.findById(request.departmentId())
-                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
-
-        Class studentClass = classMapper.toEntity(request);
-        studentClass.setDepartment(department);
-        return classMapper.toResponse(classRepository.save(studentClass));
-    }
-
-    @Override
-    public List<ClassResponse> getAllClasses() {
-        return classRepository.findAllClassesWithJoinFetch().stream()
-                .map(classMapper::toResponse)
-                .toList();
-    }
-
-    @Override
-    @Transactional
-    public ClassResponse updateClass(Long id, ClassRequest request) {
-        Class studentClass = classRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
-
-        if (!studentClass.getName().equals(request.name()) && classRepository.existsByName(request.name())) {
-            throw new AppException(ErrorCode.CLASS_EXISTED);
-        }
-
-        Department department = departmentRepository.findById(request.departmentId())
-                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_FOUND));
-
-        classMapper.updateEntityFromRequest(request, studentClass);
-        studentClass.setDepartment(department);
-        return classMapper.toResponse(classRepository.save(studentClass));
-    }
-
-    @Override
-    @Transactional
-    public void deleteClass(Long id) {
-        Class studentClass = classRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
-
-        if (studentRepository.existsByStudentClassId(id)) {
-            throw new AppException(ErrorCode.CLASS_HAS_STUDENTS);
-        }
-
-        classRepository.delete(studentClass);
-    }
-
-    @Override
-    public ClassResponse getClassById(Long id) {
-        Class adminClass = classRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
-        return classMapper.toResponse(adminClass);
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/SubjectService.java">
-package com.dangdepzaivaio.StudentManagement.service;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.SubjectRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.SubjectResponse; // Sửa import này
-import java.util.List;
-
-public interface SubjectService {
-    SubjectResponse createSubject(SubjectRequest request);
-    List<SubjectResponse> getAllSubjects();
-    SubjectResponse getSubjectById(Long id);
-    SubjectResponse updateSubject(Long id, SubjectRequest request);
-    void deleteSubject(Long id);
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/StudentManagementApplication.java">
-package com.dangdepzaivaio.StudentManagement;
-
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-
-@SpringBootApplication
-@EnableJpaAuditing
-
-public class StudentManagementApplication {
-
-	public static void main(String[] args) {
-		SpringApplication.run(StudentManagementApplication.class, args);
-	}
-
-}
-</file>
-
-<file path="student-management-ui/README.md">
-# React + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
-
-Tiến độ Dự án (Project Progress)
-Markdown
-- [x] Đồng bộ toàn vẹn cấu trúc mã chuỗi tự sinh (AD, HS_xx, GV_xx) ở cả 2 phân hệ.
-- [x] Chuyển đổi luồng xác thực bảo mật hệ thống sang Email trường cấp (`@open.edu.vn`).
-- [x] Xây dựng phân hệ Đăng ký tín chỉ Realtime (Tự động mở/đóng cổng, thống kê lớp học phần).
-- [x] Triển khai bộ lắng nghe trạng thái tab (Visibility API) để kiểm soát phiên làm việc 15 phút.
-- [x] Dọn dẹp môi trường, tối ưu MapStruct ánh xạ phẳng và dập tắt hoàn toàn log Hibernate SQ
-</file>
-
-<file path="student-management-ui/src/App.jsx">
-import React, { useState, useEffect } from 'react';
-import LoginPage from './pages/LoginPage';
-import StudentPage from './pages/StudentPage';
-import TeacherPage from './pages/TeacherPage';
-import GradePage from './pages/GradePage';
-import RegistrationPage from './pages/RegistrationPage';
-import TrainingPage from './pages/TrainingPage';
-
-function App() {
-    const [token, setToken] = useState(localStorage.getItem('token'));
-    const [username, setUsername] = useState(localStorage.getItem('username'));
-    const [role, setRole] = useState(localStorage.getItem('roles') || '');
-    const [activeTab, setActiveTab] = useState('dashboard');
-
-    // 🔥 LOGIC KIỂM TRA PHIÊN ĐĂNG NHẬP THỜI GIAN THỰC (15 PHÚT) - GIỮ NGUYÊN
-    useEffect(() => {
-        const checkSession = () => {
-            const lastExitTime = localStorage.getItem('lastExitTime');
-            const currentToken = localStorage.getItem('token');
-
-            if (currentToken && lastExitTime) {
-                const timeAway = Date.now() - parseInt(lastExitTime, 10);
-                const FIFTEEN_MINUTES = 15 * 60 * 1000;
-
-                if (timeAway > FIFTEEN_MINUTES) {
-                    localStorage.clear();
-                    setToken(null);
-                    setUsername(null);
-                    setRole('');
-                    alert("Phiên làm việc của bạn đã hết hạn do không hoạt động trong 15 phút. Vui lòng đăng nhập lại!");
-                } else {
-                    localStorage.removeItem('lastExitTime');
-                }
-            }
-        };
-
-        checkSession();
-
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'hidden') {
-                localStorage.setItem('lastExitTime', Date.now().toString());
-            } else if (document.visibilityState === 'visible') {
-                checkSession();
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        const handleBeforeUnload = () => {
-            localStorage.setItem('lastExitTime', Date.now().toString());
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-        };
-    }, []);
-
-    const handleLogout = () => {
-        localStorage.clear();
-        setToken(null);
-        setUsername(null);
-        setRole('');
-    };
-
-    if (!token) {
-        return <LoginPage />;
-    }
-
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)' }}>
-
-            {/* HEADER - GIỮ NGUYÊN */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-sm) var(--spacing-xl)', backgroundColor: 'var(--color-surface)', color: 'var(--text-main)', borderBottom: '2px solid var(--text-cyan)' }}>
-                <h3>CMS - STUDENT MANAGEMENT</h3>
-                <div>
-                    <span style={{ marginRight: 'var(--spacing-xl)', color: 'var(--text-muted)' }}>Xin chào: <b>{username}</b> ({role})</span>
-                    <button onClick={handleLogout} style={{ padding: '6px 12px', backgroundColor: 'var(--color-danger)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Đăng xuất</button>
-                </div>
-            </div>
-
-            {/* BODY */}
-            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-
-                {/* SIDEBAR */}
-                <div style={{ width: '240px', backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl) var(--spacing-sm)', borderRight: '1px solid var(--color-border)' }}>
-                    <button onClick={() => setActiveTab('dashboard')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'dashboard' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>📊 Tổng Quan System</button>
-
-                    {/* MENU QUẢN LÝ SINH VIÊN */}
-                    {(role.includes('ADMIN') || role.includes('TEACHER')) && (
-                        <button onClick={() => setActiveTab('students')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'students' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>👥 Quản Lý Sinh Viên</button>
-                    )}
-
-                    {/* MENU QUẢN LÝ GIẢNG VIÊN */}
-                    {role.includes('ADMIN') && (
-                        <button onClick={() => setActiveTab('teachers')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'teachers' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>💼 Quản Lý Giảng Viên</button>
-                    )}
-
-                    <button onClick={() => setActiveTab('grades')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'grades' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>🎯 Quản Lý Điểm Số</button>
-
-                    {/* 🔥 THÊM MỚI: Menu Đăng ký tín chỉ dành cho tất cả mọi người hiển thị đồng bộ style */}
-                    <button onClick={() => setActiveTab('registration')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'registration' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>⏰ Đăng Ký Tín Chỉ</button>
-                    {role.includes('ADMIN') && (
-                        <button onClick={() => setActiveTab('training')} style={{ width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', backgroundColor: activeTab === 'training' ? 'var(--color-primary)' : 'transparent', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>🏛️ Quản Lý Đào Tạo</button>
-                    )}
-                </div>
-
-                {/* CONTENT AREA CO-GIÃN */}
-                <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)', padding: 'var(--spacing-xl)' }}>
-                    {activeTab === 'dashboard' && (
-                        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            <h2>HỆ THỐNG QUẢN TRỊ ĐÀO TẠO TÍN CHỈ</h2>
-                            <p>Chọn phân hệ bên thanh điều hướng để bắt đầu thực hiện kiểm tra dữ liệu.</p>
-                        </div>
-                    )}
-                    {activeTab === 'students' && <StudentPage />}
-                    {activeTab === 'teachers' && <TeacherPage />}
-                    {activeTab === 'grades' && <GradePage />}
-
-                    {/* 🔥 THÊM MỚI: Vùng render trang Đăng ký tín chỉ khi click chọn tab */}
-                    {activeTab === 'registration' && <RegistrationPage />}
-
-                    {activeTab === 'training' && <TrainingPage />}
-                </div>
-
-            </div>
-        </div>
-    );
-}
-
-export default App;
-</file>
-
-<file path="student-management-ui/src/pages/GradePage.jsx">
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
-
-function GradePage() {
-    const [students, setStudents] = useState([]);
-    const [selectedStudent, setSelectedStudent] = useState('');
-
-    const [summary, setSummary] = useState(null); // Điểm của 1 SV
-    const [allGrades, setAllGrades] = useState([]); // Bảng điểm toàn trường
-    const [loading, setLoading] = useState(false);
-
-    const [courseClassId, setCourseClassId] = useState('');
-    const [attendance, setAttendance] = useState('');
-    const [midterm, setMidterm] = useState('');
-    const [finalGrade, setFinalGrade] = useState('');
-    const [inputError, setInputError] = useState('');
-
-    const userRole = localStorage.getItem('roles') || '';
-    const loggedInStudentId = localStorage.getItem('studentId') || '';
-
-    const isAdmin = userRole.includes('ADMIN');
-    const isTeacher = userRole.includes('TEACHER');
-    const canViewAll = isAdmin || isTeacher;
-
-    useEffect(() => {
-        if (canViewAll) {
-            // Lấy danh sách SV để đưa vào Dropdown
-            axiosClient.get('/students').then(res => setStudents(res)).catch(err => console.error(err));
-            // Lấy BẢNG ĐIỂM TOÀN TRƯỜNG làm mặc định
-            fetchAllSystemGrades();
-        } else {
-            // Sinh viên thì khóa chặt ID của mình
-            setSelectedStudent(loggedInStudentId);
-        }
-    }, [canViewAll, loggedInStudentId]);
-
-    useEffect(() => {
-        if (selectedStudent) {
-            fetchAcademicSummary(selectedStudent);
-        } else if (canViewAll) {
-            setSummary(null); // Trở về chế độ xem toàn trường
-        }
-    }, [selectedStudent]);
-
-    // Gọi API lấy điểm 1 Sinh Viên
-    const fetchAcademicSummary = async (studentId) => {
-        try {
-            setLoading(true);
-            const data = await axiosClient.get(`/grades/student/${studentId}/summary`);
-            setSummary(data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Gọi API lấy BẢNG ĐIỂM TOÀN HỆ THỐNG
-    const fetchAllSystemGrades = async () => {
-        try {
-            setLoading(true);
-            const data = await axiosClient.get('/grades');
-            setAllGrades(data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleInputGrade = async (e) => {
-        e.preventDefault();
-        setInputError('');
-        if (!selectedStudent || !courseClassId) {
-            setInputError('Vui lòng chọn Sinh viên cụ thể từ danh sách bên trên trước khi nhập điểm!');
-            return;
-        }
-        try {
-            await axiosClient.post('/grades', {
-                // ✅ FIX: Giữ nguyên String "HS_01", KHÔNG ép thành Number
-                studentId: selectedStudent,
-                courseClassId: Number(courseClassId),
-                attendanceGrade: attendance !== '' ? Number(attendance) : null,
-                midtermGrade: midterm !== '' ? Number(midterm) : null,
-                finalGrade: finalGrade !== '' ? Number(finalGrade) : null
-            });
-            alert('Nhập điểm thành công!');
-            setCourseClassId(''); setAttendance(''); setMidterm(''); setFinalGrade('');
-            fetchAcademicSummary(selectedStudent);
-        } catch (err) {
-            setInputError(err || 'Lỗi nhập điểm!');
-        }
-    };
-
-    return (
-        <div style={{ color: 'var(--text-main)', padding: 'var(--spacing-sm)' }}>
-            <h2 style={{ color: 'var(--text-cyan)', marginBottom: 'var(--spacing-xl)' }}>
-                QUẢN LÝ ĐIỂM SỐ & GPA HỆ THỐNG
-            </h2>
-
-            {canViewAll ? (
-                <div style={{ backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-lg)', borderRadius: '6px', marginBottom: 'var(--spacing-xl)', border: '1px solid var(--color-border)' }}>
-                    <label style={{ fontWeight: 'bold', marginRight: 'var(--spacing-md)' }}>🔍 Tra cứu điểm số:</label>
-                    <select
-                        value={selectedStudent}
-                        onChange={(e) => setSelectedStudent(e.target.value)}
-                        style={{ padding: 'var(--spacing-sm)', borderRadius: '4px', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', border: '1px solid var(--color-border)', outline: 'none', minWidth: '300px' }}
-                    >
-                        <option value="">📋 Xem bảng điểm Tổng hợp Toàn trường</option>
-                        {students.map(s => (
-                            <option key={s.id} value={s.id}>SV: {s.studentCode} - {s.lastName} {s.firstName}</option>
-                        ))}
-                    </select>
-                </div>
-            ) : (
-                <div style={{ backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-md)', borderRadius: '6px', marginBottom: 'var(--spacing-xl)', border: '1px solid var(--color-border)', color: 'var(--color-warning)', fontWeight: 'bold' }}>
-                    🔒 Chế độ: Sinh viên đang xem kết quả học tập cá nhân
-                </div>
-            )}
-
-            <div style={{ display: 'flex', gap: 'var(--spacing-xl)', alignItems: 'flex-start' }}>
-
-                {/* CỘT BÊN TRÁI: HIỂN THỊ BẢNG ĐIỂM */}
-                <div style={{ flex: 2, backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-
-                    {/* CHẾ ĐỘ 1: XEM 1 SINH VIÊN CỤ THỂ */}
-                    {summary && (
-                        <div>
-                            <h3 style={{ marginTop: 0, marginBottom: 'var(--spacing-lg)', color: 'var(--color-warning)' }}>📋 Kết Quả Tích Lũy Cá Nhân</h3>
-                            <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-xl)' }}>
-                                <div style={{ flex: 1, backgroundColor: 'var(--color-primary)', padding: 'var(--spacing-lg)', borderRadius: '6px', textAlign: 'center' }}>
-                                    <span style={{ fontSize: '13px', opacity: 0.9 }}>Tín Chỉ Tích Lũy</span>
-                                    <h2 style={{ margin: '5px 0 0 0', fontSize: 'var(--font-title)' }}>{summary.totalCredits}</h2>
-                                </div>
-                                <div style={{ flex: 1, backgroundColor: 'var(--color-success)', padding: 'var(--spacing-lg)', borderRadius: '6px', textAlign: 'center' }}>
-                                    <span style={{ fontSize: '13px', opacity: 0.9 }}>GPA Hệ 10</span>
-                                    <h2 style={{ margin: '5px 0 0 0', fontSize: 'var(--font-title)' }}>{summary.gpaSystem10}</h2>
-                                </div>
-                                <div style={{ flex: 1, backgroundColor: 'var(--color-warning)', padding: 'var(--spacing-lg)', borderRadius: '6px', textAlign: 'center', color: '#000' }}>
-                                    <span style={{ fontSize: '13px', fontWeight: 'bold' }}>GPA Hệ 4</span>
-                                    <h2 style={{ margin: '5px 0 0 0', fontSize: 'var(--font-title)' }}>{summary.gpaSystem4}</h2>
-                                </div>
-                            </div>
-
-                            {/* Bảng chi tiết điểm từng môn */}
-                            {summary.details && summary.details.length > 0 && (
-                                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 'var(--spacing-sm)' }}>
-                                    <thead>
-                                    <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>Môn Học</th>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>Lớp HP</th>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>CC</th>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>GK</th>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>CK</th>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>Tổng</th>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>Chữ</th>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>Hệ 4</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {summary.details.map((d, i) => (
-                                        <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                            <td style={{ padding: 'var(--spacing-md)' }}>{d.subjectName}</td>
-                                            <td style={{ padding: 'var(--spacing-md)', color: 'var(--color-warning)' }}>{d.courseClassCode}</td>
-                                            <td style={{ padding: 'var(--spacing-md)' }}>{d.attendanceGrade}</td>
-                                            <td style={{ padding: 'var(--spacing-md)' }}>{d.midtermGrade}</td>
-                                            <td style={{ padding: 'var(--spacing-md)' }}>{d.finalGrade}</td>
-                                            <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold' }}>{d.overallGrade}</td>
-                                            <td style={{ padding: 'var(--spacing-md)', color: d.letterGrade === 'F' ? 'var(--color-danger)' : 'var(--color-success)', fontWeight: 'bold' }}>{d.letterGrade}</td>
-                                            <td style={{ padding: 'var(--spacing-md)' }}>{d.grade4}</td>
-                                        </tr>
-                                    ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-                    )}
-
-                    {/* CHẾ ĐỘ 2: XEM TOÀN TRƯỜNG (KHI ADMIN/TEACHER CHƯA CHỌN SV NÀO) */}
-                    {!summary && canViewAll && (
-                        <div>
-                            <h3 style={{ marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>🌍 Bảng Điểm Toàn Hệ Thống</h3>
-                            {loading ? <p>Đang tải dữ liệu...</p> : (
-                                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 'var(--spacing-sm)' }}>
-                                    <thead>
-                                    <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>Sinh Viên</th>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>Môn Học</th>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>Lớp HP</th>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>Điểm Tổng</th>
-                                        <th style={{ padding: 'var(--spacing-md)' }}>Điểm Chữ</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {allGrades.map((g, index) => (
-                                        <tr key={index} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                            <td style={{ padding: 'var(--spacing-md)' }}><b>{g.studentName}</b><br/><span style={{fontSize: '12px', color: 'var(--text-muted)'}}>{g.studentCode}</span></td>
-                                            <td style={{ padding: 'var(--spacing-md)' }}>{g.subjectName}</td>
-                                            <td style={{ padding: 'var(--spacing-md)', color: 'var(--color-warning)' }}>{g.courseClassCode}</td>
-                                            <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold' }}>{g.overallGrade}</td>
-                                            <td style={{ padding: 'var(--spacing-md)', color: g.letterGrade === 'F' ? 'var(--color-danger)' : 'var(--color-success)', fontWeight: 'bold' }}>{g.letterGrade}</td>
-                                        </tr>
-                                    ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-                    )}
-
-                    {/* CHẾ ĐỘ 3: SINH VIÊN XEM ĐIỂM NHƯNG CHƯA CÓ DỮ LIỆU */}
-                    {!summary && !canViewAll && !loading && (
-                        <p style={{ color: 'var(--text-muted)' }}>Chưa có dữ liệu điểm nào được ghi nhận.</p>
-                    )}
-                </div>
-
-                {/* CỘT BÊN PHẢI: FORM NHẬP ĐIỂM (CHỈ TEACHER) */}
-                {isTeacher && (
-                    <div style={{ flex: 1, backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                        <h3>✍️ Nhập Điểm Thành Phần</h3>
-                        {inputError && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-sm)' }}>{inputError}</div>}
-
-                        {!selectedStudent ? (
-                            <div style={{ color: 'var(--color-warning)', fontSize: '14px' }}>
-                                ⚠️ Vui lòng chọn một sinh viên ở Menu bên trên để kích hoạt Form nhập điểm.
-                            </div>
-                        ) : (
-                            <form onSubmit={handleInputGrade}>
-                                <div style={{ marginBottom: 'var(--spacing-md)' }}>
-                                    <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontWeight: 'bold' }}>ID Lớp Học Phần:</label>
-                                    <input type="number" placeholder="Ví dụ: 2" value={courseClassId} onChange={(e) => setCourseClassId(e.target.value)} style={inputStyle} />
-                                </div>
-                                <div style={{ marginBottom: 'var(--spacing-md)' }}>
-                                    <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)' }}>Điểm Chuyên Cần:</label>
-                                    <input type="number" step="0.1" min="0" max="10" value={attendance} onChange={(e) => setAttendance(e.target.value)} style={inputStyle} />
-                                </div>
-                                <div style={{ marginBottom: 'var(--spacing-md)' }}>
-                                    <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)' }}>Điểm Giữa Kỳ:</label>
-                                    <input type="number" step="0.1" min="0" max="10" value={midterm} onChange={(e) => setMidterm(e.target.value)} style={inputStyle} />
-                                </div>
-                                <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                                    <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)' }}>Điểm Cuối Kỳ:</label>
-                                    <input type="number" step="0.1" min="0" max="10" value={finalGrade} onChange={(e) => setFinalGrade(e.target.value)} style={inputStyle} />
-                                </div>
-                                <button type="submit" style={{ width: '100%', padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Lưu & Xác Nhận Điểm</button>
-                            </form>
-                        )}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
-const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
-export default GradePage;
-</file>
-
-<file path="student-management-ui/src/pages/LoginPage.jsx">
-import React, { useState } from 'react';
-import axiosClient from '../api/axiosClient';
-
-function LoginPage() {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-
-    // Các State quản lý trạng thái ẩn/hiển thị của từng ô mật khẩu độc lập
-    const [showPassword, setShowPassword] = useState(false);
-    const [showNewPassword, setShowNewPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-    const [isFirstLoginMode, setIsFirstLoginMode] = useState(false);
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
-
-        try {
-            const data = await axiosClient.post('/auth/login', { username, password });
-
-            // ✅ FIX: Java serialize boolean field "isFirstLogin" thành "firstLogin" trong JSON
-            if (data.firstLogin) {
-                setIsFirstLoginMode(true);
-                alert("Hệ thống phát hiện đây là lần đầu bạn đăng nhập. Bạn bắt buộc phải đổi mật khẩu để bảo mật tài khoản!");
-            } else {
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('username', data.username);
-                localStorage.setItem('roles', data.roles);
-                localStorage.setItem('userId', data.userId);
-
-                if (data.studentId) localStorage.setItem('studentId', data.studentId);
-                if (data.teacherId) localStorage.setItem('teacherId', data.teacherId);
-
-                window.location.href = '/';
-            }
-        } catch (err) {
-            setError(err || 'Email hoặc mật khẩu không chính xác!');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleChangePassword = async (e) => {
-        e.preventDefault();
-        setError('');
-
-        if (newPassword.length < 6) {
-            setError('Mật khẩu mới phải từ 6 ký tự trở lên!');
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            setError('Mật khẩu xác nhận không trùng khớp!');
-            return;
-        }
-
-        try {
-            setLoading(true);
-            await axiosClient.post('/auth/change-password', { username, newPassword });
-            alert('Đổi mật khẩu thành công mượt mà! Vui lòng đăng nhập lại bằng mật khẩu mới của bạn.');
-            setIsFirstLoginMode(false);
-            setPassword('');
-            setNewPassword('');
-            setConfirmPassword('');
-            // Reset trạng thái mắt về ẩn
-            setShowPassword(false);
-            setShowNewPassword(false);
-            setShowConfirmPassword(false);
-        } catch (err) {
-            setError(err || 'Có lỗi phát sinh khi đổi mật khẩu.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div style={{ maxWidth: '400px', margin: '100px auto', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--text-main)' }}>
-
-            {/* GIAO DIỆN 1: FORM BẮT BUỘC ĐỔI MẬT KHẨU LẦN ĐẦU */}
-            {isFirstLoginMode ? (
-                <form onSubmit={handleChangePassword}>
-                    <h2 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)', color: 'var(--color-warning)' }}>🔒 ĐỔI MẬT KHẨU LẦN ĐẦU</h2>
-                    {error && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>{error}</div>}
-
-                    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                        <label style={{ display: 'block', marginBottom: '4px' }}>Mật khẩu mới:</label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                type={showNewPassword ? "text" : "password"}
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                required
-                                style={inputStyle}
-                            />
-                            <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} style={eyeButtonStyle}>
-                                {showNewPassword ? '👁️' : '🙈'}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                        <label style={{ display: 'block', marginBottom: '4px' }}>Xác nhận mật khẩu mới:</label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                type={showConfirmPassword ? "text" : "password"}
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                required
-                                style={inputStyle}
-                            />
-                            <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={eyeButtonStyle}>
-                                {showConfirmPassword ? '👁️' : '🙈'}
-                            </button>
-                        </div>
-                    </div>
-
-                    <button type="submit" disabled={loading} style={buttonStyle}>
-                        {loading ? 'Đang xử lý...' : 'Xác Nhận Thay Đổi'}
-                    </button>
-                </form>
-            ) : (
-                /* GIAO DIỆN 2: FORM ĐĂNG NHẬP MẶC ĐỊNH */
-                <form onSubmit={handleLogin}>
-                    <h2 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)', color: 'var(--text-cyan)' }}>ĐĂNG NHẬP HỆ THỐNG</h2>
-                    {error && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>{error}</div>}
-
-                    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                        {/* 🔥 SỬA: Đổi nhãn từ Tên đăng nhập thành Email */}
-                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Email đăng nhập (@open.edu.vn):</label>
-                        <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required style={inputStyleForUsername} />
-                    </div>
-
-                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Mật khẩu:</label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                type={showPassword ? "text" : "password"}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                style={inputStyle}
-                            />
-                            <button type="button" onClick={() => setShowPassword(!showPassword)} style={eyeButtonStyle}>
-                                {showPassword ? '👁️' : '🙈'}
-                            </button>
-                        </div>
-                    </div>
-
-                    <button type="submit" disabled={loading} style={buttonStyle}>
-                        {loading ? 'Đang xác thực...' : 'Đăng Nhập'}
-                    </button>
-                </form>
-            )}
-        </div>
-    );
-}
-
-// Style dùng chung cho ô nhập Mật khẩu (Có chừa khoảng trống phải 40px cho nút mắt)
-const inputStyle = {
-    width: '100%',
-    padding: 'var(--spacing-sm)',
-    paddingRight: '40px', // Chống tràn đè chữ lên icon mắt
-    borderRadius: '4px',
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-surface-hover)',
-    color: 'var(--text-main)',
-    boxSizing: 'border-box',
-    outline: 'none'
-};
-
-// Style riêng cho Username không cần căn lề phải chừa khoảng trống nút mắt
-const inputStyleForUsername = {
-    width: '100%',
-    padding: 'var(--spacing-sm)',
-    borderRadius: '4px',
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-surface-hover)',
-    color: 'var(--text-main)',
-    boxSizing: 'border-box',
-    outline: 'none'
-};
-
-// Định vị nút Icon Mắt tuyệt đối nằm đè gọn gàng bên phải ô Input
-const eyeButtonStyle = {
-    position: 'absolute',
-    right: '10px',
-    top: '50%',
-    transform: 'translateY(-50%)',
-    border: 'none',
-    backgroundColor: 'transparent',
-    cursor: 'pointer',
-    fontSize: '16px',
-    display: 'flex',
-    alignItems: 'center',
-    padding: 0,
-    userSelect: 'none'
-};
-
-const buttonStyle = { width: '100%', padding: 'var(--spacing-sm)', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' };
-
-export default LoginPage;
-</file>
-
-<file path="student-management-ui/src/pages/StudentPage.jsx">
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
-
-function StudentPage() {
-    const [students, setStudents] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-
-    const userRole = localStorage.getItem('roles') || '';
-    const isAdmin = userRole.includes('ADMIN');
-
-    const [includeInactive, setIncludeInactive] = useState(false);
-    const [showModal, setShowModal] = useState(false);
-    const [isEditMode, setIsEditMode] = useState(false);
-    const [editingStudentId, setEditingStudentId] = useState('');
-
-    // Form States
-    const [studentCode, setStudentCode] = useState('');
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [dateOfBirth, setDateOfBirth] = useState('');
-    const [gender, setGender] = useState('Nam');
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [classId, setClassId] = useState('');
-
-    // 🔥 THÊM MỚI: State lưu trữ danh sách lớp hành chính phục vụ Dropdown menu
-    const [classList, setClassList] = useState([]);
-
-    useEffect(() => {
-        fetchStudents();
-        if (isAdmin) {
-            fetchClassList(); // Chỉ tải danh sách gợi ý lớp nếu là Admin có quyền tạo/sửa
-        }
-    }, [includeInactive]);
-
-    const fetchStudents = async () => {
-        try {
-            setLoading(true);
-            const data = await axiosClient.get(`/students?includeInactive=${includeInactive}`);
-            setStudents(data);
-        } catch (err) {
-            setError(err || 'Không thể tải danh sách sinh viên!');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // 🔥 THÊM MỚI: Hàm tải danh sách lớp hành chính từ DB thật
-    const fetchClassList = async () => {
-        try {
-            const data = await axiosClient.get('/classes');
-            setClassList(data);
-        } catch (err) {
-            console.error("Lỗi nạp danh sách lớp gợi ý:", err);
-        }
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!classId) {
-            alert("Vui lòng lựa chọn một Lớp hành chính gợi ý từ danh sách!");
-            return;
-        }
-
-        if (isEditMode) {
-            const payload = { firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId) };
-            try {
-                await axiosClient.put(`/students/${editingStudentId}`, payload);
-                alert("Cập nhật hồ sơ sinh viên thành công!");
-                setShowModal(false);
-                resetForm();
-                fetchStudents();
-            } catch (err) {
-                alert(err || 'Lỗi cập nhật hồ sơ!');
-            }
-        } else {
-            const payload = { studentCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId) };
-            try {
-                await axiosClient.post('/students', payload);
-                alert(`Cấp tài khoản thành công mượt mà!\nTài khoản: ${studentCode}\nMật khẩu mặc định: password1234`);
-                setShowModal(false);
-                resetForm();
-                fetchStudents();
-            } catch (err) {
-                alert(err || 'Có lỗi xảy ra khi tạo sinh viên!');
-            }
-        }
-    };
-
-    const handleOpenEdit = (student) => {
-        setIsEditMode(true);
-        setEditingStudentId(student.id);
-        setStudentCode(student.studentCode);
-        setFirstName(student.firstName);
-        setLastName(student.lastName);
-        setDateOfBirth(student.dateOfBirth || '');
-        setGender(student.gender || 'Nam');
-        setPhoneNumber(student.phoneNumber || '');
-        setClassId(student.classId || ''); // Tự động chọn trúng option lớp cũ của sinh viên
-        setShowModal(true);
-    };
-
-    const handleDeleteStudent = async (id, code, name) => {
-        if (window.confirm(`Bạn có chắc chắn muốn KHÓA tài khoản sinh viên [${code} - ${name}] không?`)) {
-            try {
-                await axiosClient.delete(`/students/${id}`);
-                alert('Đã khóa hồ sơ sinh viên và đóng băng tài khoản thành công!');
-                fetchStudents();
-            } catch (err) {
-                alert(err || 'Không thể khóa sinh viên này!');
-            }
-        }
-    };
-
-    const handleEnableStudent = async (id, code, name) => {
-        if (window.confirm(`Bạn có chắc chắn muốn MỞ KHÓA cho sinh viên [${code} - ${name}] không?`)) {
-            try {
-                await axiosClient.put(`/students/${id}/enable`);
-                alert('Tái kích hoạt hệ thống và mở khóa tài khoản thành công!');
-                fetchStudents();
-            } catch (err) {
-                alert(err || 'Không thể mở khóa sinh viên này!');
-            }
-        }
-    };
-
-    const resetForm = () => {
-        setStudentCode(''); setFirstName(''); setLastName(''); setDateOfBirth(''); setGender('Nam'); setPhoneNumber(''); setClassId('');
-        setIsEditMode(false); setEditingStudentId('');
-    };
-
-    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang tải dữ liệu...</div>;
-    if (error) return <div style={{ color: 'var(--color-danger)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>{error}</div>;
-
-    return (
-        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
-                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>QUẢN LÝ DANH SÁCH SINH VIÊN</h2>
-                <div style={{ display: 'flex', gap: 'var(--spacing-lg)', alignItems: 'center' }}>
-                    {isAdmin && (
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', cursor: 'pointer', backgroundColor: 'var(--color-surface-hover)', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
-                            <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
-                            <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--color-warning)' }}>Hiển thị cả SV đã khóa</span>
-                        </label>
-                    )}
-                    {isAdmin && (
-                        <button onClick={() => { resetForm(); setShowModal(true); }} style={{ padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-success)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                            + Cấp Tài Khoản Sinh Viên
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-                <thead>
-                <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Hệ thống ID</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Mã Sinh Viên</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Tên</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Lớp Hành Chính</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Trạng thái</th>
-                    {isAdmin && <th style={{ padding: 'var(--spacing-md)' }}>Hành Động Tác Vụ</th>}
-                </tr>
-                </thead>
-                <tbody>
-                {students.map((student) => (
-                    <tr key={student.id} style={{ borderBottom: '1px solid var(--color-border)', opacity: student.active ? 1 : 0.55 }}>
-                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--text-muted)' }}>{student.id}</td>
-                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{student.studentCode}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{student.lastName} {student.firstName}</td>
-                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)' }}>{student.className}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{student.gender}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>
-                            {student.active ? <span style={{ color: 'var(--color-success)', fontSize: '12px', fontWeight: 'bold' }}>● Đang học</span> : <span style={{ color: 'var(--color-danger)', fontSize: '12px', fontWeight: 'bold' }}>🔒 Đã khóa</span>}
-                        </td>
-                        {isAdmin && (
-                            <td style={{ padding: 'var(--spacing-md)' }}>
-                                <button onClick={() => handleOpenEdit(student)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', marginRight: '5px', fontWeight: 'bold' }}>Sửa</button>
-                                {student.active ? (
-                                    <button onClick={() => handleDeleteStudent(student.id, student.studentCode, student.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Khóa</button>
-                                ) : (
-                                    <button onClick={() => handleEnableStudent(student.id, student.studentCode, student.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Mở Khóa</button>
-                                )}
-                            </td>
-                        )}
-                    </tr>
-                ))}
-                </tbody>
-            </table>
-
-            {showModal && (
-                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 }}>
-                    <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--spacing-xl)', borderRadius: '8px', width: '550px' }}>
-                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>{isEditMode ? '📝 CẬP NHẬT HỒ SƠ SINH VIÊN' : '✍️ KHỞI TẠO HỒ SƠ SYSTEM'}</h3>
-                        <form onSubmit={handleSubmit}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Mã Sinh Viên:</label><input type="text" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} disabled={isEditMode} required style={inputStyle} /></div>
-
-                                {/* 🔥 ĐÃ SỬA: Thay thế ô input ID Number bằng Dropdown chọn lớp chuyên nghiệp */}
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '4px' }}>Lớp Hành Chính:</label>
-                                    <select value={classId} onChange={(e) => setClassId(e.target.value)} required style={inputStyle}>
-                                        <option value="">-- Chọn lớp gợi ý --</option>
-                                        {classList.map(cls => (
-                                            <option key={cls.id} value={cls.id}>{cls.name} ({cls.code})</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Họ Và Tên Đệm:</label><input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Tên Sinh Viên:</label><input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px' }}>Giới Tính:</label><select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
-                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px' }}>Số Điện Thoại:</label><input type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
-                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}>Hủy Bỏ</button>
-                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}>{isEditMode ? 'Lưu Thay Đổi' : 'Khởi Tạo & Cấp TK'}</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
-const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
-export default StudentPage;
 </file>
 
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/configuration/DatabaseInitializer.java">
@@ -5568,98 +6183,6 @@ public class DatabaseInitializer {
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/configuration/SecurityConfig.java">
-package com.dangdepzaivaio.StudentManagement.configuration;
-
-import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.List;
-
-@Configuration
-@EnableWebSecurity
-@EnableMethodSecurity
-@RequiredArgsConstructor
-public class SecurityConfig {
-
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
-        httpSecurity.cors(cors -> cors.configurationSource(corsConfigurationSource()));
-
-        httpSecurity.authorizeHttpRequests(request -> request
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/auth/login", "/auth/change-password").permitAll()
-
-                .requestMatchers(HttpMethod.POST, "/students/**", "/teachers/**", "/classes/**",
-                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/students/**", "/teachers/**", "/classes/**",
-                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/students/**", "/teachers/**", "/classes/**",
-                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
-
-                .requestMatchers(HttpMethod.GET, "/users/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/students/**", "/teachers/**", "/classes/**",
-                        "/departments/**", "/subjects/**", "/course-classes/**").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
-
-                .requestMatchers(HttpMethod.POST, "/grades/**").hasRole("TEACHER")
-                .requestMatchers(HttpMethod.PUT, "/grades/**").hasRole("TEACHER")
-                .requestMatchers(HttpMethod.DELETE, "/grades/**").hasRole("TEACHER")
-                .requestMatchers(HttpMethod.GET, "/grades/**").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
-
-                .requestMatchers(HttpMethod.POST, "/registration/periods").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/registration/periods/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/registration/periods").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
-                .requestMatchers(HttpMethod.GET, "/registration/statistics").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/registration/course-class/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/registration/teacher/**").hasRole("TEACHER")
-                .requestMatchers(HttpMethod.GET, "/registration/classes/**").hasAnyRole("ADMIN", "TEACHER")
-                .requestMatchers(HttpMethod.GET, "/registration/open-course-classes", "/registration/my-classes").hasRole("STUDENT")
-                .requestMatchers(HttpMethod.POST, "/registration/enroll").hasRole("STUDENT")
-                .requestMatchers(HttpMethod.DELETE, "/registration/unenroll").hasRole("STUDENT")
-
-                .anyRequest().authenticated());
-
-        httpSecurity.csrf(AbstractHttpConfigurer::disable);
-        httpSecurity.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-
-        return httpSecurity.build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/AuthenticationResponse.java">
 package com.dangdepzaivaio.StudentManagement.dto.response;
 
@@ -5676,6 +6199,29 @@ public record AuthenticationResponse(
         boolean isFirstLogin,
         String studentId,  // 🔥 Đã đổi sang String
         String teacherId   // 🔥 Đã đổi sang String
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/GradeResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+public record GradeResponse(
+        Long id,
+        String studentId,
+        String studentCode,
+        String studentName,
+        Long courseClassId,
+        String courseClassCode,
+        String subjectName,
+        Integer credits,       // 🔥 THÊM MỚI: Số tín chỉ môn học
+        String teacherName,    // 🔥 THÊM MỚI: Tên giảng viên đứng lớp
+        String schedule,       // 🔥 THÊM MỚI: Lịch học thiết kế (Thứ, Tiết, Phòng)
+        Double attendanceGrade,
+        Double midtermGrade,
+        Double finalGrade,
+        Double overallGrade,
+        String letterGrade,
+        Double grade4
 ) {}
 </file>
 
@@ -6369,6 +6915,564 @@ public class SubjectServiceImpl implements SubjectService {
 }
 </file>
 
+<file path="student-management-ui/src/App.jsx">
+import React, { useState, useEffect } from 'react';
+import LoginPage from './pages/LoginPage';
+import StudentPage from './pages/StudentPage';
+import TeacherPage from './pages/TeacherPage';
+import GradePage from './pages/GradePage';
+import RegistrationPage from './pages/RegistrationPage';
+import TrainingPage from './pages/TrainingPage';
+import DashboardPage from './pages/DashboardPage';
+import SchedulePage from './pages/SchedulePage';
+
+function App() {
+    const [token, setToken] = useState(localStorage.getItem('token'));
+    const [username, setUsername] = useState(localStorage.getItem('username'));
+    const [role, setRole] = useState(localStorage.getItem('roles') || '');
+    const [activeTab, setActiveTab] = useState('dashboard');
+
+    useEffect(() => {
+        const checkSession = () => {
+            const lastExitTime = localStorage.getItem('lastExitTime');
+            const currentToken = localStorage.getItem('token');
+
+            if (currentToken && lastExitTime) {
+                const timeAway = Date.now() - parseInt(lastExitTime, 10);
+                const FIFTEEN_MINUTES = 15 * 60 * 1000;
+
+                if (timeAway > FIFTEEN_MINUTES) {
+                    localStorage.clear();
+                    setToken(null);
+                    setUsername(null);
+                    setRole('');
+                    alert("Phiên làm việc của bạn đã hết hạn do không hoạt động trong 15 phút. Vui lòng đăng nhập lại!");
+                } else {
+                    localStorage.removeItem('lastExitTime');
+                }
+            }
+        };
+
+        checkSession();
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                localStorage.setItem('lastExitTime', Date.now().toString());
+            } else if (document.visibilityState === 'visible') {
+                checkSession();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        const handleBeforeUnload = () => {
+            localStorage.setItem('lastExitTime', Date.now().toString());
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, []);
+
+    const handleLogout = () => {
+        localStorage.clear();
+        setToken(null);
+        setUsername(null);
+        setRole('');
+    };
+
+    if (!token) {
+        return <LoginPage />;
+    }
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)' }}>
+
+            {/* HEADER SYSTEM */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-sm) var(--spacing-xl)', backgroundColor: 'var(--color-surface)', color: 'var(--text-main)', borderBottom: '2px solid var(--text-cyan)' }}>
+                <h3>CMS - STUDENT MANAGEMENT</h3>
+                <div>
+                    <span style={{ marginRight: 'var(--spacing-xl)', color: 'var(--text-muted)' }}>Xin chào: <b>{username}</b> ({role})</span>
+                    <button onClick={handleLogout} style={{ padding: '6px 12px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Đăng xuất</button>
+                </div>
+            </div>
+
+            {/* BODY SYSTEM */}
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+                {/* SIDEBAR NAVIGATION */}
+                <div style={{ width: '240px', backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl) var(--spacing-sm)', borderRight: '1px solid var(--color-border)' }}>
+                    <button onClick={() => setActiveTab('dashboard')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'dashboard' ? 'var(--color-primary)' : 'transparent' }}>📊 Tổng Quan System</button>
+
+                    {/* MENU QUẢN LÝ SINH VIÊN */}
+                    {(role.includes('ADMIN') || role.includes('TEACHER')) && (
+                        <button onClick={() => setActiveTab('students')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'students' ? 'var(--color-primary)' : 'transparent' }}>👥 Quản Lý Sinh Viên</button>
+                    )}
+
+                    {/* MENU QUẢN LÝ GIẢNG VIÊN */}
+                    {role.includes('ADMIN') && (
+                        <button onClick={() => setActiveTab('teachers')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'teachers' ? 'var(--color-primary)' : 'transparent' }}>💼 Quản Lý Giảng Viên</button>
+                    )}
+
+                    <button onClick={() => setActiveTab('grades')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'grades' ? 'var(--color-primary)' : 'transparent' }}>🎯 Quản Lý Điểm Số</button>
+
+                    <button onClick={() => setActiveTab('registration')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'registration' ? 'var(--color-primary)' : 'transparent' }}>⏰ Đăng Ký Tín Chỉ</button>
+
+                    {/* 🔥 ĐÃ FIX THEO YÊU CẦU: Rẽ nhánh hiển thị "Lịch Dạy" cho Teacher và "Lịch Học" cho Student */}
+                    {/* MENU LỊCH TRÌNH DÀNH RIÊNG CHO GIẢNG VIÊN VÀ SINH VIÊN */}
+                    {(role.includes('TEACHER') || role.includes('STUDENT')) && (
+                        <button
+                            onClick={() => setActiveTab('schedule')}
+                            style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'schedule' ? 'var(--color-primary)' : 'transparent' }}
+                        >
+                            📅 {role.includes('TEACHER') ? 'Lịch Dạy' : 'Lịch Học'}
+                        </button>
+                    )}
+
+                    {role.includes('ADMIN') && (
+                        <button onClick={() => setActiveTab('training')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'training' ? 'var(--color-primary)' : 'transparent' }}>🏛️ Quản Lý Đào Tạo</button>
+                    )}
+                </div>
+
+                {/* MAIN CONTENT AREA */}
+                <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)', padding: 'var(--spacing-xl)' }}>
+                    {activeTab === 'dashboard' && <DashboardPage />}
+                    {activeTab === 'students' && <StudentPage />}
+                    {activeTab === 'teachers' && <TeacherPage />}
+                    {activeTab === 'grades' && <GradePage />}
+                    {activeTab === 'registration' && <RegistrationPage />}
+                    {activeTab === 'schedule' && <SchedulePage />}
+                    {activeTab === 'training' && <TrainingPage />}
+                </div>
+
+            </div>
+        </div>
+    );
+}
+
+const sidebarBtnStyle = { width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' };
+
+export default App;
+</file>
+
+<file path="student-management-ui/src/pages/StudentPage.jsx">
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
+
+function StudentPage() {
+    const [students, setStudents] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    const userRole = localStorage.getItem('roles') || '';
+    const isAdmin = userRole.includes('ADMIN');
+    const isTeacher = userRole.includes('TEACHER');
+    const teacherId = localStorage.getItem('teacherId') || '';
+
+    const [showModal, setShowModal] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingStudentId, setEditingStudentId] = useState('');
+
+    // Form States
+    const [studentCode, setStudentCode] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [dateOfBirth, setDateOfBirth] = useState('');
+    const [gender, setGender] = useState('Nam');
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [classId, setClassId] = useState('');
+    const [studentCohort, setStudentCohort] = useState('Khóa 1');
+
+    // List States tải từ DB phục vụ Admin
+    const [classList, setClassList] = useState([]);
+    const [departments, setDepartments] = useState([]);
+
+    // --- STATES BỘ LỌC CASCADING CHO ADMIN ---
+    const [selectedCohort, setSelectedCohort] = useState('');
+    const [selectedDept, setSelectedDept] = useState('');
+    const [selectedClass, setSelectedClass] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // --- STATES ĐỘC QUYỀN CHO GIẢNG VIÊN (TEACHER) ---
+    const [teacherClasses, setTeacherClasses] = useState([]);
+    const [selectedCourseClass, setSelectedCourseClass] = useState('');
+
+    // Danh sách khóa mặc định của hệ thống
+    const [cohorts, setCohorts] = useState(() => {
+        const saved = localStorage.getItem('system_cohorts');
+        return saved ? JSON.parse(saved) : ['Khóa 1', 'Khóa 2', 'Khóa 3'];
+    });
+
+    useEffect(() => {
+        if (isAdmin) {
+            fetchStudents();
+            loadFiltersData();
+        } else if (isTeacher && teacherId) {
+            fetchTeacherClasses();
+        }
+    }, [isAdmin, isTeacher, teacherId]);
+
+    // ==================== 🏛️ NGHIỆP VỤ CỦA ADMIN ====================
+    const fetchStudents = async () => {
+        try {
+            setLoading(true);
+            const data = await axiosClient.get('/students?includeInactive=true');
+            setStudents(data || []);
+        } catch (err) {
+            setError(err || 'Không thể tải danh sách sinh viên!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadFiltersData = async () => {
+        try {
+            const [deptsData, classesData] = await Promise.all([
+                axiosClient.get('/departments'),
+                axiosClient.get('/classes')
+            ]);
+            setDepartments(deptsData || []);
+            setClassList(classesData || []);
+        } catch (err) {
+            console.error('Lỗi nạp cấu trúc bộ lọc danh mục', err);
+        }
+    };
+
+    const handleAddNewCohort = () => {
+        const nextCohortNumber = cohorts.length + 1;
+        const newCohortName = `Khóa ${nextCohortNumber}`;
+        const updatedCohorts = [...cohorts, newCohortName];
+        setCohorts(updatedCohorts);
+        localStorage.setItem('system_cohorts', JSON.stringify(updatedCohorts));
+        alert(`Khởi tạo đợt niên khóa đào tạo mới thành công: ${newCohortName}!`);
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!classId) { alert("Vui lòng lựa chọn một Lớp hành chính!"); return; }
+
+        if (isEditMode) {
+            const payload = { firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId), cohort: studentCohort };
+            try {
+                await axiosClient.put(`/students/${editingStudentId}`, payload);
+                alert("Cập nhật hồ sơ sinh viên thành công!");
+                setShowModal(false);
+                resetForm();
+                fetchStudents();
+            } catch (err) { alert(err || 'Lỗi cập nhật hồ sơ!'); }
+        } else {
+            const payload = { studentCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId), cohort: studentCohort };
+            try {
+                await axiosClient.post('/students', payload);
+                alert(`Cấp tài khoản sinh viên thành công mượt mà!`);
+                setShowModal(false);
+                resetForm();
+                fetchStudents();
+            } catch (err) { alert(err || 'Có lỗi xảy ra khi tạo sinh viên!'); }
+        }
+    };
+
+    const handleOpenEdit = (student) => {
+        setIsEditMode(true);
+        setEditingStudentId(student.id);
+        setStudentCode(student.studentCode);
+        setFirstName(student.firstName);
+        setLastName(student.lastName);
+        setDateOfBirth(student.dateOfBirth || '');
+        setGender(student.gender || 'Nam');
+        setPhoneNumber(student.phoneNumber || '');
+        setClassId(student.classId || '');
+        setStudentCohort(student.cohort || 'Khóa 1');
+        setShowModal(true);
+    };
+
+    const handleDeleteStudent = async (id, code, name) => {
+        if (window.confirm(`Bạn có chắc chắn muốn KHÓA tài khoản sinh viên [${code} - ${name}] không?`)) {
+            try {
+                await axiosClient.delete(`/students/${id}`);
+                alert('Đã khóa hồ sơ sinh viên và đóng băng tài khoản thành công!');
+                fetchStudents();
+            } catch (err) { alert(err || 'Không thể khóa sinh viên này!'); }
+        }
+    };
+
+    const handleEnableStudent = async (id, code, name) => {
+        if (window.confirm(`Bạn có chắc chắn muốn MỞ KHÓA cho sinh viên [${code} - ${name}] không?`)) {
+            try {
+                await axiosClient.put(`/students/${id}/enable`);
+                alert('Tái kích hoạt hệ thống và mở khóa tài khoản thành công!');
+                fetchStudents();
+            } catch (err) { alert(err || 'Không thể mở khóa sinh viên này!'); }
+        }
+    };
+
+    const resetForm = () => {
+        setStudentCode(''); setFirstName(''); setLastName(''); setDateOfBirth(''); setGender('Nam'); setPhoneNumber(''); setClassId(''); setStudentCohort('Khóa 1');
+        setIsEditMode(false); setEditingStudentId('');
+    };
+
+    const handleDeptChange = (deptId) => {
+        setSelectedDept(deptId);
+        setSelectedClass('');
+    };
+
+    const handleClassChange = (classId) => {
+        setSelectedClass(classId);
+        if (classId) {
+            const clsObj = classList.find(c => c.id === Number(classId));
+            if (clsObj) {
+                const matchedDept = departments.find(d => d.name === clsObj.departmentName);
+                if (matchedDept) setSelectedDept(String(matchedDept.id));
+            }
+        }
+    };
+
+    const filteredClassOptions = selectedDept
+        ? classList.filter(c => c.departmentName === departments.find(d => d.id === Number(selectedDept))?.name)
+        : classList;
+
+
+    // ==================== 👨‍🏫 NGHIỆP VỤ CỦA GIẢNG VIÊN (TEACHER) ====================
+    const fetchTeacherClasses = async () => {
+        try {
+            setLoading(true);
+            const response = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
+            const data = response || [];
+            setTeacherClasses(data);
+            if (data.length > 0) {
+                // Tự động load trước sinh viên của lớp học phần đầu tiên
+                setSelectedCourseClass(String(data[0].id));
+                fetchStudentsInCourseClass(data[0].id);
+            } else {
+                setStudents([]);
+                setLoading(false);
+            }
+        } catch (err) {
+            setError('Không thể tải lịch trình lớp học phần đang dạy!');
+            setLoading(false);
+        }
+    };
+
+    const fetchStudentsInCourseClass = async (courseClassId) => {
+        try {
+            setLoading(true);
+            const response = await axiosClient.get(`/registration/classes/${courseClassId}/students`);
+            setStudents(response || []);
+        } catch (err) {
+            setError('Lỗi tải danh sách sinh viên thuộc lớp học phần phụ trách!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleTeacherClassChange = (courseClassId) => {
+        setSelectedCourseClass(courseClassId);
+        if (courseClassId) {
+            fetchStudentsInCourseClass(courseClassId);
+        } else {
+            setStudents([]);
+        }
+    };
+
+
+    // ==================== 🔄 THUẬT TOÁN QUÉT MẢNG LỌC HIỂN THỊ CHUNG ====================
+    const filteredStudents = students.filter(student => {
+        const matchesSearch = student.studentCode.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+            `${student.lastName} ${student.firstName}`.toLowerCase().includes(searchQuery.trim().toLowerCase());
+
+        if (isAdmin) {
+            const matchesCohort = !selectedCohort || student.cohort === selectedCohort;
+            const matchesClass = !selectedClass || student.classId === Number(selectedClass);
+            const selectedDeptObj = departments.find(d => d.id === Number(selectedDept));
+            const matchesDept = !selectedDept || student.departmentName === selectedDeptObj?.name;
+            return matchesSearch && matchesCohort && matchesDept && matchesClass;
+        }
+
+        return matchesSearch; // Với Giáo viên chỉ cần lọc theo ô tìm kiếm trên mảng sinh viên lớp học phần
+    });
+
+    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang đồng bộ cơ sở dữ liệu học viên...</div>;
+    if (error) return <div style={{ color: 'var(--color-danger)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>{error}</div>;
+
+    return (
+        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)', textAlign: 'left' }}>
+
+            {/* THANH ĐIỀU HƯỚNG TIÊU ĐỀ */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)', flexWrap: 'wrap', gap: '15px' }}>
+                <div>
+                    <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>
+                        {isAdmin ? '🏛️ HỆ THỐNG QUẢN TRỊ SINH VIÊN' : '👨‍🏫 DANH SÁCH SINH VIÊN ĐANG GIẢNG DẠY'}
+                    </h2>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+                        {isAdmin ? 'Quyền hạn Quản trị viên: Toàn quyền khởi tạo, chỉnh sửa và cấu hình hồ sơ.' : 'Quyền hạn Giảng viên: Theo dõi danh sách học viên đăng ký lớp học phần phụ trách.'}
+                    </p>
+                </div>
+
+                {isAdmin && (
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={handleAddNewCohort} style={{ padding: '8px 14px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+                            ⏳ + Thêm Khóa Mới (Tăng theo năm)
+                        </button>
+                        <button onClick={() => { resetForm(); setShowModal(true); }} style={{ padding: '8px 14px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+                            + Cấp Tài Khoản Sinh Viên
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* 🔥 THANH BỘ LỌC ĐA CẤP PHÂN RÃ THEO ROLE */}
+            <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', flexWrap: 'wrap' }}>
+
+                {isAdmin ? (
+                    /* LUỒNG HIỂN THỊ CASCADING DROPDOWN CỦA ADMIN */
+                    <>
+                        <div style={{ width: '200px' }}>
+                            <label style={labelStyle}>⏳ Lọc theo Khóa học:</label>
+                            <select value={selectedCohort} onChange={(e) => setSelectedCohort(e.target.value)} style={selectStyle}>
+                                <option value="">Tất cả các khóa</option>
+                                {cohorts.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+
+                        <div style={{ width: '220px' }}>
+                            <label style={labelStyle}>🏛️ Lọc theo Khoa:</label>
+                            <select value={selectedDept} onChange={(e) => handleDeptChange(e.target.value)} style={selectStyle}>
+                                <option value="">Tất cả các Khoa</option>
+                                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            </select>
+                        </div>
+
+                        <div style={{ width: '220px' }}>
+                            <label style={labelStyle}>👥 Lọc theo Lớp hành chính:</label>
+                            <select value={selectedClass} onChange={(e) => handleClassChange(e.target.value)} style={selectStyle}>
+                                <option value="">Tất cả các Lớp</option>
+                                {filteredClassOptions.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+                            </select>
+                        </div>
+                    </>
+                ) : (
+                    /* 🔥 LUỒNG HIỂN THỊ ĐỘC QUYỀN CỦA GIẢNG VIÊN (TEACHER) */
+                    <div style={{ width: '350px' }}>
+                        <label style={labelStyle}>📖 Lựa chọn Lớp học phần đang đảm nhiệm:</label>
+                        <select value={selectedCourseClass} onChange={(e) => handleTeacherClassChange(e.target.value)} style={selectStyle}>
+                            {teacherClasses.map(c => (
+                                <option key={c.id} value={c.id}>
+                                    {c.code} — {c.subjectName} ({c.registeredStudents} SV)
+                                </option>
+                            ))}
+                            {teacherClasses.length === 0 && <option value="">Chưa có lớp học phần phân công</option>}
+                        </select>
+                    </div>
+                )}
+
+                <div style={{ flex: '1', minWidth: '200px' }}>
+                    <label style={labelStyle}>🔍 Tìm nhanh học viên (Mã số / Họ tên):</label>
+                    <input
+                        type="text"
+                        placeholder="Nhập từ khóa cần tìm kiếm..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{ width: '100%', padding: '9px 12px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', outline: 'none' }}
+                    />
+                </div>
+            </div>
+
+            {/* BẢNG RENDERING HIỂN THỊ DANH SÁCH */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+                <thead>
+                <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Mã Sinh Viên</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Tên</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Thuộc Niên Khóa</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Khoa Chuyên Môn</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Lớp Hành Chính</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Trạng thái tài khoản</th>
+                    {isAdmin && <th style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>Hành Động Tác Vụ</th>}
+                </tr>
+                </thead>
+                <tbody>
+                {filteredStudents.map((student) => (
+                    <tr key={student.id} style={{ borderBottom: '1px solid var(--color-border)', opacity: student.active ? 1 : 0.55 }}>
+                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{student.studentCode}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{student.lastName} {student.firstName}</td>
+                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)', fontWeight: 'bold' }}>{student.cohort || 'Khóa 1'}</td>
+                        <td style={{ padding: 'var(--spacing-md)', color: 'white', fontWeight: '500' }}>{student.departmentName || 'Chưa cập nhật'}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{student.className}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{student.gender}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>
+                            {student.active ? <span style={{ color: 'var(--color-success)', fontSize: '12px', fontWeight: 'bold' }}>● Đang học</span> : <span style={{ color: 'var(--color-danger)', fontSize: '12px', fontWeight: 'bold' }}>🔒 Đã khóa tài khoản</span>}
+                        </td>
+                        {isAdmin && (
+                            <td style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>
+                                <button onClick={() => handleOpenEdit(student)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', marginRight: '5px', fontWeight: 'bold' }}>Sửa</button>
+                                {student.active ? (
+                                    <button onClick={() => handleDeleteStudent(student.id, student.studentCode, student.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Khóa</button>
+                                ) : (
+                                    <button onClick={() => handleEnableStudent(student.id, student.studentCode, student.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Mở Khóa</button>
+                                )}
+                            </td>
+                        )}
+                    </tr>
+                ))}
+                {filteredStudents.length === 0 && (
+                    <tr>
+                        <td colSpan={isAdmin ? 8 : 7} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                            Không tìm thấy dữ liệu sinh viên nào phù hợp.
+                        </td>
+                    </tr>
+                )}
+                </tbody>
+            </table>
+
+            {/* MODAL BIỂU MẪU CỦA ADMIN (CHỈ GENERATE KHI LÀ ADMIN) */}
+            {showModal && isAdmin && (
+                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 }}>
+                    <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--spacing-xl)', borderRadius: '8px', width: '550px' }}>
+                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>{isEditMode ? '📝 CẬP NHẬT HỒ SƠ SINH VIÊN' : '✍️ KHỞI TẠO HỒ SƠ SYSTEM'}</h3>
+                        <form onSubmit={handleSubmit}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Mã Sinh Viên:</label><input type="text" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} disabled={isEditMode} required style={inputStyle} /></div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Lớp Hành Chính:</label>
+                                    <select value={classId} onChange={(e) => setClassId(e.target.value)} required style={inputStyle}>
+                                        <option value="">-- Chọn lớp gợi ý --</option>
+                                        {classList.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Phân vào Khóa học:</label>
+                                    <select value={studentCohort} onChange={(e) => setStudentCohort(e.target.value)} required style={inputStyle}>
+                                        {cohorts.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Giới Tính:</label><select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Họ Và Tên Đệm:</label><input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Tên Sinh Viên:</label><input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
+                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
+                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Số Điện Thoại:</label><input type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
+                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Hủy Bỏ</button>
+                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>{isEditMode ? 'Lưu Thay Đổi' : 'Khởi Tạo & Cấp TK'}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const labelStyle = { display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: 'bold', color: 'var(--text-cyan)' };
+const selectStyle = { width: '100%', padding: '9px 12px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', outline: 'none', cursor: 'pointer' };
+const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
+
+export default StudentPage;
+</file>
+
 <file path="pom.xml">
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -6525,6 +7629,98 @@ public class SubjectServiceImpl implements SubjectService {
 </project>
 </file>
 
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/configuration/SecurityConfig.java">
+package com.dangdepzaivaio.StudentManagement.configuration;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
+
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+@RequiredArgsConstructor
+public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
+        httpSecurity.cors(cors -> cors.configurationSource(corsConfigurationSource()));
+
+        httpSecurity.authorizeHttpRequests(request -> request
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/auth/login", "/auth/change-password").permitAll()
+
+                .requestMatchers(HttpMethod.POST, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
+
+                .requestMatchers(HttpMethod.GET, "/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
+
+                .requestMatchers(HttpMethod.POST, "/grades/**").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.PUT, "/grades/**").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.DELETE, "/grades/**").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.GET, "/grades/**").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
+
+                .requestMatchers(HttpMethod.POST, "/registration/periods").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/registration/periods/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/registration/periods").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
+                .requestMatchers(HttpMethod.GET, "/registration/statistics").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/registration/course-class/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/registration/teacher/**").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.GET, "/registration/classes/**").hasAnyRole("ADMIN", "TEACHER")
+                .requestMatchers(HttpMethod.GET, "/registration/open-course-classes", "/registration/my-classes").hasRole("STUDENT")
+                .requestMatchers(HttpMethod.POST, "/registration/enroll").hasRole("STUDENT")
+                .requestMatchers(HttpMethod.DELETE, "/registration/unenroll").hasRole("STUDENT")
+
+                .anyRequest().authenticated());
+
+        httpSecurity.csrf(AbstractHttpConfigurer::disable);
+        httpSecurity.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return httpSecurity.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+}
+</file>
+
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/UserController.java">
 package com.dangdepzaivaio.StudentManagement.controller;
 
@@ -6603,7 +7799,7 @@ public class Student extends BaseEntity {
 
     @Id
     @Column(name = "id", length = 20)
-    private String id; // 🔥 Khóa chính kiểu Chuỗi
+    private String id;
 
     @Column(name = "student_code", nullable = false, unique = true, length = 20)
     private String studentCode;
@@ -6623,12 +7819,16 @@ public class Student extends BaseEntity {
     @Column(name = "phone_number", length = 15)
     private String phoneNumber;
 
+    // 🔥 THÊM MỚI: Cột khóa học sinh viên lưu trữ thẳng xuống Database thật
+    @Column(name = "cohort", length = 20)
+    private String cohort;
+
     @Builder.Default
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @MapsId // 🔥 ĐỒNG BỘ: Ép ID của bảng Student khớp hoàn toàn với ID của User
+    @MapsId
     @JoinColumn(name = "id")
     private User user;
 
@@ -7249,6 +8449,7 @@ public interface StudentMapper {
     @Mapping(target = "classId", source = "studentClass.id") // 🔥 ÉP MAP: Lấy ID của Class đưa vào DTO
     @Mapping(target = "className", source = "studentClass.name")
     @Mapping(target = "active", source = "active")
+    @Mapping(target = "departmentName", source = "studentClass.department.name")
     StudentResponse toResponse(Student student);
 }
 </file>
@@ -7532,12 +8733,11 @@ public class StudentServiceImpl implements StudentService {
         Class studentClass = classRepository.findById(request.classId())
                 .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
 
-        // 🔥 THUẬT TOÁN TỰ SINH CHUỖI ID LIÊN KẾT: HS_01, HS_02...
         long nextIndex = userRepository.countByIdStartingWith("HS_") + 1;
         String generatedId = String.format("HS_%02d", nextIndex);
 
         User user = User.builder()
-                .id(generatedId) // Gán cứng chuỗi ID tự sinh vào User
+                .id(generatedId)
                 .username(request.studentCode())
                 .password(passwordEncoder.encode("password1234"))
                 .email(request.studentCode().toLowerCase() + "@open.edu.vn")
@@ -7545,21 +8745,19 @@ public class StudentServiceImpl implements StudentService {
                 .isActive(true)
                 .build();
 
-        // Trong file StudentServiceImpl.java:
-
         Role studentRole = roleRepository.findByName("STUDENT")
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
         user.setRoles(Set.of(studentRole));
 
-        // 🔥 SỬA DÒNG NÀY: Hứng lấy đối tượng Managed trả về từ hàm save()
+        // 🔥 BẢN VÁ: Hứng lấy Managed Object từ UserRepository trả về để chống lỗi crash liên kết dữ liệu
         User managedUser = userRepository.save(user);
 
         Student student = studentMapper.toEntity(request);
-
-        // 🔥 SỬA DÒNG NÀY: Gắn đối tượng managedUser đã an toàn vào Student
         student.setUser(managedUser);
-
         student.setStudentClass(studentClass);
+
+        // 🔥 THÊM MỚI: Lưu thông tin niên khóa học thực tế trực tiếp vào Database SQL
+        student.setCohort(request.cohort());
         student.setActive(true);
 
         return studentMapper.toResponse(studentRepository.save(student));
@@ -7575,7 +8773,7 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    public StudentResponse getStudentById(String id) { // Chuyển tham số sang String
+    public StudentResponse getStudentById(String id) {
         return studentRepository.findById(id)
                 .map(studentMapper::toResponse)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
@@ -7583,7 +8781,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
-    public StudentResponse updateStudent(String id, StudentUpdateRequest request) { // Chuyển tham số sang String
+    public StudentResponse updateStudent(String id, StudentUpdateRequest request) {
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
 
@@ -7598,6 +8796,12 @@ public class StudentServiceImpl implements StudentService {
         student.setDateOfBirth(request.dateOfBirth());
         student.setGender(request.gender());
         student.setPhoneNumber(request.phoneNumber());
+
+        // 🔥 THÊM MỚI: Cập nhật sửa đổi Khóa học thực tế trong Database
+        if (request.cohort() != null) {
+            student.setCohort(request.cohort());
+        }
+
         if (request.active() != null) {
             student.setActive(request.active());
             if (student.getUser() != null) {
@@ -7610,7 +8814,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
-    public void disableStudent(String id) { // Chuyển tham số sang String
+    public void disableStudent(String id) {
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
         student.setActive(false);
@@ -7620,7 +8824,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
-    public void enableStudent(String id) { // Chuyển tham số sang String
+    public void enableStudent(String id) {
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
         student.setActive(true);
