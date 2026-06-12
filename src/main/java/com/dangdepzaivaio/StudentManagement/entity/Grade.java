@@ -46,4 +46,7 @@ public class Grade extends BaseEntity {
     // BỔ SUNG THÊM DÒNG NÀY
     @Column(name = "grade_4")
     private Double grade4; // Điểm số hệ 4 (Ví dụ: 3.5, 4.0)
+    // BỔ SUNG THÊM CỘT TRẠNG THÁI DUYỆT ĐƠN
+    @Column(name = "status", length = 20)
+    private String status; // Lưu các giá trị: PENDING, APPROVED, REJECTED
 }

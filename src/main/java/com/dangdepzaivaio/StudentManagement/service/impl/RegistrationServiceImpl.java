@@ -55,6 +55,7 @@ public class RegistrationServiceImpl {
         Grade enrollment = Grade.builder()
                 .student(student)
                 .courseClass(courseClass)
+                .status("PENDING")
                 .build();
 
         gradeRepository.save(enrollment);
@@ -75,6 +76,23 @@ public class RegistrationServiceImpl {
         }
 
         gradeRepository.delete(grade);
+    }
+
+    // ================= MỚI THÊM: HÀM XỬ LÝ DUYỆT ĐƠN =================
+    @Transactional
+    public void toggleApproveStatus(Long courseClassId, String studentId) {
+        // Tìm đơn đăng ký của sinh viên
+        Grade grade = gradeRepository.findByStudentIdAndCourseClassId(studentId, courseClassId)
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_ENROLLED));
+
+        if ("APPROVED".equalsIgnoreCase(grade.getStatus())) {
+            // NẾU GIÁO VIÊN BẤM HỦY DUYỆT -> XÓA LUÔN ĐƠN KHỎI DATABASE
+            gradeRepository.delete(grade);
+        } else {
+            // NẾU GIÁO VIÊN BẤM DUYỆT -> LƯU TRẠNG THÁI APPROVED
+            grade.setStatus("APPROVED");
+            gradeRepository.save(grade);
+        }
     }
 
     public List<CourseClassResponse> getOpenCourseClasses() {

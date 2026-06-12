@@ -16,5 +16,6 @@ public record GradeResponse(
         Double finalGrade,
         Double overallGrade,
         String letterGrade,
-        Double grade4
+        Double grade4,
+        String status
 ) {}

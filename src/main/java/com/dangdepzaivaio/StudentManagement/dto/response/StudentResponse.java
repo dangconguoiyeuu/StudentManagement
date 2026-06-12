@@ -18,5 +18,6 @@ public record StudentResponse(
 
         // 🔥 THÊM MỚI: Trường dữ liệu phản hồi khóa học từ Database thật ra ngoài UI
         String cohort,
-        String departmentName
+        String departmentName,
+        String status
 ) {}

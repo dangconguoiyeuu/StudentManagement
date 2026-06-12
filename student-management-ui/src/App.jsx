@@ -14,6 +14,20 @@ function App() {
     const [role, setRole] = useState(localStorage.getItem('roles') || '');
     const [activeTab, setActiveTab] = useState('dashboard');
 
+    const executeLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        localStorage.removeItem('roles');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('studentId');
+        localStorage.removeItem('teacherId');
+        localStorage.removeItem('lastExitTime');
+
+        setToken(null);
+        setUsername(null);
+        setRole('');
+    };
+
     useEffect(() => {
         const checkSession = () => {
             const lastExitTime = localStorage.getItem('lastExitTime');
@@ -24,10 +38,7 @@ function App() {
                 const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
                 if (timeAway > FIFTEEN_MINUTES) {
-                    localStorage.clear();
-                    setToken(null);
-                    setUsername(null);
-                    setRole('');
+                    executeLogout();
                     alert("Phiên làm việc của bạn đã hết hạn do không hoạt động trong 15 phút. Vui lòng đăng nhập lại!");
                 } else {
                     localStorage.removeItem('lastExitTime');
@@ -59,10 +70,7 @@ function App() {
     }, []);
 
     const handleLogout = () => {
-        localStorage.clear();
-        setToken(null);
-        setUsername(null);
-        setRole('');
+        executeLogout();
     };
 
     if (!token) {
@@ -88,27 +96,23 @@ function App() {
                 <div style={{ width: '240px', backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl) var(--spacing-sm)', borderRight: '1px solid var(--color-border)' }}>
                     <button onClick={() => setActiveTab('dashboard')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'dashboard' ? 'var(--color-primary)' : 'transparent' }}>📊 Tổng Quan System</button>
 
-                    {/* MENU QUẢN LÝ SINH VIÊN */}
                     {(role.includes('ADMIN') || role.includes('TEACHER')) && (
                         <button onClick={() => setActiveTab('students')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'students' ? 'var(--color-primary)' : 'transparent' }}>👥 Quản Lý Sinh Viên</button>
                     )}
 
-                    {/* MENU QUẢN LÝ GIẢNG VIÊN */}
                     {role.includes('ADMIN') && (
                         <button onClick={() => setActiveTab('teachers')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'teachers' ? 'var(--color-primary)' : 'transparent' }}>💼 Quản Lý Giảng Viên</button>
                     )}
 
                     <button onClick={() => setActiveTab('grades')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'grades' ? 'var(--color-primary)' : 'transparent' }}>🎯 Quản Lý Điểm Số</button>
 
-                    <button onClick={() => setActiveTab('registration')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'registration' ? 'var(--color-primary)' : 'transparent' }}>⏰ Đăng Ký Tín Chỉ</button>
+                    {/* 🔥 ĐÃ FIX: Cho phép cả ADMIN, STUDENT và TEACHER nhìn thấy phân hệ này */}
+                    {(role.includes('ADMIN') || role.includes('STUDENT') || role.includes('TEACHER')) && (
+                        <button onClick={() => setActiveTab('registration')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'registration' ? 'var(--color-primary)' : 'transparent' }}>⏰ Đăng Ký Tín Chỉ</button>
+                    )}
 
-                    {/* 🔥 ĐÃ FIX THEO YÊU CẦU: Rẽ nhánh hiển thị "Lịch Dạy" cho Teacher và "Lịch Học" cho Student */}
-                    {/* MENU LỊCH TRÌNH DÀNH RIÊNG CHO GIẢNG VIÊN VÀ SINH VIÊN */}
                     {(role.includes('TEACHER') || role.includes('STUDENT')) && (
-                        <button
-                            onClick={() => setActiveTab('schedule')}
-                            style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'schedule' ? 'var(--color-primary)' : 'transparent' }}
-                        >
+                        <button onClick={() => setActiveTab('schedule')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'schedule' ? 'var(--color-primary)' : 'transparent' }}>
                             📅 {role.includes('TEACHER') ? 'Lịch Dạy' : 'Lịch Học'}
                         </button>
                     )}

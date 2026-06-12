@@ -4,14 +4,20 @@ import axiosClient from '../api/axiosClient';
 export default function RegistrationPage() {
     const role = localStorage.getItem('roles') || '';
     const teacherId = localStorage.getItem('teacherId') || '';
+    const loggedInStudentId = localStorage.getItem('studentId') || '';
 
     const [message, setMessage] = useState({ text: '', isError: false });
 
     // --- STATE PHÂN HỆ ADMIN ---
     const [periodForm, setPeriodForm] = useState({ semester: 'HK1-2026', startTime: '', endTime: '' });
-    const [allPeriods, setAllPeriods] = useState([]); // Lưu lịch sử tất cả các đợt mở cổng
-    const [selectedPeriod, setSelectedPeriod] = useState(null); // Đợt đang được chọn để xem chi tiết
-    const [courseClasses, setCourseClasses] = useState([]); // Lưu tất cả lớp học phần từ DB thật
+    const [allPeriods, setAllPeriods] = useState([]);
+    const [selectedPeriod, setSelectedPeriod] = useState(null);
+    const [courseClasses, setCourseClasses] = useState([]);
+
+    // State tìm kiếm và hủy môn cho Sinh viên (Admin dùng)
+    const [searchStudentId, setSearchStudentId] = useState('');
+    const [searchedClasses, setSearchedClasses] = useState(null);
+    const [isSearchingStudent, setIsSearchingStudent] = useState(false);
 
     // --- STATE PHÂN HỆ TEACHER ---
     const [teacherClasses, setTeacherClasses] = useState([]);
@@ -24,14 +30,14 @@ export default function RegistrationPage() {
     const [isRegistrationTime, setIsRegistrationTime] = useState(false);
     const [activePeriodInfo, setActivePeriodInfo] = useState(null);
 
-    // 🔥 STATE ĐẾM GIÂY REALTIME: Đồng bộ thời gian thực cho cả hệ thống và bảng lịch sử
+    const [selectedClassIds, setSelectedClassIds] = useState([]);
+
     const [tick, setTick] = useState(Date.now());
 
     useEffect(() => {
         refreshData();
     }, [role]);
 
-    // Kích hoạt bộ đếm nhịp chạy ngầm mỗi 1 giây
     useEffect(() => {
         const timer = setInterval(() => {
             setTick(Date.now());
@@ -39,9 +45,8 @@ export default function RegistrationPage() {
         return () => clearInterval(timer);
     }, []);
 
-    // Tự động đóng/mở cổng chọn môn cho Sinh viên khi đồng hồ chạm mốc giờ hẹn
     useEffect(() => {
-        if (role.includes('STUDENT') && activePeriodInfo) {
+        if (activePeriodInfo) {
             const now = new Date();
             const start = new Date(activePeriodInfo.startTime);
             const end = new Date(activePeriodInfo.endTime);
@@ -49,32 +54,39 @@ export default function RegistrationPage() {
             if (activePeriodInfo.isActive && now >= start && now <= end) {
                 if (!isRegistrationTime) {
                     setIsRegistrationTime(true);
-                    fetchOpenClassesForStudent(activePeriodInfo.semester);
+                    if (role.includes('STUDENT')) fetchOpenClassesForStudent(activePeriodInfo.semester);
                 }
             } else {
                 if (isRegistrationTime) {
                     setIsRegistrationTime(false);
-                    setAvailableClasses([]);
+                    if (role.includes('STUDENT')) setAvailableClasses([]);
                 }
             }
         }
     }, [tick, activePeriodInfo, role]);
 
     const refreshData = () => {
-        if (role.includes('ADMIN')) {
-            loadAdminPeriodsAndClasses();
-        }
+        if (role.includes('ADMIN')) loadAdminPeriodsAndClasses();
         if (role.includes('TEACHER')) {
+            fetchActivePeriodStatus();
             loadTeacherSchedule();
         }
-        if (role.includes('STUDENT')) {
-            loadStudentRegistrationFlow();
-        }
+        if (role.includes('STUDENT')) loadStudentRegistrationFlow();
     };
 
     const showMessage = (text, isError = false) => {
         setMessage({ text, isError });
         setTimeout(() => setMessage({ text: '', isError: false }), 4000);
+    };
+
+    const fetchActivePeriodStatus = async () => {
+        try {
+            const periods = await axiosClient.get('/registration/periods');
+            if (periods && periods.length > 0) {
+                const sorted = [...periods].sort((a, b) => b.id - a.id);
+                setActivePeriodInfo(sorted[0]);
+            }
+        } catch (err) { console.error(err); }
     };
 
     // ==================== 🛠️ NGHIỆP VỤ ADMIN ====================
@@ -92,7 +104,6 @@ export default function RegistrationPage() {
                     setSelectedPeriod(sortedPeriods[0]);
                 }
             }
-
             const classesData = await axiosClient.get('/course-classes');
             setCourseClasses(classesData);
         } catch (err) { showMessage('Không thể tải dữ liệu quản trị hệ thống', true); }
@@ -126,6 +137,74 @@ export default function RegistrationPage() {
         } catch (err) { showMessage(err || 'Không thể thay đổi trạng thái tích chọn môn', true); }
     };
 
+    // TÌM KIẾM HỒ SƠ SINH VIÊN (ADMIN)
+    const handleSearchStudent = async (e) => {
+        if(e) e.preventDefault();
+        if (!searchStudentId.trim()) return;
+        setIsSearchingStudent(true);
+        try {
+            // 🔥 THÊM ĐUÔI _t ĐỂ ÉP TRÌNH DUYỆT LẤY DỮ LIỆU MỚI
+            const res = await axiosClient.get(`/grades/student/${searchStudentId.trim()}?_t=${Date.now()}`);
+            setSearchedClasses(res);
+        } catch (err) {
+            showMessage('Không tìm thấy dữ liệu sinh viên này. Vui lòng kiểm tra lại Mã SV.', true);
+            setSearchedClasses([]);
+        } finally {
+            setIsSearchingStudent(false);
+        }
+    };
+
+    // ADMIN XÓA (RÚT) TÍN CHỈ CHO SINH VIÊN
+    const handleAdminDeleteRegistration = async (gradeId, subjectName) => {
+        if (!window.confirm(`⚠️ RÚT MÔN HỌC KHẨN CẤP\n\nBạn (Admin) có chắc chắn muốn XÓA môn [${subjectName}] của sinh viên này không?\nHành động này sẽ gỡ bỏ hoàn toàn môn học khỏi hệ thống!`)) return;
+
+        try {
+            await axiosClient.delete(`/grades/${gradeId}`);
+            showMessage(`Đã rút thành công môn ${subjectName} cho sinh viên!`);
+
+            // 🔥 XÓA MÔN ĐÓ KHỎI GIAO DIỆN NGAY LẬP TỨC MÀ KHÔNG CẦN CHỜ LOAD LẠI
+            setSearchedClasses(prev => prev.filter(item => item.id !== gradeId));
+
+        } catch (err) {
+            showMessage('Lỗi khi Admin xóa môn học của sinh viên.', true);
+        }
+    };
+
+    const checkScheduleConflicts = (selectedItems, existingItems) => {
+        const slotsMap = {};
+        const allItemsToCheck = [...existingItems, ...selectedItems];
+
+        for (const item of allItemsToCheck) {
+            const schedStr = (item.schedule || '').toLowerCase();
+            if (!schedStr) continue;
+
+            let dayKey = '';
+            if (schedStr.includes('chủ nhật') || schedStr.includes('cn')) dayKey = 'CN';
+            else {
+                const dayMatch = schedStr.match(/thứ\s*(\d+)/) || schedStr.match(/t(\d+)/);
+                if (dayMatch) dayKey = dayMatch[1];
+            }
+
+            if (!dayKey) continue;
+            if (!slotsMap[dayKey]) slotsMap[dayKey] = {};
+
+            let shiftKey = '';
+            if (schedStr.includes('sáng') || schedStr.match(/tiết\s*[1-4]/)) shiftKey = 'Sáng';
+            else if (schedStr.includes('chiều') || schedStr.match(/tiết\s*[5-8]/)) shiftKey = 'Chiều';
+            else if (schedStr.includes('tối') || schedStr.match(/tiết\s*(9|10|11|12)/)) shiftKey = 'Tối';
+
+            if (!shiftKey) continue;
+
+            if (slotsMap[dayKey][shiftKey]) {
+                const dayLabel = dayKey === 'CN' ? 'Chủ Nhật' : `Thứ ${dayKey}`;
+                return `🚨 Xung đột lịch học: Bạn không thể đăng ký môn [${item.subjectName}] vì đã bị trùng vào Buổi ${shiftKey} ${dayLabel} với môn [${slotsMap[dayKey][shiftKey]}]!`;
+            }
+
+            slotsMap[dayKey][shiftKey] = item.subjectName;
+        }
+        return null;
+    };
+
     // ==================== 💼 NGHIỆP VỤ TEACHER ====================
     const loadTeacherSchedule = async () => {
         if (!teacherId) return;
@@ -143,15 +222,25 @@ export default function RegistrationPage() {
         } catch (err) { showMessage('Không thể tải danh sách sinh viên lớp học phần', true); }
     };
 
+    const handleToggleApproveStudent = async (studentId, currentStatus) => {
+        try {
+            await axiosClient.put(`/registration/classes/${selectedClassId}/students/${studentId}/toggle-approve`);
+            showMessage('Đã cập nhật trạng thái duyệt đơn thành công!');
+            viewClassStudents(selectedClassId);
+        } catch (err) {
+            showMessage('Lỗi khi duyệt đơn. Vui lòng kiểm tra lại.', true);
+        }
+    };
+
     // ==================== 🎓 NGHIỆP VỤ STUDENT ====================
     const fetchOpenClassesForStudent = async (semester) => {
         try {
-            const allSystemClasses = await axiosClient.get('/course-classes');
-            const filteredOpenClasses = allSystemClasses.filter(
-                c => c.openForRegistration === true && c.semester === semester
-            );
+            const openClasses = await axiosClient.get('/registration/open-course-classes');
+            const filteredOpenClasses = openClasses.filter(c => c.semester === semester);
             setAvailableClasses(filteredOpenClasses);
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            console.error("Lỗi khi tải danh sách môn học mở:", err);
+        }
     };
 
     const loadStudentRegistrationFlow = async () => {
@@ -181,26 +270,53 @@ export default function RegistrationPage() {
                 setAvailableClasses([]);
             }
 
-            const myClasses = await axiosClient.get('/registration/my-classes');
-            setMyRegisteredClasses(myClasses);
+            // 🔥 ÉP TRÌNH DUYỆT LẤY HỒ SƠ MỚI NHẤT
+            const myClasses = await axiosClient.get(`/registration/my-classes?_t=${Date.now()}`);
+            const validClasses = myClasses.filter(c => c.status !== 'REJECTED');
+            setMyRegisteredClasses(validClasses);
         } catch (err) { console.error(err); }
     };
 
-    const handleEnroll = async (courseClassId) => {
+    const handleBulkEnroll = async () => {
+        if (selectedClassIds.length === 0) return alert('Vui lòng chọn ít nhất 1 môn để đăng ký!');
+
+        const itemsToEnroll = availableClasses.filter(c => selectedClassIds.includes(c.id));
+
+        const validExistingClasses = myRegisteredClasses.filter(reg => {
+            const isCurrentSem = activePeriodInfo && reg.semester === activePeriodInfo.semester;
+            const isApproved = reg.status === 'APPROVED';
+            return !isCurrentSem || isApproved;
+        });
+
+        const conflictError = checkScheduleConflicts(itemsToEnroll, validExistingClasses);
+        if (conflictError) {
+            alert(conflictError);
+            return;
+        }
+
         try {
-            await axiosClient.post(`/registration/enroll?courseClassId=${courseClassId}`);
-            showMessage('Đăng ký chọn lớp học phần thành công mượt mà!');
+            for (const id of selectedClassIds) {
+                await axiosClient.post(`/registration/enroll?courseClassId=${id}`);
+            }
+
+            showMessage('Đăng ký tín chỉ thành công! Đơn đang chờ Giảng viên phê duyệt.');
+            setSelectedClassIds([]);
             loadStudentRegistrationFlow();
-        } catch (err) { showMessage(err || 'Không thể đăng ký học phần này!', true); }
+        } catch (err) { showMessage(err?.response?.data || 'Không thể đăng ký học phần này!', true); }
     };
 
     const handleUnenroll = async (courseClassId) => {
-        if (!window.confirm("Bạn có chắc chắn muốn hủy học phần này không?")) return;
+        if (!window.confirm("⚠️ Bạn có chắc chắn muốn rút/hủy đơn đăng ký môn học này không?")) return;
         try {
             await axiosClient.delete(`/registration/unenroll?courseClassId=${courseClassId}`);
-            showMessage('Đã rút tên khỏi lớp học phần thành công!');
-            loadStudentRegistrationFlow();
-        } catch (err) { showMessage(err || 'Không thể hủy học phần này!', true); }
+            showMessage('Đã hủy môn học thành công!');
+
+            // 🔥 XÓA NGAY MÔN ĐÓ KHỎI GIAO DIỆN SINH VIÊN
+            setMyRegisteredClasses(prev => prev.filter(item => item.courseClassId !== courseClassId));
+
+        } catch (err) {
+            showMessage(err?.response?.data || 'Không thể hủy môn học này lúc này!', true);
+        }
     };
 
     const formatDate = (dateStr) => {
@@ -211,21 +327,15 @@ export default function RegistrationPage() {
 
     const renderPeriodStatusLabel = (period) => {
         if (!period) return <span style={{color:'var(--text-muted)'}}>Chưa rõ</span>;
-        if (!period.isActive) {
-            return <span style={{color:'var(--color-danger)', fontWeight:'bold'}}>🔒 Đã đóng / Hủy kích hoạt</span>;
-        }
+        if (!period.isActive) return <span style={{color:'var(--color-danger)', fontWeight:'bold'}}>🔒 Đã đóng / Hủy kích hoạt</span>;
 
         const now = new Date();
         const start = new Date(period.startTime);
         const end = new Date(period.endTime);
 
-        if (now < start) {
-            return <span style={{color:'var(--color-warning)', fontWeight:'bold'}}>⏳ Chờ đến mốc giờ mở</span>;
-        } else if (now > end) {
-            return <span style={{color:'var(--color-danger)', fontWeight:'bold'}}>⏰ Đã hết hạn đóng cổng</span>;
-        } else {
-            return <span style={{color:'var(--color-success)', fontWeight:'bold'}}>🟢 Đang mở đăng ký</span>;
-        }
+        if (now < start) return <span style={{color:'var(--color-warning)', fontWeight:'bold'}}>⏳ Chờ đến mốc giờ mở</span>;
+        else if (now > end) return <span style={{color:'var(--color-danger)', fontWeight:'bold'}}>⏰ Đã hết hạn đóng cổng</span>;
+        else return <span style={{color:'var(--color-success)', fontWeight:'bold'}}>🟢 Đang mở đăng ký</span>;
     };
 
     return (
@@ -241,15 +351,11 @@ export default function RegistrationPage() {
             {/* ==================== VIEW ADMIN ==================== */}
             {role.includes('ADMIN') && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-                    {/* KHU VỰC 1: LỊCH SỬ CÁC ĐỢT MỞ CỔNG ĐĂNG KÝ TÍN CHỈ CỦA TRƯỜNG */}
                     <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
                         <h3 style={{ color: 'var(--text-cyan)', margin: '0 0 12px 0' }}>📂 LỊCH SỬ CÁC ĐỢT MỞ CỔNG ĐĂNG KÝ HỆ THỐNG</h3>
                         <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
                             {allPeriods.map(p => {
                                 const isSelected = selectedPeriod?.id === p.id;
-
-                                // 🔥 ĐÃ SỬA LUỒNG REALTIME: Tính toán nhãn trạng thái chính xác từng giây cho từng ô trong danh sách lịch sử
                                 let statusText = '🔒 Đã hủy/Đóng cổng';
                                 let statusColor = 'var(--color-danger)';
 
@@ -275,7 +381,6 @@ export default function RegistrationPage() {
                                         onClick={() => setSelectedPeriod(p)}
                                         style={{
                                             padding: '10px 15px',
-                                            // 🔥 ĐÃ ĐẠI TU UI: Giữ nền tối, nếu click chọn thì bật viền Cyan phát sáng và nhuộm màu chữ để nét căng, dễ nhìn
                                             backgroundColor: isSelected ? 'rgba(0, 188, 212, 0.08)' : 'var(--color-bg)',
                                             border: isSelected ? '2px solid var(--text-cyan)' : '1px solid var(--color-border)',
                                             boxShadow: isSelected ? '0 0 10px rgba(0, 188, 212, 0.25)' : 'none',
@@ -287,9 +392,7 @@ export default function RegistrationPage() {
                                     >
                                         <div style={{ fontWeight: 'bold', fontSize: '14px', color: isSelected ? 'var(--text-cyan)' : 'white' }}>Học kỳ: {p.semester}</div>
                                         <div style={{ fontSize: '12px', color: isSelected ? 'white' : 'var(--text-muted)', marginTop: '4px' }}>Mã đợt: #RP_{p.id}</div>
-                                        <div style={{ fontSize: '11px', marginTop: '6px', color: statusColor, fontWeight: 'bold' }}>
-                                            {statusText}
-                                        </div>
+                                        <div style={{ fontSize: '11px', marginTop: '6px', color: statusColor, fontWeight: 'bold' }}>{statusText}</div>
                                     </div>
                                 );
                             })}
@@ -297,7 +400,6 @@ export default function RegistrationPage() {
                         </div>
                     </div>
 
-                    {/* KHU VỰC 2: THANH GIÁM SÁT CHI TIẾT ĐỢT ĐANG CHỌN */}
                     {selectedPeriod && (
                         <div style={{ padding: '15px 20px', backgroundColor: 'var(--color-surface)', borderLeft: '5px solid var(--color-success)', borderRadius: '4px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid var(--color-border)' }}>
                             <div>
@@ -308,7 +410,6 @@ export default function RegistrationPage() {
                                     Trạng thái thực tế: {renderPeriodStatusLabel(selectedPeriod)}
                                 </div>
                             </div>
-
                             {selectedPeriod && selectedPeriod.isActive && (
                                 <button
                                     onClick={() => handleClosePeriod(selectedPeriod.id)}
@@ -321,7 +422,6 @@ export default function RegistrationPage() {
                     )}
 
                     <div style={{ display: 'flex', gap: 'var(--spacing-xl)', flexWrap: 'wrap' }}>
-                        {/* Form tạo đợt mới */}
                         <form onSubmit={handleCreatePeriod} style={{ width: '310px', display: 'flex', flexDirection: 'column', gap: '12px', padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)', height: 'fit-content' }}>
                             <style>{`
                                 .calendar-click-overlay { position: relative; }
@@ -340,13 +440,8 @@ export default function RegistrationPage() {
                             </button>
                         </form>
 
-                        {/* BẢNG ĐỒNG BỘ HIỂN THỊ CHI TIẾT MÔN THEO HỌC KỲ ĐƯỢC CHỌN */}
                         <div style={{ flex: 1, minWidth: '450px', padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
                             <h4>📋 Danh sách môn học phần thuộc học kỳ: {selectedPeriod?.semester || 'Chưa chọn'}</h4>
-                            <p style={{fontSize: '12px', color: 'var(--color-warning)', marginTop: 0, marginBottom: '12px'}}>
-                                💡 <b>Tác vụ Admin:</b> Tích chọn checkbox để cho phép mở hoặc khóa môn học phần tương ứng của học kỳ đang xem.
-                            </p>
-
                             <table style={tableStyle}>
                                 <thead>
                                 <tr style={thStyle}>
@@ -382,38 +477,68 @@ export default function RegistrationPage() {
                             </table>
                         </div>
                     </div>
-                </div>
-            )}
 
-            {/* ==================== VIEW TEACHER ==================== */}
-            {role.includes('TEACHER') && !role.includes('ADMIN') && (
-                <div>
-                    <h3 style={{ color: 'var(--text-cyan)' }}>💼 DANH SÁCH LỚP VÀ LỊCH GIẢNG DẠY CỦA BẠN</h3>
-                    <div style={{ display: 'flex', gap: '20px', marginTop: '15px' }}>
-                        <div style={{ width: '280px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {teacherClasses.map(c => (
-                                <button key={c.id} onClick={() => viewClassStudents(c.id)} style={{ padding: '12px', backgroundColor: selectedClassId === c.id ? 'var(--color-primary)' : 'var(--color-surface)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px', textAlign: 'left', cursor: 'pointer' }}>
-                                    <div style={{fontWeight:'bold', color: 'var(--text-cyan)'}}>{c.code}</div>
-                                    <div style={{fontSize:'12px', marginTop:'4px', color:'var(--color-warning)'}}>📅 Lịch dạy: {c.schedule || 'Chưa xếp lịch'}</div>
-                                </button>
-                            ))}
-                        </div>
+                    {/* 🔥 TÍNH NĂNG MỚI: ADMIN RÚT MÔN CHO SINH VIÊN */}
+                    <div style={{ marginTop: '10px', padding: '20px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-danger)' }}>
+                        <h3 style={{ color: 'var(--color-danger)', marginTop: 0, marginBottom: '15px' }}>
+                            🛠️ GIẢI QUYẾT ĐƠN RÚT MÔN CỦA SINH VIÊN (DÀNH CHO PHÒNG ĐÀO TẠO)
+                        </h3>
+                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '15px' }}>
+                            Nhập Mã Sinh Viên (Ví dụ: HS_01) để xem toàn bộ lịch sử đăng ký của sinh viên đó. Admin có quyền hủy (xóa) trực tiếp tín chỉ nếu sinh viên nộp đơn xin rút môn.
+                        </p>
 
-                        {selectedClassId && (
-                            <div style={{ flex: 1, padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                                <h4>👥 Danh sách sinh viên đăng ký học phần lớp [{teacherClasses.find(x => x.id === selectedClassId)?.code}]</h4>
+                        <form onSubmit={handleSearchStudent} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                            <input
+                                type="text"
+                                placeholder="Nhập Mã Sinh Viên..."
+                                value={searchStudentId}
+                                onChange={e => setSearchStudentId(e.target.value)}
+                                style={{ ...inputStyle, width: '300px' }}
+                                required
+                            />
+                            <button type="submit" style={{ padding: '8px 24px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                {isSearchingStudent ? 'Đang tìm...' : '🔍 Tìm Hồ Sơ'}
+                            </button>
+                        </form>
+
+                        {searchedClasses !== null && (
+                            <div style={{ overflowX: 'auto' }}>
                                 <table style={tableStyle}>
                                     <thead>
-                                    <tr style={thStyle}><th>Mã Sinh Viên</th><th>Họ Và Tên</th><th>Giới Tính</th><th>Số Điện Thoại</th></tr>
+                                    <tr style={thStyle}>
+                                        <th style={{ textAlign: 'center', width: '120px' }}>Trạng thái</th>
+                                        <th>Mã Lớp HP</th>
+                                        <th>Tên Môn Học</th>
+                                        <th>Số Tín Chỉ</th>
+                                        <th style={{ textAlign: 'center' }}>Thao Tác Quản Trị</th>
+                                    </tr>
                                     </thead>
                                     <tbody>
-                                    {classStudents.map((sv, i) => (
-                                        <tr key={i} style={trStyle}>
-                                            <td style={{fontWeight:'bold', color:'var(--color-warning)'}}>{sv.studentCode}</td>
-                                            <td>{sv.firstName} {sv.lastName}</td>
-                                            <td>{sv.gender}</td><td>{sv.phoneNumber || '-'}</td>
+                                    {searchedClasses.map(reg => (
+                                        <tr key={reg.id} style={trStyle}>
+                                            <td style={{ textAlign: 'center' }}>
+                                                {reg.status === 'APPROVED'
+                                                    ? <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>✅ Đã duyệt</span>
+                                                    : <span style={{ color: 'var(--color-warning)', fontWeight: 'bold' }}>⏳ Chờ duyệt</span>
+                                                }
+                                            </td>
+                                            <td style={{ fontWeight: 'bold', color: 'var(--text-cyan)' }}>{reg.courseClassCode}</td>
+                                            <td>{reg.subjectName}</td>
+                                            <td>{reg.credits} tín</td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <button
+                                                    onClick={() => handleAdminDeleteRegistration(reg.id, reg.subjectName)}
+                                                    style={{ padding: '8px 12px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
+                                                    title="Xóa vĩnh viễn môn học này khỏi hồ sơ sinh viên"
+                                                >
+                                                    🗑️ Hủy tín chỉ này
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))}
+                                    {searchedClasses.length === 0 && (
+                                        <tr><td colSpan="5" style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)' }}>Sinh viên này chưa có lịch sử đăng ký môn học nào.</td></tr>
+                                    )}
                                     </tbody>
                                 </table>
                             </div>
@@ -422,97 +547,199 @@ export default function RegistrationPage() {
                 </div>
             )}
 
-            {/* ==================== VIEW STUDENT ==================== */}
+            {/* ==================== 💼 VIEW TEACHER ==================== */}
+            {role.includes('TEACHER') && !role.includes('ADMIN') && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {!isRegistrationTime ? (
+                        <>
+                            <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                                <h3 style={{ color: 'var(--color-success)', marginTop: 0 }}>👨‍🏫 PHÊ DUYỆT ĐĂNG KÝ TÍN CHỈ (ĐÃ CHỐT SỔ)</h3>
+                                <label style={{ display: 'block', fontSize: '13px', marginBottom: '8px', fontWeight: 'bold' }}>Cổng đăng ký đã đóng. Vui lòng chọn lớp để duyệt danh sách sinh viên chính thức:</label>
+                                <select
+                                    value={selectedClassId || ''}
+                                    onChange={(e) => viewClassStudents(e.target.value)}
+                                    style={{ width: '100%', padding: '10px', backgroundColor: 'var(--color-bg)', color: 'white', border: '1px solid var(--color-border)', borderRadius: '4px', outline: 'none' }}
+                                >
+                                    <option value="">-- Chọn lớp học phần --</option>
+                                    {teacherClasses.map(c => (
+                                        <option key={c.id} value={c.id}>{c.code} - {c.subjectName}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {selectedClassId && (
+                                <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                                    <h4 style={{ marginTop: 0, color: 'white' }}>👥 Danh sách sinh viên đăng ký nộp đơn vào lớp</h4>
+                                    <table style={tableStyle}>
+                                        <thead>
+                                        <tr style={thStyle}>
+                                            <th>Sinh Viên Đăng Ký</th>
+                                            <th style={{ textAlign: 'center' }}>Thao Tác Duyệt Đơn</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        {classStudents.map((sv, i) => {
+                                            const isApproved = sv.status === 'APPROVED';
+                                            return (
+                                                <tr key={i} style={trStyle}>
+                                                    <td><b>{sv.firstName} {sv.lastName}</b> ({sv.studentCode})</td>
+                                                    <td style={{ textAlign: 'center' }}>
+                                                        <button
+                                                            onClick={() => handleToggleApproveStudent(sv.id || sv.enrollmentId, sv.status)}
+                                                            style={{
+                                                                padding: '6px 12px',
+                                                                backgroundColor: isApproved ? 'var(--color-success)' : 'var(--color-primary)',
+                                                                color: 'white',
+                                                                border: 'none',
+                                                                borderRadius: '4px',
+                                                                cursor: 'pointer',
+                                                                fontWeight: 'bold'
+                                                            }}
+                                                        >
+                                                            {isApproved ? '✅ Đã duyệt' : 'Duyệt Đơn'}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        {classStudents.length === 0 && (
+                                            <tr><td colSpan="2" style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)' }}>Chưa có sinh viên đăng ký lớp này đợt hiện tại.</td></tr>
+                                        )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px dashed var(--color-border)' }}>
+                            <div style={{ fontSize: '32px', marginBottom: '10px' }}>⏳</div>
+                            <h3 style={{ color: 'var(--color-warning)', margin: '0 0 5px 0' }}>HỆ THỐNG ĐANG TRONG THỜI GIAN ĐĂNG KÝ</h3>
+                            <p style={{ margin: 0, fontSize: '13px' }}>Giảng viên chỉ có quyền duyệt đơn sau khi thời gian đăng ký của sinh viên đã kết thúc (Chốt sổ).</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ==================== 🎓 VIEW STUDENT ==================== */}
             {role.includes('STUDENT') && !role.includes('ADMIN') && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-
-                    {/* BẢNG THÔNG BÁO CHI TIẾT NGÀY GIỜ MỞ ĐĂNG KÝ CHO SINH VIÊN */}
-                    <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderLeft: '5px solid var(--text-cyan)', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
-                        <h4 style={{ margin: '0 0 8px 0', color: 'var(--text-cyan)' }}>📢 THÔNG BÁO KẾ HOẠCH ĐĂNG KÝ TÍN CHỈ HỆ THỐNG</h4>
-                        {activePeriodInfo ? (
-                            <div style={{ fontSize: '14px' }}>
-                                Kế hoạch mở cổng đăng ký tín chỉ học kỳ <b>{activePeriodInfo.semester}</b>:
-                                <ul style={{ margin: '5px 0 0 20px', padding: 0 }}>
-                                    <li>⏱️ Thời gian bắt đầu mở hệ thống: <span style={{ color: 'var(--text-cyan)', fontWeight: 'bold' }}>{formatDate(activePeriodInfo.startTime)}</span></li>
-                                    <li>⌛ Thời gian đóng hệ thống: <span style={{ color: 'var(--color-danger)', fontWeight: 'bold' }}>{formatDate(activePeriodInfo.endTime)}</span></li>
-                                    <li style={{marginTop: '5px'}}>📌 Trạng thái: {isRegistrationTime ? (
-                                        <span style={{ color: 'var(--color-success)', fontWeight: 'bold', backgroundColor: 'rgba(40, 167, 69, 0.1)', padding: '2px 6px', borderRadius: '3px' }}>● CỔNG ĐANG MỞ - ĐƯỢC PHÉP ĐĂNG KÝ CHỌN LỚP</span>
-                                    ) : (
-                                        <span style={{ color: 'var(--color-warning)', fontWeight: 'bold', backgroundColor: 'rgba(255, 193, 7, 0.1)', padding: '2px 6px', borderRadius: '3px' }}>🔒 HỆ THỐNG ĐANG KHÓA CHẶT (Chưa đến mốc thời gian hoặc đã đóng cổng)</span>
-                                    )}</li>
-                                </ul>
+                    {isRegistrationTime ? (
+                        <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                            <h3 style={{ color: 'var(--text-cyan)', marginBottom: '15px', marginTop: 0 }}>🛒 DANH SÁCH MÔN HỌC MỞ ĐĂNG KÝ (TÍCH CHỌN)</h3>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={tableStyle}>
+                                    <thead>
+                                    <tr style={thStyle}>
+                                        <th style={{ textAlign: 'center', width: '60px' }}>Chọn</th>
+                                        <th>Mã Lớp HP</th>
+                                        <th>Tên Môn Học</th>
+                                        <th>Số Tín Chỉ</th>
+                                        <th>Giảng Viên</th>
+                                        <th>Thời Khóa Biểu</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {availableClasses.map(c => (
+                                        <tr key={c.id} style={trStyle}>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedClassIds.includes(c.id)}
+                                                    onChange={() => {
+                                                        setSelectedClassIds(prev => prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]);
+                                                    }}
+                                                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                                                />
+                                            </td>
+                                            <td style={{ fontWeight: 'bold', color: 'var(--text-cyan)' }}>{c.code}</td>
+                                            <td>{c.subjectName}</td>
+                                            <td>{c.credits} tín</td>
+                                            <td>{c.teacherName || 'Chưa xếp'}</td>
+                                            <td style={{ color: 'var(--color-warning)' }}>{c.schedule}</td>
+                                        </tr>
+                                    ))}
+                                    {availableClasses.length === 0 && (
+                                        <tr><td colSpan="6" style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)' }}>Không có môn học phần nào được mở đợt này.</td></tr>
+                                    )}
+                                    </tbody>
+                                </table>
                             </div>
-                        ) : (
-                            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>Hiện tại nhà trường chưa phát hành khung thời gian đăng ký học phần.</p>
-                        )}
-                    </div>
 
-                    {/* Phần 1: Đăng ký tín chỉ trực tuyến */}
+                            {availableClasses.length > 0 && (
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '15px' }}>
+                                    <button
+                                        onClick={handleBulkEnroll}
+                                        style={{ padding: '10px 24px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                                    >
+                                        Đăng Ký
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px dashed var(--color-border)' }}>
+                            <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔒</div>
+                            <h3 style={{ color: 'var(--color-warning)', margin: '0 0 5px 0' }}>CỔNG ĐĂNG KÝ TÍN CHỈ ĐANG ĐÓNG</h3>
+                            <p style={{ margin: 0, fontSize: '13px' }}>Vui lòng đợi thông báo chính thức từ Phòng Đào tạo (Admin) để thực hiện đăng ký mới.</p>
+                        </div>
+                    )}
+
                     <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                        <h3 style={{ color: 'var(--text-cyan)', marginBottom: '15px', marginTop: 0 }}>✍️ ĐĂNG KÝ HỌC PHẦN TRỰC TUYẾN</h3>
-
-                        {!isRegistrationTime ? (
-                            <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--color-bg)', borderRadius: '4px', border: '1px dashed var(--color-border)' }}>
-                                <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔒</div>
-                                <h4 style={{ color: 'var(--color-warning)', margin: '0 0 5px 0' }}>CỔNG ĐĂNG KÝ TÍN CHỈ CHƯA ĐẾN GIỜ KHỞI CHẠY</h4>
-                                <p style={{ margin: 0, fontSize: '13px' }}>Vui lòng quay lại khi đồng hồ chạm mốc thời gian quy định tại bảng thông báo phía trên.</p>
-                            </div>
-                        ) : availableClasses.length === 0 ? (
-                            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--color-bg)', borderRadius: '4px' }}>
-                                Cổng đã mở thành công nhưng chưa có môn học phần nào thuộc học kỳ {activePeriodInfo?.semester} được Ban giáo vụ tích chọn mở đăng ký.
-                            </div>
-                        ) : (
+                        <h3 style={{ color: 'var(--color-warning)', marginBottom: '15px', marginTop: 0 }}>📋 CÁC MÔN HỌC TRONG HỒ SƠ</h3>
+                        <div style={{ overflowX: 'auto' }}>
                             <table style={tableStyle}>
                                 <thead>
-                                <tr style={thStyle}><th>Mã Lớp HP</th><th>Tên Môn Học</th><th>Số Tín</th><th>Giảng Viên</th><th>Lịch Học Thiết Kế</th><th>Thao Tác</th></tr>
+                                <tr style={thStyle}>
+                                    <th style={{ textAlign: 'center', width: '130px' }}>Trạng thái</th>
+                                    <th>Mã Lớp HP</th>
+                                    <th>Tên Môn Học</th>
+                                    <th>Số Tín Chỉ</th>
+                                    <th>Giảng Viên</th>
+                                    <th>Lịch Học</th>
+                                </tr>
                                 </thead>
                                 <tbody>
-                                {availableClasses.map(c => (
-                                    <tr key={c.id} style={trStyle}>
-                                        <td style={{fontWeight:'bold', color: 'var(--text-cyan)'}}>{c.code}</td>
-                                        <td>{c.subjectName}</td><td>{c.credits} tín</td><td>{c.teacherName || 'Chưa xếp'}</td>
-                                        <td style={{color:'var(--color-warning)', fontWeight:'bold'}}>{c.schedule}</td>
-                                        <td>
-                                            <button onClick={() => handleEnroll(c.id)} style={{ padding: '6px 12px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight:'bold' }}>Đăng ký chọn lớp</button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {myRegisteredClasses.map(reg => {
+                                    const isApproved = reg.status === 'APPROVED';
+
+                                    return (
+                                        <tr key={reg.id} style={trStyle}>
+                                            <td style={{ textAlign: 'center' }}>
+                                                {isApproved ? (
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'var(--color-success)', fontWeight: 'bold', fontSize: '13px' }}>
+                                                        <input type="checkbox" checked readOnly style={{ width: '16px', height: '16px', accentColor: 'var(--color-success)', cursor: 'default' }} />
+                                                        <span>Đã duyệt</span>
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                                                        <span style={{ color: 'var(--color-warning)', fontWeight: 'bold', fontSize: '13px' }}>⏳ Chờ duyệt</span>
+
+                                                        {isRegistrationTime && (
+                                                            <button
+                                                                onClick={() => handleUnenroll(reg.courseClassId)}
+                                                                style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
+                                                                title="Rút đơn đăng ký môn này"
+                                                            >
+                                                                ✖ Hủy
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td style={{ fontWeight: 'bold', color: 'var(--text-cyan)' }}>{reg.courseClassCode}</td>
+                                            <td>{reg.subjectName}</td>
+                                            <td>{reg.credits} tín</td>
+                                            <td>{reg.teacherName}</td>
+                                            <td style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>{reg.schedule || 'Chưa xếp'}</td>
+                                        </tr>
+                                    );
+                                })}
+                                {myRegisteredClasses.length === 0 && (
+                                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)' }}>Chưa đăng ký môn học nào.</td></tr>
+                                )}
                                 </tbody>
                             </table>
-                        )}
-                    </div>
-
-                    {/* Phần 2: Xem Thời khóa biểu lịch học cá nhân */}
-                    <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                        <h3 style={{ color: 'var(--color-warning)', marginBottom: '15px', marginTop: 0 }}>📅 THỜI KHÓA BIỂU & LỊCH HỌC CÁ NHÂN ĐÃ ĐĂNG KÝ ĐỒNG BỘ DATA</h3>
-                        <table style={tableStyle}>
-                            <thead>
-                            <tr style={thStyle}><th>Mã Lớp HP</th><th>Tên Môn Học</th><th>Số Tín Nhiệm</th><th>Giảng Viên</th><th>Thời Khóa Biểu Lịch Học</th><th>Hành Động Rút Môn</th></tr>
-                            </thead>
-                            <tbody>
-                            {myRegisteredClasses.map(reg => (
-                                <tr key={reg.id} style={trStyle}>
-                                    <td style={{fontWeight:'bold', color:'var(--text-cyan)'}}>{reg.courseClassCode}</td>
-                                    <td>{reg.subjectName}</td><td>{reg.credits} tín</td><td>{reg.teacherName}</td>
-                                    <td style={{color:'var(--color-success)', fontWeight:'bold'}}>{reg.schedule || 'Chưa xếp lịch'}</td>
-                                    <td>
-                                        <button
-                                            onClick={() => handleUnenroll(reg.courseClassId)}
-                                            disabled={!isRegistrationTime}
-                                            style={{ padding: '6px 12px', backgroundColor: isRegistrationTime ? 'var(--color-danger)' : '#555', color: 'white', border: 'none', borderRadius: '4px', cursor: isRegistrationTime ? 'pointer' : 'not-allowed', fontWeight:'bold' }}
-                                        >
-                                            Hủy chọn lớp
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {myRegisteredClasses.length === 0 && (
-                                <tr>
-                                    <td colSpan="6" style={{textAlign: 'center', padding: '15px', color: 'var(--text-muted)'}}>Bạn chưa thực hiện thao tác chọn lớp học phần nào trong học kỳ này.</td>
-                                </tr>
-                            )}
-                            </tbody>
-                        </table>
+                        </div>
                     </div>
                 </div>
             )}

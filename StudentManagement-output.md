@@ -171,630 +171,6 @@ StudentManagement.docx
 <files>
 This section contains the contents of the repository's files.
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/scheduler/RegistrationScheduler.java">
-package com.dangdepzaivaio.StudentManagement.scheduler;
-
-import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
-import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.List;
-
-@Component
-@RequiredArgsConstructor
-@Slf4j
-public class RegistrationScheduler {
-
-    private final RegistrationPeriodRepository periodRepository;
-
-    /**
-     * 🔥 HÀM CHẠY TỰ ĐỘNG: Quét Database định kỳ để đóng các cổng đăng ký tín chỉ quá hạn
-     * fixedDelay = 60000 nghĩa là cứ sau 60 giây (1 phút) hệ thống sẽ tự quét 1 lần.
-     */
-    @Scheduled(fixedDelay = 60000)
-    @Transactional
-    public void autoCloseExpiredPeriods() {
-        LocalDateTime now = LocalDateTime.now();
-
-        // Lấy toàn bộ các đợt đăng ký đang bật trạng thái active = true
-        List<RegistrationPeriod> activePeriods = periodRepository.findAllByIsActiveTrue();
-
-        for (RegistrationPeriod period : activePeriods) {
-            // So sánh: Nếu mốc endTime nằm ở quá khứ (nhỏ hơn thời gian hiện tại) -> Đã hết giờ!
-            if (period.getEndTime() != null && period.getEndTime().isBefore(now)) {
-
-                period.setIsActive(false); // Chuyển trạng thái hoạt động về false (Đóng cổng)
-                periodRepository.save(period);
-
-                // Ghi vết nhật ký ra Console của IntelliJ để giám sát vận hành
-                log.info("⏰ [HỆ THỐNG TỰ ĐỘNG] Đã chốt sổ, hủy kích hoạt đợt đăng ký tín chỉ quá hạn của học kỳ: {}", period.getSemester());
-            }
-        }
-    }
-}
-</file>
-
-<file path="student-management-ui/src/pages/DashboardPage.jsx">
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
-
-export default function DashboardPage() {
-    const username = localStorage.getItem('username') || 'Người dùng';
-    const role = localStorage.getItem('roles') || '';
-    const studentId = localStorage.getItem('studentId') || '';
-    const teacherId = localStorage.getItem('teacherId') || '';
-
-    // --- STATES SỐ LIỆU NÂNG CAO CHO ADMIN ---
-    const [adminMetrics, setAdminMetrics] = useState({
-        totalStudents: 0, activeStudents: 0, lockedStudents: 0,
-        totalTeachers: 0, activeTeachers: 0, lockedTeachers: 0,
-        totalSubjects: 0,
-        totalClasses: 0, openClasses: 0
-    });
-    const [allPeriods, setAllPeriods] = useState([]); // Lưu toàn bộ lịch sử đợt mở cổng
-
-    // --- STATES CHO TEACHER & STUDENT (GIỮ NGUYÊN ĐỒNG BỘ) ---
-    const [teacherClasses, setTeacherClasses] = useState([]);
-    const [myClasses, setMyClasses] = useState([]);
-    const [studentInfo, setStudentInfo] = useState(null);
-
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const loadDashboardData = async () => {
-            try {
-                setLoading(true);
-
-                // 🛠️ LUỒNG BIẾN ĐỔI CHUYÊN SÂU 1: PHÂN HỆ ADMIN
-                if (role.includes('ADMIN')) {
-                    const [resStudents, resTeachers, resSubjects, resClasses, resPeriods] = await Promise.all([
-                        axiosClient.get('/students?includeInactive=true'),
-                        axiosClient.get('/teachers'),
-                        axiosClient.get('/subjects'),
-                        axiosClient.get('/course-classes'),
-                        axiosClient.get('/registration/periods').catch(() => [])
-                    ]);
-
-                    // Thuật toán bóc tách trạng thái tài khoản từ mảng dữ liệu thật
-                    const sActive = resStudents ? resStudents.filter(s => s.active).length : 0;
-                    const sLocked = resStudents ? resStudents.filter(s => !s.active).length : 0;
-                    const tActive = resTeachers ? resTeachers.filter(t => t.active).length : 0;
-                    const tLocked = resTeachers ? resTeachers.filter(t => !t.active).length : 0;
-                    const cOpen = resClasses ? resClasses.filter(c => c.openForRegistration).length : 0;
-
-                    setAdminMetrics({
-                        totalStudents: resStudents?.length || 0, activeStudents: sActive, lockedStudents: sLocked,
-                        totalTeachers: resTeachers?.length || 0, activeTeachers: tActive, lockedTeachers: tLocked,
-                        totalSubjects: resSubjects?.length || 0,
-                        totalClasses: resClasses?.length || 0, openClasses: cOpen
-                    });
-
-                    if (resPeriods && resPeriods.length > 0) {
-                        setAllPeriods([...resPeriods].sort((a, b) => b.id - a.id));
-                    }
-                }
-
-                // 🛠️ LUỒNG BIẾN ĐỔI 2: PHÂN HỆ TEACHER
-                if (role.includes('TEACHER')) {
-                    if (teacherId) {
-                        const classes = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
-                        setTeacherClasses(classes || []);
-                    }
-                }
-
-                // 🛠️ LUỒNG BIẾN ĐỔI 3: PHÂN HỆ STUDENT
-                if (role.includes('STUDENT')) {
-                    const [resMyClasses, resAllStudents] = await Promise.all([
-                        axiosClient.get('/registration/my-classes'),
-                        axiosClient.get('/students?includeInactive=true').catch(() => [])
-                    ]);
-                    setMyClasses(resMyClasses || []);
-
-                    if (resAllStudents && resAllStudents.length > 0) {
-                        const currentStudent = resAllStudents.find(s => s.studentCode === username || s.id === studentId);
-                        setStudentInfo(currentStudent || null);
-                    }
-                }
-            } catch (err) {
-                console.error("Lỗi kết nối dữ liệu Dashboard:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadDashboardData();
-    }, [role, username, studentId, teacherId]);
-
-    const getPeriodStatusText = (period) => {
-        if (!period) return { text: 'Chưa rõ', color: 'var(--text-muted)' };
-        if (!period.isActive) return { text: '🔒 Đã đóng cổng', color: 'var(--color-danger)' };
-        const now = new Date();
-        const start = new Date(period.startTime);
-        const end = new Date(period.endTime);
-        if (now < start) return { text: '⏳ Chờ giờ hẹn', color: 'var(--color-warning)' };
-        if (now > end) return { text: '⏰ Hết hạn đóng cổng', color: 'var(--color-danger)' };
-        return { text: '🟢 ĐANG MỞ REALTIME', color: 'var(--color-success)' };
-    };
-
-    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px' }}>Đang tổng hợp dữ liệu hệ thống đào tạo...</div>;
-
-    // ==================== 🏛️ VÙNG 1: ĐẠI TU GIÀU CHI TIẾT DÀNH CHO ADMIN ====================
-    if (role.includes('ADMIN')) {
-        return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'left' }}>
-
-                {/* Thanh trạng thái đỉnh điều khiển */}
-                <div style={panelStyle}>
-                    <h2 style={{ margin: '0 0 5px 0', color: 'var(--text-cyan)' }}>🏛️ TRUNG TÂM GIÁM SÁT ĐÀO TẠO ĐA NHIỆM (ADMIN CONSOLE)</h2>
-                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>Chào mừng Quản trị viên tối cao. Dưới đây là bảng phân tích chi tiết dữ liệu vận hành lõi.</p>
-                </div>
-
-                {/* Khối Card số liệu chi tiết sâu (Deep Metrics Grid) */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '15px' }}>
-                    {/* Card Sinh viên */}
-                    <div style={deepCardStyle}>
-                        <div style={{fontSize: '24px'}}>👥</div>
-                        <div style={{flex: 1}}>
-                            <div style={cardTitleStyle}>QUẢN LÝ SINH VIÊN</div>
-                            <div style={cardValueStyle}>{adminMetrics.totalStudents} <span style={{fontSize:'12px', fontWeight:'normal'}}>Tổng số</span></div>
-                            <div style={subMetricStyle}>
-                                <span style={{color:'var(--color-success)'}}>● Đang học: {adminMetrics.activeStudents}</span>
-                                <span style={{color:'var(--color-danger)'}}>● Khóa: {adminMetrics.lockedStudents}</span>
-                            </div>
-                        </div>
-                    </div>
-                    {/* Card Giảng viên */}
-                    <div style={deepCardStyle}>
-                        <div style={{fontSize: '24px'}}>💼</div>
-                        <div style={{flex: 1}}>
-                            <div style={cardTitleStyle}>QUẢN LÝ GIẢNG VIÊN</div>
-                            <div style={cardValueStyle}>{adminMetrics.totalTeachers} <span style={{fontSize:'12px', fontWeight:'normal'}}>Nhân sự</span></div>
-                            <div style={subMetricStyle}>
-                                <span style={{color:'var(--color-success)'}}>● Đang dạy: {adminMetrics.activeTeachers}</span>
-                                <span style={{color:'var(--color-danger)'}}>● Khóa: {adminMetrics.lockedTeachers}</span>
-                            </div>
-                        </div>
-                    </div>
-                    {/* Card Đào tạo */}
-                    <div style={deepCardStyle}>
-                        <div style={{fontSize: '24px'}}>📘</div>
-                        <div style={{flex: 1}}>
-                            <div style={cardTitleStyle}>HỆ THỐNG ĐÀO TẠO</div>
-                            <div style={cardValueStyle}>{adminMetrics.totalSubjects} <span style={{fontSize:'12px', fontWeight:'normal'}}>Môn học</span></div>
-                            <div style={subMetricStyle}>
-                                <span style={{color:'var(--text-cyan)'}}>● Lớp HP hệ thống: {adminMetrics.totalClasses}</span>
-                            </div>
-                        </div>
-                    </div>
-                    {/* Card Điều phối đăng ký */}
-                    <div style={deepCardStyle}>
-                        <div style={{fontSize: '24px'}}>⏰</div>
-                        <div style={{flex: 1}}>
-                            <div style={cardTitleStyle}>ĐIỀU PHỐI TÍN CHỈ</div>
-                            <div style={cardValueStyle}>{adminMetrics.openClasses} <span style={{fontSize:'12px', fontWeight:'normal'}}>Lớp mở đăng ký</span></div>
-                            <div style={subMetricStyle}>
-                                <span style={{color:'var(--color-warning)'}}>● Tổng số đợt hẹn: {allPeriods.length} đợt</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* KHỐI 2 BẢNG CHI TIẾT: LỊCH SỬ KHUNG GIỜ VÀ SYSTEM HEALTH */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.2fr', gap: '20px', flexWrap: 'wrap' }}>
-
-                    {/* Bảng trái: Lịch sử toàn bộ các đợt mở cổng */}
-                    <div style={panelStyle}>
-                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--text-cyan)' }}>📋 LỊCH SỬ VÀ TIẾN ĐỘ CÁC ĐỢT MỞ ĐĂNG KÝ TÍN CHỈ</h4>
-                        <div style={{ overflowX: 'auto' }}>
-                            <table style={dashboardTableStyle}>
-                                <thead>
-                                <tr style={thStyle}>
-                                    <th>Mã Đợt</th><th>Học Kỳ</th><th>Thời Gian Bắt Đầu</th><th>Thời Gian Kết Thúc</th><th style={{textAlign:'center'}}>Trạng Thái Thực Tế</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {allPeriods.map((p) => {
-                                    const stat = getPeriodStatusText(p);
-                                    return (
-                                        <tr key={p.id} style={trStyle}>
-                                            <td style={{fontWeight:'bold', color:'var(--text-muted)'}}>#RP_{p.id}</td>
-                                            <td style={{fontWeight:'bold', color:'white'}}>{p.semester}</td>
-                                            <td style={{fontSize:'12px'}}>{new Date(p.startTime).toLocaleString('vi-VN')}</td>
-                                            <td style={{fontSize:'12px'}}>{new Date(p.endTime).toLocaleString('vi-VN')}</td>
-                                            <td style={{textAlign:'center', fontSize:'12px', color: stat.color, fontWeight:'bold'}}>{stat.text}</td>
-                                        </tr>
-                                    );
-                                })}
-                                {allPeriods.length === 0 && (
-                                    <tr><td colSpan="5" style={{textAlign:'center', color:'var(--text-muted)', padding:'10px'}}>Chưa có dữ liệu lịch sử đợt mở.</td></tr>
-                                )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    {/* Bảng phải: Giám sát Hệ thống / Audit Logs giả lập */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                        {/* Hộp System Performance */}
-                        <div style={panelStyle}>
-                            <h4 style={{ margin: '0 0 10px 0', color: 'var(--color-warning)' }}>🖥️ MONITOR SYSTEM HEALTH</h4>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px' }}>
-                                <div style={logItemStyle}>🚀 Server Status: <span style={{color:'var(--color-success)', fontWeight:'bold'}}>ONLINE</span></div>
-                                <div style={logItemStyle}>⚙️ Core Version: <span>v2.4.0-Stable</span></div>
-                                <div style={logItemStyle}>🧠 RAM Allocated: <span>412MB / 1024MB</span></div>
-                                <div style={logItemStyle}>⚡ DB Pool: <span style={{color:'var(--text-cyan)'}}>Active (8/20)</span></div>
-                            </div>
-                        </div>
-
-                        {/* Hộp Nhật ký hành động nhanh */}
-                        <div style={panelStyle}>
-                            <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-cyan)' }}>📑 SYSTEM AUDIT LOGS (NHẬT KÝ THỜI GIAN THỰC)</h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', maxHeight: '140px', overflowY: 'auto', color: 'var(--text-muted)' }}>
-                                <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>⏱️ [Just Now] Admin vừa thực hiện quy trình kiểm tra đồng bộ mảng dữ liệu.</div>
-                                <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>🔑 [5 mins ago] Tài khoản mã số gán khóa học vừa nạp cấu hình thành công.</div>
-                                <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>🗄️ [10 mins ago] JPA Hibernate đồng bộ hóa cột dữ liệu trường `cohort` thành công.</div>
-                                <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>🔒 [30 mins ago] Cấu hình Filter Security bảo mật tầng URL định tuyến mở cổng thành công.</div>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        );
-    }
-
-    // ==================== 💼 VÙNG 2: GIAO DIỆN DÀNH CHO GIẢNG VIÊN (TEACHER) ====================
-    if (role.includes('TEACHER')) {
-        return (
-            <div style={containerStyle}>
-                <div style={panelStyle}>
-                    <h2 style={{ margin: '0 0 5px 0', color: 'var(--text-cyan)' }}>💼 CỔNG THÔNG TIN TỔNG QUAN GIẢNG VIÊN</h2>
-                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>Xin chào Thầy/Cô <b>{username}</b>. Dưới đây là tóm tắt danh sách lớp đảm nhiệm trong học kỳ.</p>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2.5fr', gap: '20px', flexWrap: 'wrap' }}>
-                    <div style={{ ...cardStyle, justifyContent: 'center', textAlign: 'center', padding: '30px' }}>
-                        <div>
-                            <div style={cardTitleStyle}>HỌC PHẦN ĐANG ĐẢM NHIỆM</div>
-                            <div style={{...cardValueStyle, fontSize:'36px', color:'var(--text-cyan)', marginTop:'8px'}}>{teacherClasses.length} Lớp</div>
-                        </div>
-                    </div>
-                    <div style={panelStyle}>
-                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--color-warning)', borderBottom: '1px solid var(--color-border)', paddingBottom: '6px' }}>📅 THỜI KHÓA BIỂU GIẢNG DẠY CỦA THẦY/CÔ</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
-                            {teacherClasses.map((c, i) => (
-                                <div key={i} style={itemStyle}>
-                                    📖 <b>Lớp học phần: {c.code}</b> — Môn: {c.subjectName} | ⏰ Lịch lên lớp: <span style={{color:'var(--color-warning)', fontWeight:'bold'}}>{c.schedule || 'Chưa xếp lịch'}</span>
-                                </div>
-                            ))}
-                            {teacherClasses.length === 0 && <p style={{color:'var(--text-muted)', margin:0}}>Học kỳ này Thầy/Cô chưa có lịch phân công giảng dạy.</p>}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // ==================== 🎓 VÙNG 3: GIAO DIỆN DÀNH CHO SINH VIÊN (STUDENT) ====================
-    if (role.includes('STUDENT')) {
-        const totalCredits = myClasses.reduce((sum, item) => sum + (item.credits || 0), 0);
-        return (
-            <div style={containerStyle}>
-                <div style={panelStyle}>
-                    <h2 style={{ margin: '0 0 5px 0', color: 'var(--text-cyan)' }}>🎓 CỔNG THÔNG TIN SINH VIÊN TRA CỨU HỒ SƠ</h2>
-                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>Quản lý thông tin lý lịch cá nhân và sơ đồ lịch trình lên lớp tuần cá nhân.</p>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', flexWrap: 'wrap' }}>
-                    <div style={panelStyle}>
-                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--text-cyan)', borderBottom:'1px solid var(--color-border)', paddingBottom:'6px' }}>👤 HỒ SƠ LÝ LỊCH CÁ NHÂN SV</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
-                            <div>• Mã số sinh viên: <b style={{color:'var(--color-warning)'}}>{studentInfo?.studentCode || username}</b></div>
-                            <div>• Họ và tên học viên: <b>{studentInfo ? `${studentInfo.lastName} ${studentInfo.firstName}` : 'Học viên'}</b></div>
-                            <div>• Lớp hành chính gốc: <span style={{color:'var(--text-cyan)', fontWeight:'bold'}}>{studentInfo?.className || 'Chưa xếp lớp'}</span></div>
-                            <div>• Niên khóa đào tạo: <b style={{color:'var(--color-success)'}}>{studentInfo?.cohort || 'Khóa 1'}</b></div>
-                            <div>• Hộp thư nhà trường: <span style={{color:'var(--text-muted)'}}>{studentInfo?.email || 'Chưa cấp'}</span></div>
-                        </div>
-                    </div>
-
-                    <div style={panelStyle}>
-                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--color-warning)', borderBottom:'1px solid var(--color-border)', paddingBottom:'6px' }}>📈 SƠ ĐỒ ĐĂNG KÝ HỌC PHẦN HỌC KỲ</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                                <div style={metricBoxStyle}>
-                                    <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--text-cyan)' }}>{myClasses.length}</div>
-                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop:'2px' }}>MÔN ĐÃ ĐK</div>
-                                </div>
-                                <div style={metricBoxStyle}>
-                                    <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--color-success)' }}>{totalCredits}</div>
-                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop:'2px' }}>TỔNG TÍN CHỈ</div>
-                                </div>
-                            </div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                                💡 <b>Lưu ý cấu trúc:</b> Sinh viên chủ động rà soát Thời khóa biểu bên dưới để tránh trùng lặp khung giờ ca học đan xen động!
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style={panelStyle}>
-                    <h4 style={{ margin: '0 0 10px 0', color: 'var(--color-success)' }}>📅 THỜI KHÓA BIỂU LỊCH HỌC TUẦN CỦA BẠN</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
-                        {myClasses.map((reg, i) => (
-                            <div key={i} style={itemStyle}>
-                                📝 <b>Mã lớp học phần: {reg.courseClassCode}</b> — Tên môn: {reg.subjectName} ({reg.credits} tín) | 📅 Lịch học: <span style={{color:'var(--color-success)', fontWeight:'bold'}}>{reg.schedule || 'Chưa xếp lịch'}</span>
-                            </div>
-                        ))}
-                        {myClasses.length === 0 && (
-                            <p style={{color:'var(--text-muted)', margin: 0, padding: '10px 0'}}>Bạn chưa thực hiện thao tác chọn đăng ký lớp học phần nào trong học kỳ này.</p>
-                        )}
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    return null;
-}
-
-// --- CẤU HÌNH INLINE CSS DESIGN CHUẨN ĐẸP ---
-const containerStyle = { display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'left' };
-const panelStyle = { backgroundColor: 'var(--color-surface)', padding: '15px 20px', borderRadius: '6px', border: '1px solid var(--color-border)' };
-const cardStyle = { display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' };
-const deepCardStyle = { display: 'flex', gap: '15px', backgroundColor: 'var(--color-surface)', padding: '18px 15px', borderRadius: '6px', border: '1px solid var(--color-border)' };
-const cardTitleStyle = { fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', letterSpacing: '0.3px' };
-const cardValueStyle = { fontSize: '20px', fontWeight: 'bold', color: 'white', marginTop: '2px', marginBottom: '6px' };
-const subMetricStyle = { display: 'flex', gap: '10px', fontSize: '11px', fontWeight: 'bold' };
-const itemStyle = { padding: '8px 12px', backgroundColor: 'var(--color-bg)', borderRadius: '4px', borderLeft: '3px solid var(--color-primary)' };
-const metricBoxStyle = { backgroundColor: 'var(--color-bg)', padding: '12px', borderRadius: '6px', textAlign: 'center', minWidth: '95px', border: '1px solid var(--color-border)' };
-const logItemStyle = { padding: '6px', backgroundColor: 'var(--color-bg)', borderRadius: '4px', color: 'var(--text-main)' };
-
-// Style bảng bổ sung chuyên nghiệp
-const dashboardTableStyle = { width: '100%', borderCollapse: 'collapse', marginTop: '5px' };
-const thStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', textAlign: 'left', padding: '8px', fontSize: '13px' };
-const trStyle = { borderBottom: '1px solid var(--color-border)', padding: '8px' };
-</file>
-
-<file path="student-management-ui/src/pages/SchedulePage.jsx">
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
-
-export default function SchedulePage() {
-    const userRole = localStorage.getItem('roles') || '';
-    const username = localStorage.getItem('username') || '';
-    const teacherId = localStorage.getItem('teacherId') || '';
-    const isTeacher = userRole.includes('TEACHER');
-    const isStudent = userRole.includes('STUDENT');
-
-    const [scheduleList, setScheduleList] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-
-    // Khung danh sách 7 cột Thứ từ Thứ 2 đến Chủ Nhật nằm ngang
-    const daysOfWeek = [
-        { key: '2', label: 'Thứ 2' },
-        { key: '3', label: 'Thứ 3' },
-        { key: '4', label: 'Thứ 4' },
-        { key: '5', label: 'Thứ 5' },
-        { key: '6', label: 'Thứ 6' },
-        { key: '7', label: 'Thứ 7' },
-        { key: 'CN', label: 'Chủ Nhật' }
-    ];
-
-    useEffect(() => {
-        if (isTeacher || isStudent) {
-            fetchScheduleData();
-        }
-    }, [isTeacher, isStudent]);
-
-    const fetchScheduleData = async () => {
-        try {
-            setLoading(true);
-            setError('');
-            if (isTeacher) {
-                const response = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
-                setScheduleList(response || []);
-            } else if (isStudent) {
-                const response = await axiosClient.get('/registration/my-classes');
-                setScheduleList(response || []);
-            }
-        } catch (err) {
-            setError('Không thể kết nối cơ sở dữ liệu lịch trình hệ thống!');
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // 🔥 THUẬT TOÁN GỘP MÔN VÀO THỨ - TỰ ĐỘNG SẮP XẾP THEO THỨ TỰ SÁNG -> CHIỀU -> TỐI
-    const getDayData = (dayKey) => {
-        const items = scheduleList.filter(item => {
-            const schedStr = (item.schedule || '').toLowerCase();
-            if (!schedStr) return false;
-
-            let isMatchedDay = false;
-            if (dayKey === 'CN' && (schedStr.includes('chủ nhật') || schedStr.includes('cn'))) isMatchedDay = true;
-            else if (schedStr.includes(`thứ ${dayKey}`) || schedStr.includes(`t${dayKey}`)) isMatchedDay = true;
-
-            return isMatchedDay;
-        });
-
-        return items.map(item => {
-            const schedStr = (item.schedule || '').toLowerCase();
-            let priority = 1;
-
-            if (schedStr.includes('sáng')) {
-                priority = 1;
-            } else if (schedStr.includes('chiều')) {
-                priority = 2;
-            } else if (schedStr.includes('tối')) {
-                priority = 3;
-            } else {
-                const tietMatch = schedStr.match(/tiết\s*(\d+)/);
-                if (tietMatch) {
-                    const startTiet = parseInt(tietMatch[1], 10);
-                    if (startTiet >= 6 && startTiet <= 10) {
-                        priority = 2;
-                    } else if (startTiet >= 11) {
-                        priority = 3;
-                    }
-                }
-            }
-            return { ...item, priority };
-        }).sort((a, b) => a.priority - b.priority); // Sắp xếp tăng dần theo mốc thời gian Sáng -> Chiều -> Tối trong ngày
-    };
-
-    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px' }}>Đang nạp dữ liệu lịch trình tuần...</div>;
-    if (error) return <div style={{ color: 'var(--color-danger)', textAlign: 'center', padding: '40px', fontWeight: 'bold' }}>⚠️ {error}</div>;
-
-    return (
-        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)', textAlign: 'left' }}>
-            <div style={{ marginBottom: '25px', borderBottom: '1px solid var(--color-border)', paddingBottom: '10px' }}>
-                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>
-                    {isTeacher ? '📅 LỊCH DẠY CỦA GIẢNG VIÊN' : '📅 LỊCH HỌC CỦA SINH VIÊN'}
-                </h2>
-                <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
-                    {isTeacher
-                        ? `Xin chào Thầy/Cô ${username}. Xem lịch trình giảng dạy chi tiết học phần đảm nhiệm.`
-                        : `Mã số học viên: ${username}. Hệ thống thời khóa biểu cá nhân phân tách theo ngày.`
-                    }
-                </p>
-            </div>
-
-            <div style={{ overflowX: 'auto', backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '8px', border: '1px solid var(--color-border)', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>
-                <table style={matrixTableStyle}>
-                    <thead>
-                    <tr style={thRowStyle}>
-                        {daysOfWeek.map(day => (
-                            <th key={day.key} style={dayHeaderStyle}>{day.label}</th>
-                        ))}
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr style={trStyle}>
-                        {daysOfWeek.map(day => {
-                            const cellItems = getDayData(day.key);
-
-                            return (
-                                <td key={day.key} style={cellTdStyle}>
-                                    {cellItems.map((item, idx) => (
-                                        <div key={idx} style={{
-                                            ...miniCardStyle,
-                                            borderTop: isTeacher ? '3px solid var(--color-warning)' : '3px solid var(--color-success)'
-                                        }}>
-                                            {/* 🔥 ĐÃ BỎ: Dòng hiển thị nhãn Ca Sáng/Chiều/Tối cũ đã xóa hoàn toàn tại đây */}
-
-                                            {/* Tên Môn Học */}
-                                            <div style={miniSubjectStyle}>
-                                                {item.subjectName}
-                                            </div>
-
-                                            {/* Cấu trúc căn giữa: Nhãn hàng trên - Giá trị hàng dưới */}
-                                            <div style={miniInfoBlock}>
-                                                <span style={labelStyle}>Mã lớp HP:</span>
-                                                <b style={{ color: 'var(--text-cyan)', fontSize: '13px' }}>{isTeacher ? item.code : item.courseClassCode}</b>
-                                            </div>
-
-                                            {isTeacher ? (
-                                                <div style={miniInfoBlock}>
-                                                    <span style={labelStyle}>Sĩ số lớp:</span>
-                                                    <b style={{ color: 'white', fontSize: '13px' }}>{item.registeredStudents} SV</b>
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    <div style={miniInfoBlock}>
-                                                        <span style={labelStyle}>Số tín chỉ:</span>
-                                                        <b style={{ color: 'var(--color-warning)', fontSize: '13px' }}>{item.credits} tín</b>
-                                                    </div>
-                                                    <div style={miniInfoBlock}>
-                                                        <span style={labelStyle}>Cán bộ GD:</span>
-                                                        <b style={{ color: 'white', fontSize: '13px' }}>{item.teacherName || 'Chưa xếp'}</b>
-                                                    </div>
-                                                </>
-                                            )}
-
-                                            <div style={miniScheduleBox}>
-                                                📍 {item.schedule}
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {cellItems.length === 0 && (
-                                        <div style={{ color: 'rgba(255,255,255,0.03)', fontSize: '12px', fontStyle: 'italic', textAlign: 'center', padding: '40px 0' }}>
-                                            Trống lịch
-                                        </div>
-                                    )}
-                                </td>
-                            );
-                        })}
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
-}
-
-const matrixTableStyle = { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: '1050px' };
-const thRowStyle = { backgroundColor: 'var(--color-bg)', borderBottom: '2px solid var(--text-cyan)' };
-const dayHeaderStyle = { padding: '12px 6px', color: 'var(--text-cyan)', fontSize: '14px', fontWeight: 'bold', border: '1px solid var(--color-border)', textAlign: 'center' };
-const trStyle = { borderBottom: '1px solid var(--color-border)' };
-const cellTdStyle = { padding: '8px 5px', border: '1px solid var(--color-border)', verticalAlign: 'top', backgroundColor: 'rgba(255, 255, 255, 0.005)', width: '14.28%' };
-
-const miniCardStyle = {
-    backgroundColor: 'var(--color-bg)',
-    padding: '12px 8px',
-    borderRadius: '5px',
-    border: '1px solid var(--color-border)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '3px',
-    marginBottom: '8px',
-    textAlign: 'center',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.18)'
-};
-
-const miniSubjectStyle = {
-    fontSize: '13.5px',
-    fontWeight: 'bold',
-    color: 'white',
-    whiteSpace: 'normal',
-    wordBreak: 'break-word',
-    lineHeight: '1.3',
-    marginBottom: '8px'
-};
-
-const miniInfoBlock = {
-    margin: '5px 0',
-    display: 'block',
-    textAlign: 'center'
-};
-
-const labelStyle = {
-    display: 'block',
-    fontSize: '11px',
-    color: 'var(--text-muted)',
-    marginBottom: '2px'
-};
-
-const miniScheduleBox = {
-    marginTop: '6px',
-    padding: '6px 4px',
-    backgroundColor: 'var(--color-surface-hover)',
-    borderRadius: '4px',
-    fontSize: '11px',
-    color: 'var(--color-warning)',
-    whiteSpace: 'normal',
-    wordBreak: 'break-word',
-    lineHeight: '1.4',
-    textAlign: 'center'
-};
-
-const primaryBtnStyle = { padding: '8px 24px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' };
-</file>
-
 <file path=".gitattributes">
 /mvnw text eol=lf
 *.cmd text eol=crlf
@@ -1956,28 +1332,6 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/RegistrationPeriodRepository.java">
-package com.dangdepzaivaio.StudentManagement.repository;
-
-import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-@Repository
-public interface RegistrationPeriodRepository extends JpaRepository<RegistrationPeriod, Long> {
-
-    @Query("SELECT r FROM RegistrationPeriod r WHERE r.semester = :semester AND r.isActive = true " +
-            "AND :now BETWEEN r.startTime AND r.endTime")
-    Optional<RegistrationPeriod> findActivePeriod(@Param("semester") String semester, @Param("now") LocalDateTime now);
-    List<RegistrationPeriod> findAllByIsActiveTrue();
-}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/RoleRepository.java">
 package com.dangdepzaivaio.StudentManagement.repository;
 
@@ -2002,6 +1356,54 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface SubjectRepository extends JpaRepository<Subject, Long> {
     boolean existsByCode(String code);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/scheduler/RegistrationScheduler.java">
+package com.dangdepzaivaio.StudentManagement.scheduler;
+
+import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
+import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class RegistrationScheduler {
+
+    private final RegistrationPeriodRepository periodRepository;
+
+    /**
+     * 🔥 HÀM CHẠY TỰ ĐỘNG: Quét Database định kỳ để đóng các cổng đăng ký tín chỉ quá hạn
+     * fixedDelay = 60000 nghĩa là cứ sau 60 giây (1 phút) hệ thống sẽ tự quét 1 lần.
+     */
+    @Scheduled(fixedDelay = 60000)
+    @Transactional
+    public void autoCloseExpiredPeriods() {
+        LocalDateTime now = LocalDateTime.now();
+
+        // Lấy toàn bộ các đợt đăng ký đang bật trạng thái active = true
+        List<RegistrationPeriod> activePeriods = periodRepository.findAllByIsActiveTrue();
+
+        for (RegistrationPeriod period : activePeriods) {
+            // So sánh: Nếu mốc endTime nằm ở quá khứ (nhỏ hơn thời gian hiện tại) -> Đã hết giờ!
+            if (period.getEndTime() != null && period.getEndTime().isBefore(now)) {
+
+                period.setIsActive(false); // Chuyển trạng thái hoạt động về false (Đóng cổng)
+                periodRepository.save(period);
+
+                // Ghi vết nhật ký ra Console của IntelliJ để giám sát vận hành
+                log.info("⏰ [HỆ THỐNG TỰ ĐỘNG] Đã chốt sổ, hủy kích hoạt đợt đăng ký tín chỉ quá hạn của học kỳ: {}", period.getSemester());
+            }
+        }
+    }
 }
 </file>
 
@@ -2988,6 +2390,547 @@ createRoot(document.getElementById('root')).render(
 )
 </file>
 
+<file path="student-management-ui/src/pages/DashboardPage.jsx">
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
+
+export default function DashboardPage() {
+    const username = localStorage.getItem('username') || 'Người dùng';
+    const role = localStorage.getItem('roles') || '';
+    const studentId = localStorage.getItem('studentId') || '';
+    const teacherId = localStorage.getItem('teacherId') || '';
+
+    // --- STATES SỐ LIỆU NÂNG CAO CHO ADMIN ---
+    const [adminMetrics, setAdminMetrics] = useState({
+        totalStudents: 0, activeStudents: 0, lockedStudents: 0,
+        totalTeachers: 0, activeTeachers: 0, lockedTeachers: 0,
+        totalSubjects: 0,
+        totalClasses: 0, openClasses: 0
+    });
+    const [allPeriods, setAllPeriods] = useState([]); // Lưu toàn bộ lịch sử đợt mở cổng
+
+    // --- STATES CHO TEACHER & STUDENT (GIỮ NGUYÊN ĐỒNG BỘ) ---
+    const [teacherClasses, setTeacherClasses] = useState([]);
+    const [myClasses, setMyClasses] = useState([]);
+    const [studentInfo, setStudentInfo] = useState(null);
+
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const loadDashboardData = async () => {
+            try {
+                setLoading(true);
+
+                // 🛠️ LUỒNG BIẾN ĐỔI CHUYÊN SÂU 1: PHÂN HỆ ADMIN
+                if (role.includes('ADMIN')) {
+                    const [resStudents, resTeachers, resSubjects, resClasses, resPeriods] = await Promise.all([
+                        axiosClient.get('/students?includeInactive=true'),
+                        axiosClient.get('/teachers'),
+                        axiosClient.get('/subjects'),
+                        axiosClient.get('/course-classes'),
+                        axiosClient.get('/registration/periods').catch(() => [])
+                    ]);
+
+                    // Thuật toán bóc tách trạng thái tài khoản từ mảng dữ liệu thật
+                    const sActive = resStudents ? resStudents.filter(s => s.active).length : 0;
+                    const sLocked = resStudents ? resStudents.filter(s => !s.active).length : 0;
+                    const tActive = resTeachers ? resTeachers.filter(t => t.active).length : 0;
+                    const tLocked = resTeachers ? resTeachers.filter(t => !t.active).length : 0;
+                    const cOpen = resClasses ? resClasses.filter(c => c.openForRegistration).length : 0;
+
+                    setAdminMetrics({
+                        totalStudents: resStudents?.length || 0, activeStudents: sActive, lockedStudents: sLocked,
+                        totalTeachers: resTeachers?.length || 0, activeTeachers: tActive, lockedTeachers: tLocked,
+                        totalSubjects: resSubjects?.length || 0,
+                        totalClasses: resClasses?.length || 0, openClasses: cOpen
+                    });
+
+                    if (resPeriods && resPeriods.length > 0) {
+                        setAllPeriods([...resPeriods].sort((a, b) => b.id - a.id));
+                    }
+                }
+
+                // 🛠️ LUỒNG BIẾN ĐỔI 2: PHÂN HỆ TEACHER
+                if (role.includes('TEACHER')) {
+                    if (teacherId) {
+                        const classes = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
+                        setTeacherClasses(classes || []);
+                    }
+                }
+
+                // 🛠️ LUỒNG BIẾN ĐỔI 3: PHÂN HỆ STUDENT
+                if (role.includes('STUDENT')) {
+                    const [resMyClasses, resAllStudents] = await Promise.all([
+                        axiosClient.get('/registration/my-classes'),
+                        axiosClient.get('/students?includeInactive=true').catch(() => [])
+                    ]);
+                    setMyClasses(resMyClasses || []);
+
+                    if (resAllStudents && resAllStudents.length > 0) {
+                        const currentStudent = resAllStudents.find(s => s.studentCode === username || s.id === studentId);
+                        setStudentInfo(currentStudent || null);
+                    }
+                }
+            } catch (err) {
+                console.error("Lỗi kết nối dữ liệu Dashboard:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadDashboardData();
+    }, [role, username, studentId, teacherId]);
+
+    const getPeriodStatusText = (period) => {
+        if (!period) return { text: 'Chưa rõ', color: 'var(--text-muted)' };
+        if (!period.isActive) return { text: '🔒 Đã đóng cổng', color: 'var(--color-danger)' };
+        const now = new Date();
+        const start = new Date(period.startTime);
+        const end = new Date(period.endTime);
+        if (now < start) return { text: '⏳ Chờ giờ hẹn', color: 'var(--color-warning)' };
+        if (now > end) return { text: '⏰ Hết hạn đóng cổng', color: 'var(--color-danger)' };
+        return { text: '🟢 ĐANG MỞ REALTIME', color: 'var(--color-success)' };
+    };
+
+    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px' }}>Đang tổng hợp dữ liệu hệ thống đào tạo...</div>;
+
+    // ==================== 🏛️ VÙNG 1: ĐẠI TU GIÀU CHI TIẾT DÀNH CHO ADMIN ====================
+    if (role.includes('ADMIN')) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'left' }}>
+
+                {/* Thanh trạng thái đỉnh điều khiển */}
+                <div style={panelStyle}>
+                    <h2 style={{ margin: '0 0 5px 0', color: 'var(--text-cyan)' }}>🏛️ TRUNG TÂM GIÁM SÁT ĐÀO TẠO ĐA NHIỆM (ADMIN CONSOLE)</h2>
+                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>Chào mừng Quản trị viên tối cao. Dưới đây là bảng phân tích chi tiết dữ liệu vận hành lõi.</p>
+                </div>
+
+                {/* Khối Card số liệu chi tiết sâu (Deep Metrics Grid) */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '15px' }}>
+                    {/* Card Sinh viên */}
+                    <div style={deepCardStyle}>
+                        <div style={{fontSize: '24px'}}>👥</div>
+                        <div style={{flex: 1}}>
+                            <div style={cardTitleStyle}>QUẢN LÝ SINH VIÊN</div>
+                            <div style={cardValueStyle}>{adminMetrics.totalStudents} <span style={{fontSize:'12px', fontWeight:'normal'}}>Tổng số</span></div>
+                            <div style={subMetricStyle}>
+                                <span style={{color:'var(--color-success)'}}>● Đang học: {adminMetrics.activeStudents}</span>
+                                <span style={{color:'var(--color-danger)'}}>● Khóa: {adminMetrics.lockedStudents}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {/* Card Giảng viên */}
+                    <div style={deepCardStyle}>
+                        <div style={{fontSize: '24px'}}>💼</div>
+                        <div style={{flex: 1}}>
+                            <div style={cardTitleStyle}>QUẢN LÝ GIẢNG VIÊN</div>
+                            <div style={cardValueStyle}>{adminMetrics.totalTeachers} <span style={{fontSize:'12px', fontWeight:'normal'}}>Nhân sự</span></div>
+                            <div style={subMetricStyle}>
+                                <span style={{color:'var(--color-success)'}}>● Đang dạy: {adminMetrics.activeTeachers}</span>
+                                <span style={{color:'var(--color-danger)'}}>● Khóa: {adminMetrics.lockedTeachers}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {/* Card Đào tạo */}
+                    <div style={deepCardStyle}>
+                        <div style={{fontSize: '24px'}}>📘</div>
+                        <div style={{flex: 1}}>
+                            <div style={cardTitleStyle}>HỆ THỐNG ĐÀO TẠO</div>
+                            <div style={cardValueStyle}>{adminMetrics.totalSubjects} <span style={{fontSize:'12px', fontWeight:'normal'}}>Môn học</span></div>
+                            <div style={subMetricStyle}>
+                                <span style={{color:'var(--text-cyan)'}}>● Lớp HP hệ thống: {adminMetrics.totalClasses}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {/* Card Điều phối đăng ký */}
+                    <div style={deepCardStyle}>
+                        <div style={{fontSize: '24px'}}>⏰</div>
+                        <div style={{flex: 1}}>
+                            <div style={cardTitleStyle}>ĐIỀU PHỐI TÍN CHỈ</div>
+                            <div style={cardValueStyle}>{adminMetrics.openClasses} <span style={{fontSize:'12px', fontWeight:'normal'}}>Lớp mở đăng ký</span></div>
+                            <div style={subMetricStyle}>
+                                <span style={{color:'var(--color-warning)'}}>● Tổng số đợt hẹn: {allPeriods.length} đợt</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* KHỐI 2 BẢNG CHI TIẾT: LỊCH SỬ KHUNG GIỜ VÀ SYSTEM HEALTH */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.2fr', gap: '20px', flexWrap: 'wrap' }}>
+
+                    {/* Bảng trái: Lịch sử toàn bộ các đợt mở cổng */}
+                    <div style={panelStyle}>
+                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--text-cyan)' }}>📋 LỊCH SỬ VÀ TIẾN ĐỘ CÁC ĐỢT MỞ ĐĂNG KÝ TÍN CHỈ</h4>
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={dashboardTableStyle}>
+                                <thead>
+                                <tr style={thStyle}>
+                                    <th>Mã Đợt</th><th>Học Kỳ</th><th>Thời Gian Bắt Đầu</th><th>Thời Gian Kết Thúc</th><th style={{textAlign:'center'}}>Trạng Thái Thực Tế</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {allPeriods.map((p) => {
+                                    const stat = getPeriodStatusText(p);
+                                    return (
+                                        <tr key={p.id} style={trStyle}>
+                                            <td style={{fontWeight:'bold', color:'var(--text-muted)'}}>#RP_{p.id}</td>
+                                            <td style={{fontWeight:'bold', color:'white'}}>{p.semester}</td>
+                                            <td style={{fontSize:'12px'}}>{new Date(p.startTime).toLocaleString('vi-VN')}</td>
+                                            <td style={{fontSize:'12px'}}>{new Date(p.endTime).toLocaleString('vi-VN')}</td>
+                                            <td style={{textAlign:'center', fontSize:'12px', color: stat.color, fontWeight:'bold'}}>{stat.text}</td>
+                                        </tr>
+                                    );
+                                })}
+                                {allPeriods.length === 0 && (
+                                    <tr><td colSpan="5" style={{textAlign:'center', color:'var(--text-muted)', padding:'10px'}}>Chưa có dữ liệu lịch sử đợt mở.</td></tr>
+                                )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Bảng phải: Giám sát Hệ thống / Audit Logs giả lập */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        {/* Hộp System Performance */}
+                        <div style={panelStyle}>
+                            <h4 style={{ margin: '0 0 10px 0', color: 'var(--color-warning)' }}>🖥️ MONITOR SYSTEM HEALTH</h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px' }}>
+                                <div style={logItemStyle}>🚀 Server Status: <span style={{color:'var(--color-success)', fontWeight:'bold'}}>ONLINE</span></div>
+                                <div style={logItemStyle}>⚙️ Core Version: <span>v2.4.0-Stable</span></div>
+                                <div style={logItemStyle}>🧠 RAM Allocated: <span>412MB / 1024MB</span></div>
+                                <div style={logItemStyle}>⚡ DB Pool: <span style={{color:'var(--text-cyan)'}}>Active (8/20)</span></div>
+                            </div>
+                        </div>
+
+                        {/* Hộp Nhật ký hành động nhanh */}
+                        <div style={panelStyle}>
+                            <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-cyan)' }}>📑 SYSTEM AUDIT LOGS (NHẬT KÝ THỜI GIAN THỰC)</h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', maxHeight: '140px', overflowY: 'auto', color: 'var(--text-muted)' }}>
+                                <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>⏱️ [Just Now] Admin vừa thực hiện quy trình kiểm tra đồng bộ mảng dữ liệu.</div>
+                                <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>🔑 [5 mins ago] Tài khoản mã số gán khóa học vừa nạp cấu hình thành công.</div>
+                                <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>🗄️ [10 mins ago] JPA Hibernate đồng bộ hóa cột dữ liệu trường `cohort` thành công.</div>
+                                <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>🔒 [30 mins ago] Cấu hình Filter Security bảo mật tầng URL định tuyến mở cổng thành công.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        );
+    }
+
+    // ==================== 💼 VÙNG 2: GIAO DIỆN DÀNH CHO GIẢNG VIÊN (TEACHER) ====================
+    if (role.includes('TEACHER')) {
+        return (
+            <div style={containerStyle}>
+                <div style={panelStyle}>
+                    <h2 style={{ margin: '0 0 5px 0', color: 'var(--text-cyan)' }}>💼 CỔNG THÔNG TIN TỔNG QUAN GIẢNG VIÊN</h2>
+                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>Xin chào Thầy/Cô <b>{username}</b>. Dưới đây là tóm tắt danh sách lớp đảm nhiệm trong học kỳ.</p>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2.5fr', gap: '20px', flexWrap: 'wrap' }}>
+                    <div style={{ ...cardStyle, justifyContent: 'center', textAlign: 'center', padding: '30px' }}>
+                        <div>
+                            <div style={cardTitleStyle}>HỌC PHẦN ĐANG ĐẢM NHIỆM</div>
+                            <div style={{...cardValueStyle, fontSize:'36px', color:'var(--text-cyan)', marginTop:'8px'}}>{teacherClasses.length} Lớp</div>
+                        </div>
+                    </div>
+                    <div style={panelStyle}>
+                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--color-warning)', borderBottom: '1px solid var(--color-border)', paddingBottom: '6px' }}>📅 THỜI KHÓA BIỂU GIẢNG DẠY CỦA THẦY/CÔ</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                            {teacherClasses.map((c, i) => (
+                                <div key={i} style={itemStyle}>
+                                    📖 <b>Lớp học phần: {c.code}</b> — Môn: {c.subjectName} | ⏰ Lịch lên lớp: <span style={{color:'var(--color-warning)', fontWeight:'bold'}}>{c.schedule || 'Chưa xếp lịch'}</span>
+                                </div>
+                            ))}
+                            {teacherClasses.length === 0 && <p style={{color:'var(--text-muted)', margin:0}}>Học kỳ này Thầy/Cô chưa có lịch phân công giảng dạy.</p>}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ==================== 🎓 VÙNG 3: GIAO DIỆN DÀNH CHO SINH VIÊN (STUDENT) ====================
+    if (role.includes('STUDENT')) {
+        const totalCredits = myClasses.reduce((sum, item) => sum + (item.credits || 0), 0);
+        return (
+            <div style={containerStyle}>
+                <div style={panelStyle}>
+                    <h2 style={{ margin: '0 0 5px 0', color: 'var(--text-cyan)' }}>🎓 CỔNG THÔNG TIN SINH VIÊN TRA CỨU HỒ SƠ</h2>
+                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>Quản lý thông tin lý lịch cá nhân và sơ đồ lịch trình lên lớp tuần cá nhân.</p>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', flexWrap: 'wrap' }}>
+                    <div style={panelStyle}>
+                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--text-cyan)', borderBottom:'1px solid var(--color-border)', paddingBottom:'6px' }}>👤 HỒ SƠ LÝ LỊCH CÁ NHÂN SV</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
+                            <div>• Mã số sinh viên: <b style={{color:'var(--color-warning)'}}>{studentInfo?.studentCode || username}</b></div>
+                            <div>• Họ và tên học viên: <b>{studentInfo ? `${studentInfo.lastName} ${studentInfo.firstName}` : 'Học viên'}</b></div>
+                            <div>• Lớp hành chính gốc: <span style={{color:'var(--text-cyan)', fontWeight:'bold'}}>{studentInfo?.className || 'Chưa xếp lớp'}</span></div>
+                            <div>• Niên khóa đào tạo: <b style={{color:'var(--color-success)'}}>{studentInfo?.cohort || 'Khóa 1'}</b></div>
+                            <div>• Hộp thư nhà trường: <span style={{color:'var(--text-muted)'}}>{studentInfo?.email || 'Chưa cấp'}</span></div>
+                        </div>
+                    </div>
+
+                    <div style={panelStyle}>
+                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--color-warning)', borderBottom:'1px solid var(--color-border)', paddingBottom:'6px' }}>📈 SƠ ĐỒ ĐĂNG KÝ HỌC PHẦN HỌC KỲ</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                <div style={metricBoxStyle}>
+                                    <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--text-cyan)' }}>{myClasses.length}</div>
+                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop:'2px' }}>MÔN ĐÃ ĐK</div>
+                                </div>
+                                <div style={metricBoxStyle}>
+                                    <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--color-success)' }}>{totalCredits}</div>
+                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop:'2px' }}>TỔNG TÍN CHỈ</div>
+                                </div>
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                                💡 <b>Lưu ý cấu trúc:</b> Sinh viên chủ động rà soát Thời khóa biểu bên dưới để tránh trùng lặp khung giờ ca học đan xen động!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style={panelStyle}>
+                    <h4 style={{ margin: '0 0 10px 0', color: 'var(--color-success)' }}>📅 THỜI KHÓA BIỂU LỊCH HỌC TUẦN CỦA BẠN</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                        {myClasses.map((reg, i) => (
+                            <div key={i} style={itemStyle}>
+                                📝 <b>Mã lớp học phần: {reg.courseClassCode}</b> — Tên môn: {reg.subjectName} ({reg.credits} tín) | 📅 Lịch học: <span style={{color:'var(--color-success)', fontWeight:'bold'}}>{reg.schedule || 'Chưa xếp lịch'}</span>
+                            </div>
+                        ))}
+                        {myClasses.length === 0 && (
+                            <p style={{color:'var(--text-muted)', margin: 0, padding: '10px 0'}}>Bạn chưa thực hiện thao tác chọn đăng ký lớp học phần nào trong học kỳ này.</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return null;
+}
+
+// --- CẤU HÌNH INLINE CSS DESIGN CHUẨN ĐẸP ---
+const containerStyle = { display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'left' };
+const panelStyle = { backgroundColor: 'var(--color-surface)', padding: '15px 20px', borderRadius: '6px', border: '1px solid var(--color-border)' };
+const cardStyle = { display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' };
+const deepCardStyle = { display: 'flex', gap: '15px', backgroundColor: 'var(--color-surface)', padding: '18px 15px', borderRadius: '6px', border: '1px solid var(--color-border)' };
+const cardTitleStyle = { fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', letterSpacing: '0.3px' };
+const cardValueStyle = { fontSize: '20px', fontWeight: 'bold', color: 'white', marginTop: '2px', marginBottom: '6px' };
+const subMetricStyle = { display: 'flex', gap: '10px', fontSize: '11px', fontWeight: 'bold' };
+const itemStyle = { padding: '8px 12px', backgroundColor: 'var(--color-bg)', borderRadius: '4px', borderLeft: '3px solid var(--color-primary)' };
+const metricBoxStyle = { backgroundColor: 'var(--color-bg)', padding: '12px', borderRadius: '6px', textAlign: 'center', minWidth: '95px', border: '1px solid var(--color-border)' };
+const logItemStyle = { padding: '6px', backgroundColor: 'var(--color-bg)', borderRadius: '4px', color: 'var(--text-main)' };
+
+// Style bảng bổ sung chuyên nghiệp
+const dashboardTableStyle = { width: '100%', borderCollapse: 'collapse', marginTop: '5px' };
+const thStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', textAlign: 'left', padding: '8px', fontSize: '13px' };
+const trStyle = { borderBottom: '1px solid var(--color-border)', padding: '8px' };
+</file>
+
+<file path="student-management-ui/src/pages/SchedulePage.jsx">
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
+
+export default function SchedulePage() {
+    const role = localStorage.getItem('roles') || '';
+    const loggedInStudentId = localStorage.getItem('studentId') || '';
+    const teacherId = localStorage.getItem('teacherId') || '';
+
+    const isStudent = role.includes('STUDENT');
+    const isTeacher = role.includes('TEACHER');
+
+    const [loading, setLoading] = useState(false);
+    const [scheduleGrid, setScheduleGrid] = useState({
+        'Sáng': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] },
+        'Chiều': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] },
+        'Tối': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] }
+    });
+
+    useEffect(() => {
+        loadScheduleData();
+    }, [role]);
+
+    const loadScheduleData = async () => {
+        setLoading(true);
+        try {
+            let validClasses = [];
+
+            if (isStudent) {
+                // Lấy toàn bộ môn sinh viên đã đăng ký
+                const myClasses = await axiosClient.get('/registration/my-classes');
+
+                // CHỈ LẤY NHỮNG MÔN ĐÃ ĐƯỢC GIÁO VIÊN DUYỆT
+                validClasses = myClasses.filter(reg => {
+                    return localStorage.getItem(`approved_st_${reg.courseClassId}_${loggedInStudentId}`) === 'true';
+                });
+            } else if (isTeacher && teacherId) {
+                // Giáo viên xem lịch dạy của mình
+                validClasses = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
+            }
+
+            buildGrid(validClasses);
+        } catch (err) {
+            console.error('Lỗi tải thời khóa biểu:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const buildGrid = (classes) => {
+        // Khởi tạo lưới rỗng
+        const newGrid = {
+            'Sáng': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] },
+            'Chiều': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] },
+            'Tối': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] }
+        };
+
+        classes.forEach(cls => {
+            const schedStr = (cls.schedule || '').toLowerCase();
+            if (!schedStr) return;
+
+            // Bóc tách Thứ
+            let dayKey = '';
+            if (schedStr.includes('chủ nhật') || schedStr.includes('cn')) dayKey = 'CN';
+            else {
+                const dayMatch = schedStr.match(/thứ\s*(\d+)/) || schedStr.match(/t(\d+)/);
+                if (dayMatch) dayKey = dayMatch[1];
+            }
+
+            // Bóc tách Buổi
+            let shiftKey = '';
+            if (schedStr.includes('sáng') || schedStr.match(/tiết\s*[1-4]/)) shiftKey = 'Sáng';
+            else if (schedStr.includes('chiều') || schedStr.match(/tiết\s*[5-8]/)) shiftKey = 'Chiều';
+            else if (schedStr.includes('tối') || schedStr.match(/tiết\s*(9|10|11|12)/)) shiftKey = 'Tối';
+
+            // Nếu lấy được đủ Thứ và Buổi, ném vào ô tương ứng trên lưới
+            if (dayKey && shiftKey && newGrid[shiftKey][dayKey]) {
+                newGrid[shiftKey][dayKey].push(cls);
+            }
+        });
+
+        setScheduleGrid(newGrid);
+    };
+
+    const daysList = ['2', '3', '4', '5', '6', '7', 'CN'];
+    const shiftsList = [
+        { key: 'Sáng', label: 'Buổi Sáng', time: '(Tiết 1-4)' },
+        { key: 'Chiều', label: 'Buổi Chiều', time: '(Tiết 5-8)' },
+        { key: 'Tối', label: 'Buổi Tối', time: '(Tiết 9-12)' }
+    ];
+
+    return (
+        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
+            <div style={{ marginBottom: '20px' }}>
+                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>
+                    {isTeacher ? '👨‍🏫 LỊCH GIẢNG DẠY CÁ NHÂN' : '🎓 THỜI KHÓA BIỂU HỌC TẬP'}
+                </h2>
+                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+                    {isTeacher
+                        ? 'Lịch hiển thị các lớp học phần bạn được phân công giảng dạy.'
+                        : 'Lưu ý: Thời khóa biểu chỉ hiển thị những môn học đã được Giảng viên phê duyệt đơn đăng ký.'}
+                </p>
+            </div>
+
+            {loading ? (
+                <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Đang xếp lịch...</p>
+            ) : (
+                <div style={{ overflowX: 'auto', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)', padding: '15px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px', tableLayout: 'fixed' }}>
+                        <thead>
+                        <tr>
+                            <th style={{ ...thStyle, width: '10%' }}>Ca Học</th>
+                            {daysList.map(day => (
+                                <th key={day} style={{ ...thStyle, width: '12.8%' }}>
+                                    {day === 'CN' ? 'Chủ Nhật' : `Thứ ${day}`}
+                                </th>
+                            ))}
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {shiftsList.map(shift => (
+                            <tr key={shift.key}>
+                                {/* Cột tiêu đề Ca học */}
+                                <td style={{ ...tdShiftLabelStyle }}>
+                                    <div style={{ fontWeight: 'bold', color: 'var(--color-warning)' }}>{shift.label}</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{shift.time}</div>
+                                </td>
+
+                                {/* Các cột Thứ trong tuần */}
+                                {daysList.map(day => {
+                                    const classesInSlot = scheduleGrid[shift.key][day];
+                                    return (
+                                        <td key={day} style={{ ...tdStyle, verticalAlign: 'top', backgroundColor: classesInSlot.length > 0 ? 'rgba(0, 188, 212, 0.05)' : 'transparent' }}>
+                                            {classesInSlot.length > 0 ? (
+                                                classesInSlot.map((cls, index) => (
+                                                    <div key={index} style={classCardStyle}>
+                                                        <div style={{ fontWeight: 'bold', color: 'var(--text-cyan)', marginBottom: '4px' }}>
+                                                            {cls.subjectName}
+                                                        </div>
+                                                        <div style={{ fontSize: '12px', marginBottom: '2px' }}>
+                                                            <span style={{ color: 'var(--text-muted)' }}>Mã HP:</span> {cls.code || cls.courseClassCode}
+                                                        </div>
+                                                        {isStudent && (
+                                                            <div style={{ fontSize: '12px', marginBottom: '2px' }}>
+                                                                <span style={{ color: 'var(--text-muted)' }}>GV:</span> {cls.teacherName || 'Chưa xếp'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div style={{ color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center', marginTop: '20px', opacity: 0.5 }}>
+                                                    Trống
+                                                </div>
+                                            )}
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ================= CSS CHO BẢNG LỊCH =================
+const thStyle = {
+    border: '1px solid var(--color-border)',
+    backgroundColor: 'var(--color-surface-hover)',
+    color: 'var(--text-cyan)',
+    padding: '12px',
+    textAlign: 'center',
+    fontWeight: 'bold'
+};
+
+const tdShiftLabelStyle = {
+    border: '1px solid var(--color-border)',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    padding: '15px',
+    textAlign: 'center',
+    verticalAlign: 'middle'
+};
+
+const tdStyle = {
+    border: '1px solid var(--color-border)',
+    padding: '10px',
+    height: '140px' // Đảm bảo các ô có độ cao đồng đều
+};
+
+const classCardStyle = {
+    backgroundColor: 'var(--color-bg)',
+    borderLeft: '4px solid var(--color-success)',
+    padding: '10px',
+    borderRadius: '4px',
+    marginBottom: '8px',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    wordWrap: 'break-word'
+};
+</file>
+
 <file path="student-management-ui/src/pages/TrainingPage.jsx">
 import React, { useState, useEffect } from 'react';
 import axiosClient from '../api/axiosClient';
@@ -3821,62 +3764,6 @@ public record GradeRequest(
 ) {}
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentCreationRequest.java">
-package com.dangdepzaivaio.StudentManagement.dto.request;
-
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import java.time.LocalDate;
-
-public record StudentCreationRequest(
-        @NotBlank(message = "Mã sinh viên không được để trống")
-        @Size(max = 20, message = "Mã sinh viên không vượt quá 20 ký tự")
-        String studentCode,
-
-        @NotBlank(message = "Tên sinh viên không được để trống")
-        String firstName,
-
-        @NotBlank(message = "Họ và tên đệm không được để trống")
-        String lastName,
-
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber,
-
-        @NotNull(message = "ID lớp hành chính không được để trống")
-        Long classId,
-
-        // 🔥 THÊM MỚI: Đón nhận niên khóa học truyền từ form tạo
-        @NotBlank(message = "Khóa học sinh viên không được để trống")
-        String cohort
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentUpdateRequest.java">
-package com.dangdepzaivaio.StudentManagement.dto.request;
-
-import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDate;
-
-public record StudentUpdateRequest(
-        @NotBlank(message = "Tên sinh viên không được để trống")
-        String firstName,
-
-        @NotBlank(message = "Họ và tên đệm không được để trống")
-        String lastName,
-
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber,
-        Long classId,
-        Boolean active,
-
-        // 🔥 THÊM MỚI: Cho phép sửa đổi đợt khóa học khi hiệu chỉnh hồ sơ
-        String cohort
-) {}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/CourseClassResponse.java">
 package com.dangdepzaivaio.StudentManagement.dto.response;
 
@@ -3911,31 +3798,6 @@ public record StudentAcademicSummaryResponse(
         Integer totalCredits,
         Double gpaSystem10,
         Double gpaSystem4
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-import java.time.LocalDate;
-
-public record StudentResponse(
-        String id,
-        String studentCode,
-        String firstName,
-        String lastName,
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber,
-        boolean active,
-        String username,
-        String email,
-        Long classId,
-        String className,
-
-        // 🔥 THÊM MỚI: Trường dữ liệu phản hồi khóa học từ Database thật ra ngoài UI
-        String cohort,
-        String departmentName
 ) {}
 </file>
 
@@ -4334,6 +4196,28 @@ public interface ClassRepository extends JpaRepository<Class, Long> {
 }
 </file>
 
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/RegistrationPeriodRepository.java">
+package com.dangdepzaivaio.StudentManagement.repository;
+
+import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface RegistrationPeriodRepository extends JpaRepository<RegistrationPeriod, Long> {
+
+    @Query("SELECT r FROM RegistrationPeriod r WHERE r.semester = :semester AND r.isActive = true " +
+            "AND :now BETWEEN r.startTime AND r.endTime")
+    Optional<RegistrationPeriod> findActivePeriod(@Param("semester") String semester, @Param("now") LocalDateTime now);
+    List<RegistrationPeriod> findAllByIsActiveTrue();
+}
+</file>
+
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/TeacherRepository.java">
 package com.dangdepzaivaio.StudentManagement.repository;
 
@@ -4605,26 +4489,6 @@ public interface SubjectService {
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/StudentManagementApplication.java">
-package com.dangdepzaivaio.StudentManagement;
-
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-import org.springframework.scheduling.annotation.EnableScheduling; // 🔥 THÊM DÒNG NÀY
-
-@SpringBootApplication
-@EnableJpaAuditing
-@EnableScheduling // 🔥 THÊM ANNOTATION NÀY ĐỂ KÍCH HOẠT TÍNH NĂNG HẸN GIỜ TỰ ĐỘNG CHỐT SỔ ĐÓNG CỔNG
-public class StudentManagementApplication {
-
-	public static void main(String[] args) {
-		SpringApplication.run(StudentManagementApplication.class, args);
-	}
-
-}
-</file>
-
 <file path="student-management-ui/README.md">
 # React + Vite
 
@@ -4652,504 +4516,6 @@ Markdown
 - [x] Dọn dẹp môi trường, tối ưu MapStruct ánh xạ phẳng và dập tắt hoàn toàn log Hibernate SQ
 </file>
 
-<file path="student-management-ui/src/pages/GradePage.jsx">
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
-
-export default function GradePage() {
-    const userRole = localStorage.getItem('roles') || '';
-    const username = localStorage.getItem('username') || '';
-    const loggedInStudentId = localStorage.getItem('studentId') || '';
-
-    const isTeacher = userRole.includes('TEACHER');
-    const isAdmin = userRole.includes('ADMIN');
-    const isStudent = userRole.includes('STUDENT');
-
-    // --- STATES NẠP DỮ LIỆU GỐC TỪ DATABASE ---
-    const [allGrades, setAllGrades] = useState([]);
-    const [allStudents, setAllStudents] = useState([]);
-    const [departments, setDepartments] = useState([]);
-    const [classList, setClassList] = useState([]);
-
-    // --- STATES GIÁ TRỊ BỘ LỌC ĐANG CHỌN ---
-    const [selectedCohort, setSelectedCohort] = useState('');
-    const [selectedDept, setSelectedDept] = useState('');
-    const [selectedClass, setSelectedClass] = useState('');
-
-    // --- STATES DROPDOWN ĐAN XEN ĐỘNG (DASHBOARD CASCADING) ---
-    const [cohortOptions, setCohortOptions] = useState([]);
-    const [deptOptions, setDeptOptions] = useState([]);
-    const [classOptions, setClassOptions] = useState([]);
-
-    // --- STATES QUẢN LÝ BẢNG ĐIỂM HIỂN THỊ REALTIME ---
-    const [displayGrades, setDisplayGrades] = useState([]);
-    const [editGradesMap, setEditGradesMap] = useState({});
-    const [isBulkEdit, setIsBulkEdit] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState({ text: '', isError: false });
-
-    // --- STATE ĐỘC QUYỀN CHO SINH VIÊN ---
-    const [studentSummary, setStudentSummary] = useState(null);
-
-    // ==================== 🔄 LUỒNG LOAD DỮ LIỆU BAN ĐẦU ====================
-    useEffect(() => {
-        if (isAdmin || isTeacher) {
-            loadSystemInitialData();
-        }
-        if (isStudent && loggedInStudentId) {
-            fetchStudentTranscript(loggedInStudentId);
-        }
-    }, [isStudent, loggedInStudentId]);
-
-    // BỘ LỌC REALTIME KẾT HỢP ĐAN XEN CASCADING 2 CHIỀU
-    useEffect(() => {
-        if (allStudents.length === 0) return;
-
-        const availCohorts = allStudents.filter(s =>
-            (!selectedDept || s.departmentName === departments.find(d => d.id === Number(selectedDept))?.name) &&
-            (!selectedClass || s.classId === Number(selectedClass))
-        ).map(s => s.cohort).filter(Boolean);
-        setCohortOptions([...new Set(availCohorts)].sort());
-
-        const availDeptNames = allStudents.filter(s =>
-            (!selectedCohort || s.cohort === selectedCohort) &&
-            (!selectedClass || s.classId === Number(selectedClass))
-        ).map(s => s.departmentName).filter(Boolean);
-        setDeptOptions(departments.filter(d => availDeptNames.includes(d.name)));
-
-        const availClassIds = allStudents.filter(s =>
-            (!selectedCohort || s.cohort === selectedCohort) &&
-            (!selectedDept || s.departmentName === departments.find(d => d.id === Number(selectedDept))?.name)
-        ).map(s => s.classId).filter(Boolean);
-        setClassOptions(classList.filter(c => availClassIds.includes(c.id)));
-
-        recalculateFiltersAndData();
-    }, [selectedCohort, selectedDept, selectedClass, allGrades, allStudents, departments, classList]);
-
-    const showMessage = (text, isError = false) => {
-        setMessage({ text, isError });
-        setTimeout(() => setMessage({ text: '', isError: false }), 4000);
-    };
-
-    const loadSystemInitialData = async () => {
-        try {
-            setLoading(true);
-            const [deptsData, classesData, studentsData, gradesData] = await Promise.all([
-                axiosClient.get('/departments'),
-                axiosClient.get('/classes'),
-                axiosClient.get('/students?includeInactive=false'),
-                axiosClient.get('/grades').catch(() => [])
-            ]);
-
-            setDepartments(deptsData || []);
-            setClassList(classesData || []);
-            setAllStudents(studentsData || []);
-            setAllGrades(gradesData || []);
-        } catch (err) {
-            showMessage('Không thể nạp cơ sở dữ liệu hệ thống học phần!', true);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const recalculateFiltersAndData = () => {
-        let filtered = allGrades.map(grade => {
-            const studentObj = allStudents.find(s => s.id === grade.studentId);
-            return {
-                ...grade,
-                studentCode: studentObj?.studentCode || 'N/A',
-                studentName: studentObj ? `${studentObj.lastName} ${studentObj.firstName}` : 'Ẩn danh',
-                cohort: studentObj?.cohort || 'Khóa 1',
-                classId: studentObj?.classId || null,
-                departmentName: studentObj?.departmentName || ''
-            };
-        });
-
-        if (selectedCohort) filtered = filtered.filter(g => g.cohort === selectedCohort);
-        if (selectedDept) {
-            const deptObj = departments.find(d => d.id === Number(selectedDept));
-            if (deptObj) filtered = filtered.filter(g => g.departmentName === deptObj.name);
-        }
-        if (selectedClass) filtered = filtered.filter(g => g.classId === Number(selectedClass));
-
-        setDisplayGrades(filtered);
-
-        const newEditMap = {};
-        filtered.forEach(g => {
-            newEditMap[g.id] = {
-                cc: g.attendanceGrade !== undefined && g.attendanceGrade !== null ? String(g.attendanceGrade) : '',
-                gk: g.midtermGrade !== undefined && g.midtermGrade !== null ? String(g.midtermGrade) : '',
-                ck: g.finalGrade !== undefined && g.finalGrade !== null ? String(g.finalGrade) : '',
-                studentId: g.studentId,
-                courseClassId: g.courseClassId
-            };
-        });
-        setEditGradesMap(newEditMap);
-    };
-
-    const fetchStudentTranscript = async (studentId) => {
-        try {
-            setLoading(true);
-            const data = await axiosClient.get(`/grades/student/${studentId}/summary`);
-            setStudentSummary(data);
-        } catch (err) {
-            showMessage('Không thể tải bảng điểm tích lũy cá nhân!', true);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleGradeInputChange = (gradeId, field, value) => {
-        if (value !== '') {
-            if (!/^\d*\.?\d*$/.test(value)) return;
-            const num = parseFloat(value);
-            if (!isNaN(num) && (num < 0 || num > 10)) return;
-        }
-        setEditGradesMap(prev => ({
-            ...prev,
-            [gradeId]: { ...prev[gradeId], [field]: value }
-        }));
-    };
-
-    const handleBulkSave = async () => {
-        try {
-            setLoading(true);
-            const savePromises = displayGrades.map(g => {
-                const editData = editGradesMap[g.id];
-                return axiosClient.put(`/grades/${g.id}`, {
-                    studentId: editData.studentId,
-                    courseClassId: editData.courseClassId,
-                    attendanceGrade: editData.cc === '' ? 0 : Number(editData.cc),
-                    midtermGrade: editData.gk === '' ? 0 : Number(editData.gk),
-                    finalGrade: editData.ck === '' ? 0 : Number(editData.ck)
-                });
-            });
-
-            await Promise.all(savePromises);
-            showMessage('Đã cập nhật đồng bộ toàn bộ bảng điểm lớp học thành công!');
-            setIsBulkEdit(false);
-
-            const gradesData = await axiosClient.get('/grades').catch(() => []);
-            setAllGrades(gradesData);
-        } catch (err) {
-            showMessage(err || 'Có lỗi xảy ra trong quá trình thực thi lưu bảng điểm!', true);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleDeptChange = (deptId) => {
-        setSelectedDept(deptId);
-        setSelectedClass('');
-    };
-
-    const handleClassChange = (classId) => {
-        setSelectedClass(classId);
-        if (classId) {
-            const clsObj = classList.find(c => c.id === Number(classId));
-            if (clsObj) {
-                const matchedDept = departments.find(d => d.name === clsObj.departmentName);
-                if (matchedDept) setSelectedDept(String(matchedDept.id));
-            }
-        }
-    };
-
-    const getAdminAggregatedRows = () => {
-        let filteredStudents = [...allStudents];
-        if (selectedCohort) filteredStudents = filteredStudents.filter(s => s.cohort === selectedCohort);
-        if (selectedDept) {
-            const deptObj = departments.find(d => d.id === Number(selectedDept));
-            if (deptObj) filteredStudents = filteredStudents.filter(s => s.departmentName === deptObj.name);
-        }
-        if (selectedClass) filteredStudents = filteredStudents.filter(s => s.classId === Number(selectedClass));
-
-        return filteredStudents.map((student, index) => {
-            const studentGrades = allGrades.filter(g => g.studentId === student.id);
-            let overallAvg = 0;
-            let letterGrade = '-';
-
-            if (studentGrades.length > 0) {
-                const validValues = studentGrades.map(g => g.overallGrade).filter(v => v !== undefined && v !== null);
-                if (validValues.length > 0) {
-                    overallAvg = validValues.reduce((sum, v) => sum + v, 0) / validValues.length;
-                    const num = parseFloat(overallAvg.toFixed(2));
-                    if (num >= 9.0) letterGrade = 'A';
-                    else if (num >= 8.5) letterGrade = 'B+';
-                    else if (num >= 8.0) letterGrade = 'B';
-                    else if (num >= 7.0) letterGrade = 'C+';
-                    else if (num >= 6.5) letterGrade = 'C';
-                    else if (num >= 5.5) letterGrade = 'D+';
-                    else if (num >= 4.0) letterGrade = 'D';
-                    else letterGrade = 'F';
-                }
-            }
-
-            return {
-                ...student,
-                stt: index + 1,
-                studentName: `${student.lastName} ${student.firstName}`,
-                gpa: studentGrades.length > 0 ? overallAvg.toFixed(2) : '-',
-                letterGrade: letterGrade
-            };
-        });
-    };
-
-    const adminRows = getAdminAggregatedRows();
-
-    // ==================== 🎓 GIAO DIỆN 1: SINH VIÊN (STUDENT VIEW) ====================
-    if (isStudent) {
-        return (
-            <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)', textAlign: 'left' }}>
-                <div style={{ marginBottom: '20px' }}>
-                    <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>📋 XEM ĐIỂM HỌC TẬP</h2>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>Hồ sơ kết quả kết quả học tập và tích lũy cá nhân.</p>
-                </div>
-
-                {loading ? (
-                    <p style={{textAlign:'center', color:'var(--text-muted)'}}>Đang tải bảng điểm học viên...</p>
-                ) : studentSummary ? (
-                    <div>
-                        {/* Khối Card tóm tắt tích lũy cá nhân */}
-                        <div style={{ display: 'flex', gap: '20px', marginBottom: '25px', flexWrap: 'wrap' }}>
-                            <div style={{ flex: 1, minWidth: '150px', backgroundColor: 'var(--color-primary)', padding: '15px', borderRadius: '6px', textAlign: 'center' }}>
-                                <span style={{ fontSize: '13px', opacity: 0.9 }}>Tín Chỉ Tích Lũy</span>
-                                <h2 style={{ margin: '5px 0 0 0' }}>{studentSummary.totalCredits || 0} tín</h2>
-                            </div>
-                            <div style={{ flex: 1, minWidth: '150px', backgroundColor: 'var(--color-success)', padding: '15px', borderRadius: '6px', textAlign: 'center' }}>
-                                <span style={{ fontSize: '13px', opacity: 0.9 }}>GPA Hệ 10</span>
-                                <h2 style={{ margin: '5px 0 0 0' }}>{studentSummary.gpa10 !== undefined ? studentSummary.gpa10 : studentSummary.gpaSystem10 || 0}</h2>
-                            </div>
-                            <div style={{ flex: 1, minWidth: '150px', backgroundColor: 'var(--color-warning)', padding: '15px', borderRadius: '6px', textAlign: 'center', color: '#000' }}>
-                                <span style={{ fontSize: '13px', fontWeight: 'bold' }}>GPA Hệ 4</span>
-                                <h2 style={{ margin: '5px 0 0 0' }}>{studentSummary.gpa4 !== undefined ? studentSummary.gpa4 : studentSummary.gpaSystem4 || 0}</h2>
-                            </div>
-                        </div>
-
-                        {/* Bảng chi tiết điểm các học phần */}
-                        <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                            <div style={{ overflowX: 'auto' }}>
-                                <table style={tableStyle}>
-                                    <thead>
-                                    <tr style={thStyle}>
-                                        <th>Môn Học Học Phần</th>
-                                        <th>Mã Lớp HP</th>
-                                        <th style={thCenterStyle}>Chuyên cần</th>
-                                        <th style={thCenterStyle}>Giữa kỳ</th>
-                                        <th style={thCenterStyle}>Cuối kỳ</th>
-                                        <th style={thCenterStyle}>Tổng Kết</th>
-                                        <th style={thCenterStyle}>Điểm Chữ</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {studentSummary.details?.map((d, i) => (
-                                        <tr key={i} style={trStyle}>
-                                            <td style={{ fontWeight: 'bold' }}>{d.subjectName}</td>
-                                            <td style={{ color: 'var(--text-cyan)', fontWeight: 'bold' }}>{d.courseClassCode}</td>
-                                            <td style={{ textAlign: 'center' }}>{d.attendanceGrade !== null && d.attendanceGrade !== undefined ? d.attendanceGrade : '-'}</td>
-                                            <td style={{ textAlign: 'center' }}>{d.midtermGrade !== null && d.midtermGrade !== undefined ? d.midtermGrade : '-'}</td>
-                                            <td style={{ textAlign: 'center' }}>{d.finalGrade !== null && d.finalGrade !== undefined ? d.finalGrade : '-'}</td>
-                                            <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--color-success)' }}>{d.overallGrade}</td>
-                                            <td style={{ textAlign: 'center', fontWeight: 'bold', color: d.letterGrade === 'F' ? 'var(--color-danger)' : 'var(--color-success)' }}>{d.letterGrade}</td>
-                                        </tr>
-                                    ))}
-                                    {(!studentSummary.details || studentSummary.details.length === 0) && (
-                                        <tr>
-                                            <td colSpan="7" style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)' }}>Chưa có dữ liệu điểm môn học nào được ghi nhận.</td>
-                                        </tr>
-                                    )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <p style={{ color: 'var(--text-muted)' }}>Chưa có dữ liệu kết quả học tập nào.</p>
-                )}
-            </div>
-        );
-    }
-
-    // ==================== 👨‍🏫 GIÁO VIÊN & QUẢN TRỊ VIÊN (ADMIN & TEACHER) ====================
-    return (
-        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)', textAlign: 'left' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
-                <div>
-                    <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>
-                        {isTeacher ? '👨‍🏫 BẢNG NHẬP ĐIỂM THÀNH PHẦN' : '🏛️ BẢNG ĐIỂM TỔNG HỢP TOÀN TRƯỜNG'}
-                    </h2>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
-                        {isTeacher ? 'Quyền hạn Giảng viên: Sửa để gõ điểm và chọn Lưu để cập nhật.' : 'Quyền hạn Quản trị viên: Theo dõi điểm số tổng kết tích lũy của từng học viên.'}
-                    </p>
-                </div>
-
-                {displayGrades.length > 0 && isTeacher && (
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        {!isBulkEdit ? (
-                            <button onClick={() => setIsBulkEdit(true)} style={primaryBtnStyle}>Sửa</button>
-                        ) : (
-                            <>
-                                <button onClick={() => { setIsBulkEdit(false); recalculateFiltersAndData(); }} style={{ ...primaryBtnStyle, backgroundColor: '#6c757d' }}>Hủy</button>
-                                <button onClick={handleBulkSave} style={{ ...primaryBtnStyle, backgroundColor: 'var(--color-success)' }}>Lưu</button>
-                            </>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            {message.text && (
-                <div style={{ padding: '12px', marginBottom: '20px', backgroundColor: message.isError ? 'var(--color-danger)' : 'var(--color-primary)', color: 'white', borderRadius: '4px', fontWeight: 'bold' }}>
-                    {message.text}
-                </div>
-            )}
-
-            <div style={{ display: 'flex', gap: '15px', marginBottom: '25px', backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', flexWrap: 'wrap' }}>
-                <div style={{ flex: '1', minWidth: '140px' }}>
-                    <label style={labelStyle}>⏳ Lọc theo Khóa học:</label>
-                    <select value={selectedCohort} onChange={(e) => setSelectedCohort(e.target.value)} style={selectStyle}>
-                        <option value="">-- Tất cả các Khóa --</option>
-                        {cohortOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                </div>
-
-                <div style={{ flex: '1', minWidth: '180px' }}>
-                    <label style={labelStyle}>🏛️ Lọc theo Khoa:</label>
-                    <select value={selectedDept} onChange={(e) => handleDeptChange(e.target.value)} style={selectStyle}>
-                        <option value="">-- Tất cả các Khoa --</option>
-                        {deptOptions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
-                </div>
-
-                <div style={{ flex: '1.2', minWidth: '180px' }}>
-                    <label style={labelStyle}>👥 Lọc theo Lớp hành chính:</label>
-                    <select value={selectedClass} onChange={(e) => handleClassChange(e.target.value)} style={selectStyle}>
-                        <option value="">-- Tất cả các Lớp --</option>
-                        {classOptions.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
-                    </select>
-                </div>
-            </div>
-
-            <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                {loading ? (
-                    <p style={{textAlign:'center', color:'var(--text-muted)'}}>Đang đồng bộ cơ sở dữ liệu điểm số...</p>
-                ) : isAdmin ? (
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={tableStyle}>
-                            <thead>
-                            <tr style={thStyle}>
-                                <th style={{ width: '60px' }}>STT</th>
-                                <th>Mã Sinh Viên</th>
-                                <th>Họ Và Tên Học Viên</th>
-                                <th>Lớp Hành Chính</th>
-                                <th>Khoa Chuyên Môn</th>
-                                <th>Niên Khóa</th>
-                                <th style={thCenterStyle}>GPA Tích Lũy</th>
-                                <th style={thCenterStyle}>Điểm Chữ Tổng Hợp</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {adminRows.map((row) => (
-                                <tr key={row.id} style={trStyle}>
-                                    <td>{row.stt}</td>
-                                    <td style={{ fontWeight: 'bold', color: 'var(--color-warning)' }}>{row.studentCode}</td>
-                                    <td>{row.studentName}</td>
-                                    <td>{row.className || 'Chưa xếp'}</td>
-                                    <td style={{ color: 'var(--text-cyan)' }}>{row.departmentName || 'Chưa xếp'}</td>
-                                    <td>{row.cohort}</td>
-                                    <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--color-success)', fontSize: '15px' }}>{row.gpa}</td>
-                                    <td style={{ textAlign: 'center', fontWeight: 'bold', color: row.letterGrade === 'F' ? 'var(--color-danger)' : 'var(--color-success)' }}>{row.letterGrade}</td>
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
-                    </div>
-                ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={tableStyle}>
-                            <thead>
-                            <tr style={thStyle}>
-                                <th style={{ width: '50px' }}>STT</th>
-                                <th style={{ width: '150px' }}>Sinh Viên / Mã Số</th>
-                                <th>Môn Học Phần</th>
-                                <th>Mã Lớp HP</th>
-                                <th style={{ ...thCenterStyle, width: '120px' }}>Chuyên cần</th>
-                                <th style={{ ...thCenterStyle, width: '120px' }}>Giữa kỳ</th>
-                                <th style={{ ...thCenterStyle, width: '120px' }}>Cuối kỳ</th>
-                                <th style={thCenterStyle}>Tổng Kết</th>
-                                <th style={thCenterStyle}>Điểm Chữ</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {displayGrades.map((g, index) => {
-                                const editRow = editGradesMap[g.id] || { cc: '', gk: '', ck: '' };
-                                const ccVal = editRow.cc === '' ? 0 : parseFloat(editRow.cc);
-                                const gkVal = editRow.gk === '' ? 0 : parseFloat(editRow.gk);
-                                const ckVal = editRow.ck === '' ? 0 : parseFloat(editRow.ck);
-                                const currentFinal = ((ccVal * 0.1) + (gkVal * 0.3) + (ckVal * 0.6)).toFixed(2);
-
-                                return (
-                                    <tr key={g.id} style={trStyle}>
-                                        <td>{index + 1}</td>
-                                        <td>
-                                            <b>{g.studentName}</b><br/>
-                                            <span style={{fontSize:'12px', color:'var(--color-warning)', fontWeight:'bold'}}>{g.studentCode}</span>
-                                        </td>
-                                        <td style={{fontWeight:'500'}}>{g.subjectName}</td>
-                                        <td style={{color:'var(--text-cyan)', fontWeight:'bold'}}>{g.courseClassCode}</td>
-                                        <td style={{ width: '120px', textAlign: 'center' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                                <input
-                                                    type="text" value={editRow.cc} disabled={!isBulkEdit}
-                                                    onChange={(e) => handleGradeInputChange(g.id, 'cc', e.target.value)}
-                                                    style={{ ...gradeInputStyle, backgroundColor: isBulkEdit ? 'var(--color-bg)' : 'rgba(255,255,255,0.02)' }}
-                                                />
-                                            </div>
-                                        </td>
-                                        <td style={{ width: '120px', textAlign: 'center' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                                <input
-                                                    type="text" value={editRow.gk} disabled={!isBulkEdit}
-                                                    onChange={(e) => handleGradeInputChange(g.id, 'gk', e.target.value)}
-                                                    style={{ ...gradeInputStyle, backgroundColor: isBulkEdit ? 'var(--color-bg)' : 'rgba(255,255,255,0.02)' }}
-                                                />
-                                            </div>
-                                        </td>
-                                        <td style={{ width: '120px', textAlign: 'center' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
-                                                <input
-                                                    type="text" value={editRow.ck} disabled={!isBulkEdit}
-                                                    onChange={(e) => handleGradeInputChange(g.id, 'ck', e.target.value)}
-                                                    style={{ ...gradeInputStyle, backgroundColor: isBulkEdit ? 'var(--color-bg)' : 'rgba(255,255,255,0.02)' }}
-                                                />
-                                            </div>
-                                        </td>
-                                        <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--color-success)', fontSize: '15px' }}>
-                                            {isBulkEdit ? currentFinal : g.overallGrade}
-                                        </td>
-                                        <td style={{ textAlign: 'center', fontWeight: 'bold', color: g.letterGrade === 'F' ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                                            {g.letterGrade}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
-const labelStyle = { display: 'block', fontSize: '13px', marginBottom: '6px', fontWeight: 'bold', color: 'var(--text-cyan)', textAlign: 'left' };
-const selectStyle = { width: '100%', padding: '10px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', outline: 'none', cursor: 'pointer' };
-const gradeInputStyle = { width: '65px', padding: '6px', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', textAlign: 'center', outline: 'none', transition: 'all 0.2s' };
-const primaryBtnStyle = { padding: '8px 24px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' };
-const tableStyle = { width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)' };
-const thStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', backgroundColor: 'var(--color-surface-hover)', textAlign: 'left', padding: '12px' };
-const thCenterStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', backgroundColor: 'var(--color-surface-hover)', textAlign: 'center', padding: '12px' };
-const trStyle = { borderBottom: '1px solid var(--color-border)', padding: '12px' };
-</file>
-
 <file path="student-management-ui/src/pages/LoginPage.jsx">
 import React, { useState } from 'react';
 import axiosClient from '../api/axiosClient';
@@ -5160,12 +4526,23 @@ function LoginPage() {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
-    // Các State quản lý trạng thái ẩn/hiển thị của từng ô mật khẩu độc lập
     const [showPassword, setShowPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const [isFirstLoginMode, setIsFirstLoginMode] = useState(false);
+    const [tempAuthData, setTempAuthData] = useState(null);
+
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [hoveredAcc, setHoveredAcc] = useState('');
+
+    const [savedAccounts, setSavedAccounts] = useState(() => {
+        try {
+            const saved = localStorage.getItem('savedAccounts');
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    });
+
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -5177,26 +4554,43 @@ function LoginPage() {
         try {
             const data = await axiosClient.post('/auth/login', { username, password });
 
-            // ✅ FIX: Java serialize boolean field "isFirstLogin" thành "firstLogin" trong JSON
-            if (data.firstLogin) {
+            if (data.firstLogin === true || data.isFirstLogin === true) {
                 setIsFirstLoginMode(true);
+                setTempAuthData(data);
                 alert("Hệ thống phát hiện đây là lần đầu bạn đăng nhập. Bạn bắt buộc phải đổi mật khẩu để bảo mật tài khoản!");
             } else {
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('username', data.username);
-                localStorage.setItem('roles', data.roles);
-                localStorage.setItem('userId', data.userId);
-
-                if (data.studentId) localStorage.setItem('studentId', data.studentId);
-                if (data.teacherId) localStorage.setItem('teacherId', data.teacherId);
-
-                window.location.href = '/';
+                processSuccessfulLogin(data);
             }
         } catch (err) {
             setError(err || 'Email hoặc mật khẩu không chính xác!');
         } finally {
             setLoading(false);
         }
+    };
+
+    // 🔥 HÀM ĐÃ SỬA LỖI LƯU DỮ LIỆU: Đọc/Ghi trực tiếp từ nguồn LocalStorage loại bỏ Stale Closure
+    const processSuccessfulLogin = (data) => {
+        const saved = localStorage.getItem('savedAccounts');
+        let accounts = saved ? JSON.parse(saved) : [];
+
+        // Chuẩn hóa chuỗi Email lấy trực tiếp từ ô Input vừa nhập thành công
+        const emailToSave = username.trim().toLowerCase();
+
+        if (emailToSave && !accounts.includes(emailToSave)) {
+            accounts.push(emailToSave);
+            localStorage.setItem('savedAccounts', JSON.stringify(accounts));
+            setSavedAccounts(accounts);
+        }
+
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('username', data.username);
+        localStorage.setItem('roles', data.roles);
+        localStorage.setItem('userId', data.userId);
+
+        if (data.studentId) localStorage.setItem('studentId', data.studentId);
+        if (data.teacherId) localStorage.setItem('teacherId', data.teacherId);
+
+        window.location.href = '/';
     };
 
     const handleChangePassword = async (e) => {
@@ -5215,26 +4609,30 @@ function LoginPage() {
         try {
             setLoading(true);
             await axiosClient.post('/auth/change-password', { username, newPassword });
-            alert('Đổi mật khẩu thành công mượt mà! Vui lòng đăng nhập lại bằng mật khẩu mới của bạn.');
-            setIsFirstLoginMode(false);
-            setPassword('');
-            setNewPassword('');
-            setConfirmPassword('');
-            // Reset trạng thái mắt về ẩn
-            setShowPassword(false);
-            setShowNewPassword(false);
-            setShowConfirmPassword(false);
+            alert('Đổi mật khẩu thành công mượt mà! Hệ thống sẽ tự động đăng nhập cho bạn.');
+
+            if (tempAuthData) {
+                processSuccessfulLogin(tempAuthData);
+            }
         } catch (err) {
-            setError(err || 'Có lỗi phát sinh khi đổi mật khẩu.');
+            setError(err || 'Có lỗi phát sinh khi đổi mật khẩu. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }
     };
 
-    return (
-        <div style={{ maxWidth: '400px', margin: '100px auto', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--text-main)' }}>
+    const handleRemoveSavedAccount = (accToRemove) => {
+        const newAccounts = savedAccounts.filter(acc => acc !== accToRemove);
+        setSavedAccounts(newAccounts);
+        localStorage.setItem('savedAccounts', JSON.stringify(newAccounts));
+        if (username === accToRemove) setUsername('');
+    };
 
-            {/* GIAO DIỆN 1: FORM BẮT BUỘC ĐỔI MẬT KHẨU LẦN ĐẦU */}
+    const filteredAccounts = savedAccounts.filter(acc => acc.toLowerCase().includes(username.toLowerCase()));
+
+    return (
+        <div style={{ maxWidth: '400px', margin: '100px auto', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--text-main)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
+
             {isFirstLoginMode ? (
                 <form onSubmit={handleChangePassword}>
                     <h2 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)', color: 'var(--color-warning)' }}>🔒 ĐỔI MẬT KHẨU LẦN ĐẦU</h2>
@@ -5273,19 +4671,63 @@ function LoginPage() {
                     </div>
 
                     <button type="submit" disabled={loading} style={buttonStyle}>
-                        {loading ? 'Đang xử lý...' : 'Xác Nhận Thay Đổi'}
+                        {loading ? 'Đang xử lý...' : 'Xác Nhận & Đăng Nhập'}
                     </button>
                 </form>
             ) : (
-                /* GIAO DIỆN 2: FORM ĐĂNG NHẬP MẶC ĐỊNH */
                 <form onSubmit={handleLogin}>
                     <h2 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)', color: 'var(--text-cyan)' }}>ĐĂNG NHẬP HỆ THỐNG</h2>
                     {error && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>{error}</div>}
 
-                    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                        {/* 🔥 SỬA: Đổi nhãn từ Tên đăng nhập thành Email */}
+                    {/* CLICK TEXT TỰ ĐỘNG SỔ DROPDOWN */}
+                    <div style={{ marginBottom: 'var(--spacing-lg)', position: 'relative' }}>
                         <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Email đăng nhập (@open.edu.vn):</label>
-                        <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required style={inputStyleForUsername} />
+                        <input
+                            type="text"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            onFocus={() => setShowDropdown(true)}
+                            onClick={() => setShowDropdown(true)}
+                            onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                            autoComplete="off"
+                            required
+                            style={inputStyleForUsername}
+                        />
+
+                        {showDropdown && (
+                            <div style={dropdownPanelStyle}>
+                                {filteredAccounts.length > 0 ? (
+                                    filteredAccounts.map(acc => (
+                                        <div
+                                            key={acc}
+                                            onClick={() => { setUsername(acc); setShowDropdown(false); }}
+                                            onMouseEnter={() => setHoveredAcc(acc)}
+                                            onMouseLeave={() => setHoveredAcc('')}
+                                            style={{
+                                                ...dropdownItemStyle,
+                                                backgroundColor: hoveredAcc === acc ? 'var(--color-surface-hover)' : 'transparent',
+                                            }}
+                                        >
+                                            <span style={{ flex: 1, color: hoveredAcc === acc ? 'var(--text-cyan)' : 'var(--text-main)' }}>👤 {acc}</span>
+                                            <span
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleRemoveSavedAccount(acc);
+                                                }}
+                                                style={{ color: 'var(--color-danger)', fontWeight: 'bold', padding: '0 8px', fontSize: '15px' }}
+                                                title="Xóa tài khoản này khỏi bộ nhớ"
+                                            >
+                                                &times;
+                                            </span>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div style={{ padding: '12px', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', fontStyle: 'italic' }}>
+                                        {savedAccounts.length === 0 ? 'Chưa có lịch sử đăng nhập nào.' : 'Không tìm thấy tài khoản phù hợp.'}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div style={{ marginBottom: 'var(--spacing-xl)' }}>
@@ -5313,808 +4755,14 @@ function LoginPage() {
     );
 }
 
-// Style dùng chung cho ô nhập Mật khẩu (Có chừa khoảng trống phải 40px cho nút mắt)
-const inputStyle = {
-    width: '100%',
-    padding: 'var(--spacing-sm)',
-    paddingRight: '40px', // Chống tràn đè chữ lên icon mắt
-    borderRadius: '4px',
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-surface-hover)',
-    color: 'var(--text-main)',
-    boxSizing: 'border-box',
-    outline: 'none'
-};
-
-// Style riêng cho Username không cần căn lề phải chừa khoảng trống nút mắt
-const inputStyleForUsername = {
-    width: '100%',
-    padding: 'var(--spacing-sm)',
-    borderRadius: '4px',
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-surface-hover)',
-    color: 'var(--text-main)',
-    boxSizing: 'border-box',
-    outline: 'none'
-};
-
-// Định vị nút Icon Mắt tuyệt đối nằm đè gọn gàng bên phải ô Input
-const eyeButtonStyle = {
-    position: 'absolute',
-    right: '10px',
-    top: '50%',
-    transform: 'translateY(-50%)',
-    border: 'none',
-    backgroundColor: 'transparent',
-    cursor: 'pointer',
-    fontSize: '16px',
-    display: 'flex',
-    alignItems: 'center',
-    padding: 0,
-    userSelect: 'none'
-};
-
-const buttonStyle = { width: '100%', padding: 'var(--spacing-sm)', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' };
+const dropdownPanelStyle = { position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '4px', zIndex: 99, maxHeight: '160px', overflowY: 'auto', boxShadow: '0 8px 16px rgba(0,0,0,0.4)', marginTop: '4px' };
+const dropdownItemStyle = { padding: '10px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border)', transition: 'all 0.1s ease' };
+const inputStyle = { width: '100%', padding: '10px 12px', paddingRight: '40px', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
+const inputStyleForUsername = { width: '100%', padding: '10px 12px', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
+const eyeButtonStyle = { position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', padding: 0, userSelect: 'none' };
+const buttonStyle = { width: '100%', padding: '12px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
 
 export default LoginPage;
-</file>
-
-<file path="student-management-ui/src/pages/RegistrationPage.jsx">
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
-
-export default function RegistrationPage() {
-    const role = localStorage.getItem('roles') || '';
-    const teacherId = localStorage.getItem('teacherId') || '';
-
-    const [message, setMessage] = useState({ text: '', isError: false });
-
-    // --- STATE PHÂN HỆ ADMIN ---
-    const [periodForm, setPeriodForm] = useState({ semester: 'HK1-2026', startTime: '', endTime: '' });
-    const [allPeriods, setAllPeriods] = useState([]); // Lưu lịch sử tất cả các đợt mở cổng
-    const [selectedPeriod, setSelectedPeriod] = useState(null); // Đợt đang được chọn để xem chi tiết
-    const [courseClasses, setCourseClasses] = useState([]); // Lưu tất cả lớp học phần từ DB thật
-
-    // --- STATE PHÂN HỆ TEACHER ---
-    const [teacherClasses, setTeacherClasses] = useState([]);
-    const [selectedClassId, setSelectedClassId] = useState(null);
-    const [classStudents, setClassStudents] = useState([]);
-
-    // --- STATE PHÂN HỆ STUDENT ---
-    const [availableClasses, setAvailableClasses] = useState([]);
-    const [myRegisteredClasses, setMyRegisteredClasses] = useState([]);
-    const [isRegistrationTime, setIsRegistrationTime] = useState(false);
-    const [activePeriodInfo, setActivePeriodInfo] = useState(null);
-
-    // 🔥 STATE ĐẾM GIÂY REALTIME: Đồng bộ thời gian thực cho cả hệ thống và bảng lịch sử
-    const [tick, setTick] = useState(Date.now());
-
-    useEffect(() => {
-        refreshData();
-    }, [role]);
-
-    // Kích hoạt bộ đếm nhịp chạy ngầm mỗi 1 giây
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setTick(Date.now());
-        }, 1000);
-        return () => clearInterval(timer);
-    }, []);
-
-    // Tự động đóng/mở cổng chọn môn cho Sinh viên khi đồng hồ chạm mốc giờ hẹn
-    useEffect(() => {
-        if (role.includes('STUDENT') && activePeriodInfo) {
-            const now = new Date();
-            const start = new Date(activePeriodInfo.startTime);
-            const end = new Date(activePeriodInfo.endTime);
-
-            if (activePeriodInfo.isActive && now >= start && now <= end) {
-                if (!isRegistrationTime) {
-                    setIsRegistrationTime(true);
-                    fetchOpenClassesForStudent(activePeriodInfo.semester);
-                }
-            } else {
-                if (isRegistrationTime) {
-                    setIsRegistrationTime(false);
-                    setAvailableClasses([]);
-                }
-            }
-        }
-    }, [tick, activePeriodInfo, role]);
-
-    const refreshData = () => {
-        if (role.includes('ADMIN')) {
-            loadAdminPeriodsAndClasses();
-        }
-        if (role.includes('TEACHER')) {
-            loadTeacherSchedule();
-        }
-        if (role.includes('STUDENT')) {
-            loadStudentRegistrationFlow();
-        }
-    };
-
-    const showMessage = (text, isError = false) => {
-        setMessage({ text, isError });
-        setTimeout(() => setMessage({ text: '', isError: false }), 4000);
-    };
-
-    // ==================== 🛠️ NGHIỆP VỤ ADMIN ====================
-    const loadAdminPeriodsAndClasses = async () => {
-        try {
-            const periodsData = await axiosClient.get('/registration/periods');
-            if (periodsData && periodsData.length > 0) {
-                const sortedPeriods = [...periodsData].sort((a, b) => b.id - a.id);
-                setAllPeriods(sortedPeriods);
-
-                if (selectedPeriod) {
-                    const updated = sortedPeriods.find(p => p.id === selectedPeriod.id);
-                    setSelectedPeriod(updated || sortedPeriods[0]);
-                } else {
-                    setSelectedPeriod(sortedPeriods[0]);
-                }
-            }
-
-            const classesData = await axiosClient.get('/course-classes');
-            setCourseClasses(classesData);
-        } catch (err) { showMessage('Không thể tải dữ liệu quản trị hệ thống', true); }
-    };
-
-    const handleCreatePeriod = async (e) => {
-        e.preventDefault();
-        try {
-            await axiosClient.post('/registration/periods', periodForm);
-            showMessage('Kích hoạt cấu hình khung giờ và lưu đợt mở đăng ký học kỳ mới thành công!');
-            setPeriodForm({ semester: 'HK1-2026', startTime: '', endTime: '' });
-            refreshData();
-        } catch (err) { showMessage(err || 'Lỗi kích hoạt khung giờ', true); }
-    };
-
-    const handleClosePeriod = async (id) => {
-        if (!window.confirm("⚠️ Bạn có chắc chắn muốn HỦY KÍCH HOẠT khung giờ đăng ký tín chỉ này không?")) return;
-        try {
-            await axiosClient.put(`/registration/periods/${id}/close`);
-            showMessage('Đã đóng cổng và hủy kích hoạt khung giờ thành công!');
-            refreshData();
-        } catch (err) { showMessage(err || 'Không thể thực hiện hủy kích hoạt!', true); }
-    };
-
-    const handleToggleClassRegistration = async (id) => {
-        try {
-            await axiosClient.put(`/registration/course-class/${id}/toggle`);
-            showMessage(`Cập nhật trạng thái tích chọn mở lớp học phần thành công!`);
-            const classesData = await axiosClient.get('/course-classes');
-            setCourseClasses(classesData);
-        } catch (err) { showMessage(err || 'Không thể thay đổi trạng thái tích chọn môn', true); }
-    };
-
-    // ==================== 💼 NGHIỆP VỤ TEACHER ====================
-    const loadTeacherSchedule = async () => {
-        if (!teacherId) return;
-        try {
-            const data = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
-            setTeacherClasses(data);
-        } catch (err) { showMessage('Không thể tải lịch giảng dạy cá nhân', true); }
-    };
-
-    const viewClassStudents = async (classId) => {
-        setSelectedClassId(classId);
-        try {
-            const data = await axiosClient.get(`/registration/classes/${classId}/students`);
-            setClassStudents(data);
-        } catch (err) { showMessage('Không thể tải danh sách sinh viên lớp học phần', true); }
-    };
-
-    // ==================== 🎓 NGHIỆP VỤ STUDENT ====================
-    const fetchOpenClassesForStudent = async (semester) => {
-        try {
-            const allSystemClasses = await axiosClient.get('/course-classes');
-            const filteredOpenClasses = allSystemClasses.filter(
-                c => c.openForRegistration === true && c.semester === semester
-            );
-            setAvailableClasses(filteredOpenClasses);
-        } catch (err) { console.error(err); }
-    };
-
-    const loadStudentRegistrationFlow = async () => {
-        try {
-            const periods = await axiosClient.get('/registration/periods');
-            let period = null;
-            if (periods && periods.length > 0) {
-                const sorted = [...periods].sort((a, b) => b.id - a.id);
-                period = sorted[0];
-                setActivePeriodInfo(period);
-            }
-
-            if (period && period.isActive) {
-                const now = new Date();
-                const start = new Date(period.startTime);
-                const end = new Date(period.endTime);
-
-                if (now >= start && now <= end) {
-                    setIsRegistrationTime(true);
-                    await fetchOpenClassesForStudent(period.semester);
-                } else {
-                    setIsRegistrationTime(false);
-                    setAvailableClasses([]);
-                }
-            } else {
-                setIsRegistrationTime(false);
-                setAvailableClasses([]);
-            }
-
-            const myClasses = await axiosClient.get('/registration/my-classes');
-            setMyRegisteredClasses(myClasses);
-        } catch (err) { console.error(err); }
-    };
-
-    const handleEnroll = async (courseClassId) => {
-        try {
-            await axiosClient.post(`/registration/enroll?courseClassId=${courseClassId}`);
-            showMessage('Đăng ký chọn lớp học phần thành công mượt mà!');
-            loadStudentRegistrationFlow();
-        } catch (err) { showMessage(err || 'Không thể đăng ký học phần này!', true); }
-    };
-
-    const handleUnenroll = async (courseClassId) => {
-        if (!window.confirm("Bạn có chắc chắn muốn hủy học phần này không?")) return;
-        try {
-            await axiosClient.delete(`/registration/unenroll?courseClassId=${courseClassId}`);
-            showMessage('Đã rút tên khỏi lớp học phần thành công!');
-            loadStudentRegistrationFlow();
-        } catch (err) { showMessage(err || 'Không thể hủy học phần này!', true); }
-    };
-
-    const formatDate = (dateStr) => {
-        if (!dateStr) return '';
-        const d = new Date(dateStr);
-        return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')} ngày ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
-    };
-
-    const renderPeriodStatusLabel = (period) => {
-        if (!period) return <span style={{color:'var(--text-muted)'}}>Chưa rõ</span>;
-        if (!period.isActive) {
-            return <span style={{color:'var(--color-danger)', fontWeight:'bold'}}>🔒 Đã đóng / Hủy kích hoạt</span>;
-        }
-
-        const now = new Date();
-        const start = new Date(period.startTime);
-        const end = new Date(period.endTime);
-
-        if (now < start) {
-            return <span style={{color:'var(--color-warning)', fontWeight:'bold'}}>⏳ Chờ đến mốc giờ mở</span>;
-        } else if (now > end) {
-            return <span style={{color:'var(--color-danger)', fontWeight:'bold'}}>⏰ Đã hết hạn đóng cổng</span>;
-        } else {
-            return <span style={{color:'var(--color-success)', fontWeight:'bold'}}>🟢 Đang mở đăng ký</span>;
-        }
-    };
-
-    return (
-        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
-            <h2 style={{ color: 'var(--text-cyan)', marginBottom: 'var(--spacing-xl)' }}>⏰ TRUNG TÂM ĐIỀU PHỐI ĐĂNG KÝ TÍN CHỈ REALTIME</h2>
-
-            {message.text && (
-                <div style={{ padding: '12px', marginBottom: '20px', backgroundColor: message.isError ? 'var(--color-danger)' : 'var(--color-primary)', color: 'white', borderRadius: '4px', fontWeight: 'bold' }}>
-                    {message.text}
-                </div>
-            )}
-
-            {/* ==================== VIEW ADMIN ==================== */}
-            {role.includes('ADMIN') && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-                    {/* KHU VỰC 1: LỊCH SỬ CÁC ĐỢT MỞ CỔNG ĐĂNG KÝ TÍN CHỈ CỦA TRƯỜNG */}
-                    <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                        <h3 style={{ color: 'var(--text-cyan)', margin: '0 0 12px 0' }}>📂 LỊCH SỬ CÁC ĐỢT MỞ CỔNG ĐĂNG KÝ HỆ THỐNG</h3>
-                        <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
-                            {allPeriods.map(p => {
-                                const isSelected = selectedPeriod?.id === p.id;
-
-                                // 🔥 ĐÃ SỬA LUỒNG REALTIME: Tính toán nhãn trạng thái chính xác từng giây cho từng ô trong danh sách lịch sử
-                                let statusText = '🔒 Đã hủy/Đóng cổng';
-                                let statusColor = 'var(--color-danger)';
-
-                                if (p.isActive) {
-                                    const now = new Date();
-                                    const start = new Date(p.startTime);
-                                    const end = new Date(p.endTime);
-                                    if (now < start) {
-                                        statusText = '⏳ Chờ mốc giờ';
-                                        statusColor = 'var(--color-warning)';
-                                    } else if (now > end) {
-                                        statusText = '⏰ Đã hết hạn';
-                                        statusColor = 'var(--color-danger)';
-                                    } else {
-                                        statusText = '● Đang hoạt động';
-                                        statusColor = 'var(--color-success)';
-                                    }
-                                }
-
-                                return (
-                                    <div
-                                        key={p.id}
-                                        onClick={() => setSelectedPeriod(p)}
-                                        style={{
-                                            padding: '10px 15px',
-                                            // 🔥 ĐÃ ĐẠI TU UI: Giữ nền tối, nếu click chọn thì bật viền Cyan phát sáng và nhuộm màu chữ để nét căng, dễ nhìn
-                                            backgroundColor: isSelected ? 'rgba(0, 188, 212, 0.08)' : 'var(--color-bg)',
-                                            border: isSelected ? '2px solid var(--text-cyan)' : '1px solid var(--color-border)',
-                                            boxShadow: isSelected ? '0 0 10px rgba(0, 188, 212, 0.25)' : 'none',
-                                            borderRadius: '6px',
-                                            cursor: 'pointer',
-                                            minWidth: '220px',
-                                            transition: 'all 0.2s'
-                                        }}
-                                    >
-                                        <div style={{ fontWeight: 'bold', fontSize: '14px', color: isSelected ? 'var(--text-cyan)' : 'white' }}>Học kỳ: {p.semester}</div>
-                                        <div style={{ fontSize: '12px', color: isSelected ? 'white' : 'var(--text-muted)', marginTop: '4px' }}>Mã đợt: #RP_{p.id}</div>
-                                        <div style={{ fontSize: '11px', marginTop: '6px', color: statusColor, fontWeight: 'bold' }}>
-                                            {statusText}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                            {allPeriods.length === 0 && <p style={{color:'var(--text-muted)', fontSize:'13px'}}>Chưa có dữ liệu lịch sử đợt mở đăng ký.</p>}
-                        </div>
-                    </div>
-
-                    {/* KHU VỰC 2: THANH GIÁM SÁT CHI TIẾT ĐỢT ĐANG CHỌN */}
-                    {selectedPeriod && (
-                        <div style={{ padding: '15px 20px', backgroundColor: 'var(--color-surface)', borderLeft: '5px solid var(--color-success)', borderRadius: '4px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid var(--color-border)' }}>
-                            <div>
-                                <h4 style={{ margin: '0 0 6px 0', color: 'var(--text-cyan)' }}>🟢 CHI TIẾT ĐỢT ĐANG CHỌN GIÁM SÁT REALTIME</h4>
-                                <div style={{ fontSize: '13px' }}>
-                                    Học kỳ áp dụng: <b style={{color:'var(--color-warning)'}}>{selectedPeriod.semester}</b> |
-                                    Thời gian cấu hình: Từ <b>{formatDate(selectedPeriod.startTime)}</b> đến <b>{formatDate(selectedPeriod.endTime)}</b> |
-                                    Trạng thái thực tế: {renderPeriodStatusLabel(selectedPeriod)}
-                                </div>
-                            </div>
-
-                            {selectedPeriod && selectedPeriod.isActive && (
-                                <button
-                                    onClick={() => handleClosePeriod(selectedPeriod.id)}
-                                    style={{ padding: '8px 14px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
-                                >
-                                    🛑 Hủy Kích Hoạt Đợt Này
-                                </button>
-                            )}
-                        </div>
-                    )}
-
-                    <div style={{ display: 'flex', gap: 'var(--spacing-xl)', flexWrap: 'wrap' }}>
-                        {/* Form tạo đợt mới */}
-                        <form onSubmit={handleCreatePeriod} style={{ width: '310px', display: 'flex', flexDirection: 'column', gap: '12px', padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)', height: 'fit-content' }}>
-                            <style>{`
-                                .calendar-click-overlay { position: relative; }
-                                .calendar-click-overlay::-webkit-calendar-picker-indicator { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-                            `}</style>
-
-                            <h4 style={{color: 'var(--text-cyan)', margin: 0}}>🔒 MỞ ĐĂNG KÝ TÍN CHỈ MỚI</h4>
-                            <input type="text" placeholder="Học kỳ (VD: HK1-2026)" value={periodForm.semester} onChange={e => setPeriodForm({...periodForm, semester: e.target.value})} required style={inputStyle} />
-                            <label style={{fontSize:'13px', fontWeight: 'bold'}}>Thời gian bắt đầu:</label>
-                            <input type="datetime-local" value={periodForm.startTime} onChange={e => setPeriodForm({...periodForm, startTime: e.target.value})} required className="calendar-click-overlay" style={inputStyle} />
-                            <label style={{fontSize:'13px', fontWeight: 'bold'}}>Thời gian kết thúc:</label>
-                            <input type="datetime-local" value={periodForm.endTime} onChange={e => setPeriodForm({...periodForm, endTime: e.target.value})} required className="calendar-click-overlay" style={inputStyle} />
-
-                            <button type="submit" style={{ padding: '12px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', marginTop: '5px' }}>
-                                Kích Hoạt Đợt Mở Mới
-                            </button>
-                        </form>
-
-                        {/* BẢNG ĐỒNG BỘ HIỂN THỊ CHI TIẾT MÔN THEO HỌC KỲ ĐƯỢC CHỌN */}
-                        <div style={{ flex: 1, minWidth: '450px', padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                            <h4>📋 Danh sách môn học phần thuộc học kỳ: {selectedPeriod?.semester || 'Chưa chọn'}</h4>
-                            <p style={{fontSize: '12px', color: 'var(--color-warning)', marginTop: 0, marginBottom: '12px'}}>
-                                💡 <b>Tác vụ Admin:</b> Tích chọn checkbox để cho phép mở hoặc khóa môn học phần tương ứng của học kỳ đang xem.
-                            </p>
-
-                            <table style={tableStyle}>
-                                <thead>
-                                <tr style={thStyle}>
-                                    <th>Mã Lớp HP</th><th>Tên Môn Học</th><th>Số Tín</th><th>Giảng Viên</th><th>Thời Khóa Biểu (Lịch học)</th><th style={{textAlign: 'center'}}>Tích Chọn Mở Môn</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {courseClasses
-                                    .filter(c => c.semester === selectedPeriod?.semester)
-                                    .map((cls) => (
-                                        <tr key={cls.id} style={trStyle}>
-                                            <td style={{fontWeight:'bold', color: 'var(--text-cyan)'}}>{cls.code}</td>
-                                            <td>{cls.subjectName}</td>
-                                            <td>{cls.credits} tín</td>
-                                            <td>{cls.teacherName || 'Chưa phân công'}</td>
-                                            <td style={{color:'var(--color-warning)', fontSize:'13px', fontWeight:'bold'}}>{cls.schedule || 'Chưa xếp'}</td>
-                                            <td style={{textAlign: 'center'}}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={cls.openForRegistration}
-                                                    onChange={() => handleToggleClassRegistration(cls.id)}
-                                                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                                                />
-                                            </td>
-                                        </tr>
-                                    ))}
-                                {courseClasses.filter(c => c.semester === selectedPeriod?.semester).length === 0 && (
-                                    <tr>
-                                        <td colSpan="6" style={{textAlign:'center', padding:'20px', color:'var(--text-muted)'}}>Học kỳ này chưa được Admin mở lớp học phần nào ở trang Quản lý đào tạo.</td>
-                                    </tr>
-                                )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ==================== VIEW TEACHER ==================== */}
-            {role.includes('TEACHER') && !role.includes('ADMIN') && (
-                <div>
-                    <h3 style={{ color: 'var(--text-cyan)' }}>💼 DANH SÁCH LỚP VÀ LỊCH GIẢNG DẠY CỦA BẠN</h3>
-                    <div style={{ display: 'flex', gap: '20px', marginTop: '15px' }}>
-                        <div style={{ width: '280px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {teacherClasses.map(c => (
-                                <button key={c.id} onClick={() => viewClassStudents(c.id)} style={{ padding: '12px', backgroundColor: selectedClassId === c.id ? 'var(--color-primary)' : 'var(--color-surface)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px', textAlign: 'left', cursor: 'pointer' }}>
-                                    <div style={{fontWeight:'bold', color: 'var(--text-cyan)'}}>{c.code}</div>
-                                    <div style={{fontSize:'12px', marginTop:'4px', color:'var(--color-warning)'}}>📅 Lịch dạy: {c.schedule || 'Chưa xếp lịch'}</div>
-                                </button>
-                            ))}
-                        </div>
-
-                        {selectedClassId && (
-                            <div style={{ flex: 1, padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                                <h4>👥 Danh sách sinh viên đăng ký học phần lớp [{teacherClasses.find(x => x.id === selectedClassId)?.code}]</h4>
-                                <table style={tableStyle}>
-                                    <thead>
-                                    <tr style={thStyle}><th>Mã Sinh Viên</th><th>Họ Và Tên</th><th>Giới Tính</th><th>Số Điện Thoại</th></tr>
-                                    </thead>
-                                    <tbody>
-                                    {classStudents.map((sv, i) => (
-                                        <tr key={i} style={trStyle}>
-                                            <td style={{fontWeight:'bold', color:'var(--color-warning)'}}>{sv.studentCode}</td>
-                                            <td>{sv.firstName} {sv.lastName}</td>
-                                            <td>{sv.gender}</td><td>{sv.phoneNumber || '-'}</td>
-                                        </tr>
-                                    ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* ==================== VIEW STUDENT ==================== */}
-            {role.includes('STUDENT') && !role.includes('ADMIN') && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-
-                    {/* BẢNG THÔNG BÁO CHI TIẾT NGÀY GIỜ MỞ ĐĂNG KÝ CHO SINH VIÊN */}
-                    <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderLeft: '5px solid var(--text-cyan)', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
-                        <h4 style={{ margin: '0 0 8px 0', color: 'var(--text-cyan)' }}>📢 THÔNG BÁO KẾ HOẠCH ĐĂNG KÝ TÍN CHỈ HỆ THỐNG</h4>
-                        {activePeriodInfo ? (
-                            <div style={{ fontSize: '14px' }}>
-                                Kế hoạch mở cổng đăng ký tín chỉ học kỳ <b>{activePeriodInfo.semester}</b>:
-                                <ul style={{ margin: '5px 0 0 20px', padding: 0 }}>
-                                    <li>⏱️ Thời gian bắt đầu mở hệ thống: <span style={{ color: 'var(--text-cyan)', fontWeight: 'bold' }}>{formatDate(activePeriodInfo.startTime)}</span></li>
-                                    <li>⌛ Thời gian đóng hệ thống: <span style={{ color: 'var(--color-danger)', fontWeight: 'bold' }}>{formatDate(activePeriodInfo.endTime)}</span></li>
-                                    <li style={{marginTop: '5px'}}>📌 Trạng thái: {isRegistrationTime ? (
-                                        <span style={{ color: 'var(--color-success)', fontWeight: 'bold', backgroundColor: 'rgba(40, 167, 69, 0.1)', padding: '2px 6px', borderRadius: '3px' }}>● CỔNG ĐANG MỞ - ĐƯỢC PHÉP ĐĂNG KÝ CHỌN LỚP</span>
-                                    ) : (
-                                        <span style={{ color: 'var(--color-warning)', fontWeight: 'bold', backgroundColor: 'rgba(255, 193, 7, 0.1)', padding: '2px 6px', borderRadius: '3px' }}>🔒 HỆ THỐNG ĐANG KHÓA CHẶT (Chưa đến mốc thời gian hoặc đã đóng cổng)</span>
-                                    )}</li>
-                                </ul>
-                            </div>
-                        ) : (
-                            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>Hiện tại nhà trường chưa phát hành khung thời gian đăng ký học phần.</p>
-                        )}
-                    </div>
-
-                    {/* Phần 1: Đăng ký tín chỉ trực tuyến */}
-                    <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                        <h3 style={{ color: 'var(--text-cyan)', marginBottom: '15px', marginTop: 0 }}>✍️ ĐĂNG KÝ HỌC PHẦN TRỰC TUYẾN</h3>
-
-                        {!isRegistrationTime ? (
-                            <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--color-bg)', borderRadius: '4px', border: '1px dashed var(--color-border)' }}>
-                                <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔒</div>
-                                <h4 style={{ color: 'var(--color-warning)', margin: '0 0 5px 0' }}>CỔNG ĐĂNG KÝ TÍN CHỈ CHƯA ĐẾN GIỜ KHỞI CHẠY</h4>
-                                <p style={{ margin: 0, fontSize: '13px' }}>Vui lòng quay lại khi đồng hồ chạm mốc thời gian quy định tại bảng thông báo phía trên.</p>
-                            </div>
-                        ) : availableClasses.length === 0 ? (
-                            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--color-bg)', borderRadius: '4px' }}>
-                                Cổng đã mở thành công nhưng chưa có môn học phần nào thuộc học kỳ {activePeriodInfo?.semester} được Ban giáo vụ tích chọn mở đăng ký.
-                            </div>
-                        ) : (
-                            <table style={tableStyle}>
-                                <thead>
-                                <tr style={thStyle}><th>Mã Lớp HP</th><th>Tên Môn Học</th><th>Số Tín</th><th>Giảng Viên</th><th>Lịch Học Thiết Kế</th><th>Thao Tác</th></tr>
-                                </thead>
-                                <tbody>
-                                {availableClasses.map(c => (
-                                    <tr key={c.id} style={trStyle}>
-                                        <td style={{fontWeight:'bold', color: 'var(--text-cyan)'}}>{c.code}</td>
-                                        <td>{c.subjectName}</td><td>{c.credits} tín</td><td>{c.teacherName || 'Chưa xếp'}</td>
-                                        <td style={{color:'var(--color-warning)', fontWeight:'bold'}}>{c.schedule}</td>
-                                        <td>
-                                            <button onClick={() => handleEnroll(c.id)} style={{ padding: '6px 12px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight:'bold' }}>Đăng ký chọn lớp</button>
-                                        </td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
-                        )}
-                    </div>
-
-                    {/* Phần 2: Xem Thời khóa biểu lịch học cá nhân */}
-                    <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                        <h3 style={{ color: 'var(--color-warning)', marginBottom: '15px', marginTop: 0 }}>📅 THỜI KHÓA BIỂU & LỊCH HỌC CÁ NHÂN ĐÃ ĐĂNG KÝ ĐỒNG BỘ DATA</h3>
-                        <table style={tableStyle}>
-                            <thead>
-                            <tr style={thStyle}><th>Mã Lớp HP</th><th>Tên Môn Học</th><th>Số Tín Nhiệm</th><th>Giảng Viên</th><th>Thời Khóa Biểu Lịch Học</th><th>Hành Động Rút Môn</th></tr>
-                            </thead>
-                            <tbody>
-                            {myRegisteredClasses.map(reg => (
-                                <tr key={reg.id} style={trStyle}>
-                                    <td style={{fontWeight:'bold', color:'var(--text-cyan)'}}>{reg.courseClassCode}</td>
-                                    <td>{reg.subjectName}</td><td>{reg.credits} tín</td><td>{reg.teacherName}</td>
-                                    <td style={{color:'var(--color-success)', fontWeight:'bold'}}>{reg.schedule || 'Chưa xếp lịch'}</td>
-                                    <td>
-                                        <button
-                                            onClick={() => handleUnenroll(reg.courseClassId)}
-                                            disabled={!isRegistrationTime}
-                                            style={{ padding: '6px 12px', backgroundColor: isRegistrationTime ? 'var(--color-danger)' : '#555', color: 'white', border: 'none', borderRadius: '4px', cursor: isRegistrationTime ? 'pointer' : 'not-allowed', fontWeight:'bold' }}
-                                        >
-                                            Hủy chọn lớp
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {myRegisteredClasses.length === 0 && (
-                                <tr>
-                                    <td colSpan="6" style={{textAlign: 'center', padding: '15px', color: 'var(--text-muted)'}}>Bạn chưa thực hiện thao tác chọn lớp học phần nào trong học kỳ này.</td>
-                                </tr>
-                            )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
-const inputStyle = { padding: '8px', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px', outline: 'none' };
-const tableStyle = { width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' };
-const thStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', backgroundColor: 'var(--color-surface-hover)', textAlign: 'left', padding: '10px' };
-const trStyle = { borderBottom: '1px solid var(--color-border)', padding: '10px' };
-</file>
-
-<file path="student-management-ui/src/pages/TeacherPage.jsx">
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
-
-function TeacherPage() {
-    const [teachers, setTeachers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
-    const [modalError, setModalError] = useState('');
-
-    // Khởi tạo chế độ sửa
-    const [isEditMode, setIsEditMode] = useState(false);
-    const [editingTeacherId, setEditingTeacherId] = useState('');
-
-    // Form States
-    const [teacherCode, setTeacherCode] = useState('');
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [dateOfBirth, setDateOfBirth] = useState('');
-    const [gender, setGender] = useState('Nam');
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [departmentId, setDepartmentId] = useState('');
-
-    // List States dữ liệu gợi ý Dropdown
-    const [departmentList, setDepartmentList] = useState([]);
-
-    // STATE TÌM KIẾM MÃ GIẢNG VIÊN
-    const [searchQuery, setSearchQuery] = useState('');
-
-    useEffect(() => {
-        fetchTeachers();
-        fetchDepartmentList();
-    }, []);
-
-    const fetchTeachers = async () => {
-        try {
-            setLoading(true);
-            const data = await axiosClient.get('/teachers');
-            setTeachers(data);
-        } catch (err) {
-            console.error(err);
-        } finally { // 🔥 ĐÃ SỬA: Thay thế từ khóa lỗi 'fill' thành 'finally' chuẩn cú pháp
-            setLoading(false);
-        }
-    };
-
-    const fetchDepartmentList = async () => {
-        try {
-            const data = await axiosClient.get('/departments');
-            setDepartmentList(data);
-        } catch (err) {
-            console.error("Lỗi nạp danh sách khoa dropdown:", err);
-        }
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setModalError('');
-
-        if (isEditMode) {
-            const payload = { firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber };
-            try {
-                await axiosClient.put(`/teachers/${editingTeacherId}`, payload);
-                alert("Cập nhật thông tin hồ sơ giảng viên thành công!");
-                setShowModal(false);
-                resetForm();
-                fetchTeachers();
-            } catch (err) { setModalError(err || 'Lỗi cập nhật hồ sơ giảng viên.'); }
-        } else {
-            if (!departmentId) { setModalError('Vui lòng chọn Khoa/Viện chuyên môn gợi ý!'); return; }
-            const payload = { teacherCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, departmentId: Number(departmentId) };
-            try {
-                await axiosClient.post('/teachers', payload);
-                alert(`Cấp tài khoản Giảng viên thành công!\nTài khoản: ${teacherCode}\nMật khẩu mặc định: password1234`);
-                setShowModal(false);
-                resetForm();
-                fetchTeachers();
-            } catch (err) { setModalError(err || 'Lỗi khởi tạo hồ sơ giảng viên.'); }
-        }
-    };
-
-    const handleOpenEdit = (t) => {
-        setIsEditMode(true);
-        setEditingTeacherId(t.id);
-        setTeacherCode(t.teacherCode);
-        setFirstName(t.firstName);
-        setLastName(t.lastName);
-        setDateOfBirth(t.dateOfBirth || '');
-        setGender(t.gender || 'Nam');
-        setPhoneNumber(t.phoneNumber || '');
-        setDepartmentId(''); // Khóa chỉnh sửa khoa khi đang sửa thông tin cá nhân để bảo vệ toàn vẹn dữ liệu
-        setShowModal(true);
-    };
-
-    const handleLockTeacher = async (id, code, name) => {
-        if (window.confirm(`Bạn có chắc chắn muốn KHÓA tài khoản giảng viên [${code} - ${name}] không?\nTài khoản này sẽ lập tức bị đóng băng quyền truy cập.`)) {
-            try {
-                await axiosClient.delete(`/teachers/${id}`);
-                alert('Đã khóa hồ sơ và đóng băng tài khoản giảng viên thành công!');
-                fetchTeachers();
-            } catch (err) { alert(err || 'Không thể thực hiện khóa giảng viên!'); }
-        }
-    };
-
-    const handleUnlockTeacher = async (id, code, name) => {
-        if (window.confirm(`Bạn có chắc chắn muốn MỞ KHÓA lại cho giảng viên [${code} - ${name}] không?`)) {
-            try {
-                await axiosClient.put(`/teachers/${id}/enable`);
-                alert('Mở khóa tài khoản và tái khôi phục quyền giảng dạy thành công!');
-                fetchTeachers();
-            } catch (err) { alert(err || 'Không thể thực hiện mở khóa giảng viên!'); }
-        }
-    };
-
-    const resetForm = () => {
-        setTeacherCode(''); setFirstName(''); setLastName(''); setDateOfBirth(''); setGender('Nam'); setPhoneNumber(''); setDepartmentId(''); setModalError('');
-        setIsEditMode(false); setEditingTeacherId('');
-    };
-
-    // BỘ LỌC TÌM KIẾM MÃ GIẢNG VIÊN REALTIME
-    const filteredTeachers = teachers.filter(t =>
-        t.teacherCode.toLowerCase().includes(searchQuery.trim().toLowerCase())
-    );
-
-    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang tải danh sách giảng viên...</div>;
-
-    return (
-        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
-                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>QUẢN LÝ DANH SÁCH GIẢNG VIÊN</h2>
-                <button onClick={() => { resetForm(); setShowModal(true); }} style={{ padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-success)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                    + Cấp Tài Khoản Giảng Viên
-                </button>
-            </div>
-
-            {/* THANH TÌM KIẾM MÃ GIẢNG VIÊN */}
-            <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '13px', marginBottom: '6px', fontWeight: 'bold', color: 'var(--text-cyan)' }}>🔍 Tìm kiếm nhanh theo Mã giảng viên:</label>
-                <input
-                    type="text"
-                    placeholder="Nhập mã số giảng viên cần tìm kiếm..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{ width: '100%', maxWidth: '400px', padding: '8px 12px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', outline: 'none' }}
-                />
-            </div>
-
-            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-                <thead>
-                <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Mã Giảng Viên</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Tên</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Khoa Chuyên Môn</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Email Giảng Dạy</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Trạng thái hệ thống</th>
-                    <th style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>Hành Động Tác Vụ</th>
-                </tr>
-                </thead>
-                <tbody>
-                {filteredTeachers.map((t) => (
-                    <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)', opacity: t.active ? 1 : 0.55 }}>
-                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{t.teacherCode}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{t.lastName} {t.firstName}</td>
-                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)' }}>{t.departmentName}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{t.gender}</td>
-                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-muted)' }}>{t.email}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>
-                            {t.active ? <span style={{ color: 'var(--color-success)', fontSize: '12px', fontWeight: 'bold' }}>● Đang giảng dạy</span> : <span style={{ color: 'var(--color-danger)', fontSize: '12px', fontWeight: 'bold' }}>🔒 Đã khóa tài khoản</span>}
-                        </td>
-                        <td style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>
-                            <button onClick={() => handleOpenEdit(t)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', marginRight: '5px', fontWeight: 'bold' }}>Sửa</button>
-                            {t.active ? (
-                                <button onClick={() => handleLockTeacher(t.id, t.teacherCode, t.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Khóa</button>
-                            ) : (
-                                <button onClick={() => handleUnlockTeacher(t.id, t.teacherCode, t.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Mở Khóa</button>
-                            )}
-                        </td>
-                    </tr>
-                ))}
-                {filteredTeachers.length === 0 && (
-                    <tr>
-                        <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>Không có dữ liệu giảng viên tương thích với từ khóa tìm kiếm.</td>
-                    </tr>
-                )}
-                </tbody>
-            </table>
-
-            {/* MODAL CẤP TÀI KHOẢN / SỬA HỒ SƠ */}
-            {showModal && (
-                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 }}>
-                    <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--spacing-xl)', borderRadius: '8px', width: '550px' }}>
-                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>{isEditMode ? '📝 CẬP NHẬT HỒ SƠ GIẢNG VIÊN' : '✍️ THÊM MỚI HỒ SƠ GIẢNG VIÊN'}</h3>
-                        {modalError && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)' }}>{modalError}</div>}
-                        <form onSubmit={handleSubmit}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
-                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Mã Giảng Viên:</label><input type="text" placeholder="GV2026_01" value={teacherCode} onChange={(e) => setTeacherCode(e.target.value)} required disabled={isEditMode} style={inputStyle} /></div>
-
-                                {/* Dropdown menu bốc từ khoa chuyên môn thật dưới DB */}
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Khoa Chuyên Môn:</label>
-                                    <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required disabled={isEditMode} style={inputStyle}>
-                                        <option value="">{isEditMode ? '-- Không hoán đổi khoa --' : '-- Chọn khoa chuyên môn --'}</option>
-                                        {departmentList.map(dept => <option key={dept.id} value={dept.id}>{dept.name} ({dept.code})</option>)}
-                                    </select>
-                                </div>
-
-                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Họ Và Tên Đệm:</label><input type="text" placeholder="Trần Quốc" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Tên Giảng Viên:</label><input type="text" placeholder="Tuấn" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Giới Tính:</label><select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Số Điện Thoại:</label><input type="text" placeholder="0912345678" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
-                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
-                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Hủy</button>
-                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>{isEditMode ? 'Lưu Thay Đổi' : 'Khởi Tạo & Cấp TK'}</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
-const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
-export default TeacherPage;
 </file>
 
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/configuration/DatabaseInitializer.java">
@@ -6183,6 +4831,62 @@ public class DatabaseInitializer {
 }
 </file>
 
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentCreationRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
+
+public record StudentCreationRequest(
+        @NotBlank(message = "Mã sinh viên không được để trống")
+        @Size(max = 20, message = "Mã sinh viên không vượt quá 20 ký tự")
+        String studentCode,
+
+        @NotBlank(message = "Tên sinh viên không được để trống")
+        String firstName,
+
+        @NotBlank(message = "Họ và tên đệm không được để trống")
+        String lastName,
+
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+
+        @NotNull(message = "ID lớp hành chính không được để trống")
+        Long classId,
+
+        // 🔥 THÊM MỚI: Đón nhận niên khóa học truyền từ form tạo
+        @NotBlank(message = "Khóa học sinh viên không được để trống")
+        String cohort
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/request/StudentUpdateRequest.java">
+package com.dangdepzaivaio.StudentManagement.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import java.time.LocalDate;
+
+public record StudentUpdateRequest(
+        @NotBlank(message = "Tên sinh viên không được để trống")
+        String firstName,
+
+        @NotBlank(message = "Họ và tên đệm không được để trống")
+        String lastName,
+
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+        Long classId,
+        Boolean active,
+
+        // 🔥 THÊM MỚI: Cho phép sửa đổi đợt khóa học khi hiệu chỉnh hồ sơ
+        String cohort
+) {}
+</file>
+
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/AuthenticationResponse.java">
 package com.dangdepzaivaio.StudentManagement.dto.response;
 
@@ -6222,6 +4926,31 @@ public record GradeResponse(
         Double overallGrade,
         String letterGrade,
         Double grade4
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+import java.time.LocalDate;
+
+public record StudentResponse(
+        String id,
+        String studentCode,
+        String firstName,
+        String lastName,
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+        boolean active,
+        String username,
+        String email,
+        Long classId,
+        String className,
+
+        // 🔥 THÊM MỚI: Trường dữ liệu phản hồi khóa học từ Database thật ra ngoài UI
+        String cohort,
+        String departmentName
 ) {}
 </file>
 
@@ -6915,302 +5644,191 @@ public class SubjectServiceImpl implements SubjectService {
 }
 </file>
 
-<file path="student-management-ui/src/App.jsx">
-import React, { useState, useEffect } from 'react';
-import LoginPage from './pages/LoginPage';
-import StudentPage from './pages/StudentPage';
-import TeacherPage from './pages/TeacherPage';
-import GradePage from './pages/GradePage';
-import RegistrationPage from './pages/RegistrationPage';
-import TrainingPage from './pages/TrainingPage';
-import DashboardPage from './pages/DashboardPage';
-import SchedulePage from './pages/SchedulePage';
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/StudentManagementApplication.java">
+package com.dangdepzaivaio.StudentManagement;
 
-function App() {
-    const [token, setToken] = useState(localStorage.getItem('token'));
-    const [username, setUsername] = useState(localStorage.getItem('username'));
-    const [role, setRole] = useState(localStorage.getItem('roles') || '');
-    const [activeTab, setActiveTab] = useState('dashboard');
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.scheduling.annotation.EnableScheduling; // 🔥 THÊM DÒNG NÀY
 
-    useEffect(() => {
-        const checkSession = () => {
-            const lastExitTime = localStorage.getItem('lastExitTime');
-            const currentToken = localStorage.getItem('token');
+@SpringBootApplication
+@EnableJpaAuditing
+@EnableScheduling // 🔥 THÊM ANNOTATION NÀY ĐỂ KÍCH HOẠT TÍNH NĂNG HẸN GIỜ TỰ ĐỘNG CHỐT SỔ ĐÓNG CỔNG
+public class StudentManagementApplication {
 
-            if (currentToken && lastExitTime) {
-                const timeAway = Date.now() - parseInt(lastExitTime, 10);
-                const FIFTEEN_MINUTES = 15 * 60 * 1000;
+	public static void main(String[] args) {
+		SpringApplication.run(StudentManagementApplication.class, args);
+	}
 
-                if (timeAway > FIFTEEN_MINUTES) {
-                    localStorage.clear();
-                    setToken(null);
-                    setUsername(null);
-                    setRole('');
-                    alert("Phiên làm việc của bạn đã hết hạn do không hoạt động trong 15 phút. Vui lòng đăng nhập lại!");
-                } else {
-                    localStorage.removeItem('lastExitTime');
-                }
-            }
-        };
-
-        checkSession();
-
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'hidden') {
-                localStorage.setItem('lastExitTime', Date.now().toString());
-            } else if (document.visibilityState === 'visible') {
-                checkSession();
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        const handleBeforeUnload = () => {
-            localStorage.setItem('lastExitTime', Date.now().toString());
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-        };
-    }, []);
-
-    const handleLogout = () => {
-        localStorage.clear();
-        setToken(null);
-        setUsername(null);
-        setRole('');
-    };
-
-    if (!token) {
-        return <LoginPage />;
-    }
-
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)' }}>
-
-            {/* HEADER SYSTEM */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-sm) var(--spacing-xl)', backgroundColor: 'var(--color-surface)', color: 'var(--text-main)', borderBottom: '2px solid var(--text-cyan)' }}>
-                <h3>CMS - STUDENT MANAGEMENT</h3>
-                <div>
-                    <span style={{ marginRight: 'var(--spacing-xl)', color: 'var(--text-muted)' }}>Xin chào: <b>{username}</b> ({role})</span>
-                    <button onClick={handleLogout} style={{ padding: '6px 12px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Đăng xuất</button>
-                </div>
-            </div>
-
-            {/* BODY SYSTEM */}
-            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-
-                {/* SIDEBAR NAVIGATION */}
-                <div style={{ width: '240px', backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl) var(--spacing-sm)', borderRight: '1px solid var(--color-border)' }}>
-                    <button onClick={() => setActiveTab('dashboard')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'dashboard' ? 'var(--color-primary)' : 'transparent' }}>📊 Tổng Quan System</button>
-
-                    {/* MENU QUẢN LÝ SINH VIÊN */}
-                    {(role.includes('ADMIN') || role.includes('TEACHER')) && (
-                        <button onClick={() => setActiveTab('students')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'students' ? 'var(--color-primary)' : 'transparent' }}>👥 Quản Lý Sinh Viên</button>
-                    )}
-
-                    {/* MENU QUẢN LÝ GIẢNG VIÊN */}
-                    {role.includes('ADMIN') && (
-                        <button onClick={() => setActiveTab('teachers')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'teachers' ? 'var(--color-primary)' : 'transparent' }}>💼 Quản Lý Giảng Viên</button>
-                    )}
-
-                    <button onClick={() => setActiveTab('grades')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'grades' ? 'var(--color-primary)' : 'transparent' }}>🎯 Quản Lý Điểm Số</button>
-
-                    <button onClick={() => setActiveTab('registration')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'registration' ? 'var(--color-primary)' : 'transparent' }}>⏰ Đăng Ký Tín Chỉ</button>
-
-                    {/* 🔥 ĐÃ FIX THEO YÊU CẦU: Rẽ nhánh hiển thị "Lịch Dạy" cho Teacher và "Lịch Học" cho Student */}
-                    {/* MENU LỊCH TRÌNH DÀNH RIÊNG CHO GIẢNG VIÊN VÀ SINH VIÊN */}
-                    {(role.includes('TEACHER') || role.includes('STUDENT')) && (
-                        <button
-                            onClick={() => setActiveTab('schedule')}
-                            style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'schedule' ? 'var(--color-primary)' : 'transparent' }}
-                        >
-                            📅 {role.includes('TEACHER') ? 'Lịch Dạy' : 'Lịch Học'}
-                        </button>
-                    )}
-
-                    {role.includes('ADMIN') && (
-                        <button onClick={() => setActiveTab('training')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'training' ? 'var(--color-primary)' : 'transparent' }}>🏛️ Quản Lý Đào Tạo</button>
-                    )}
-                </div>
-
-                {/* MAIN CONTENT AREA */}
-                <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)', padding: 'var(--spacing-xl)' }}>
-                    {activeTab === 'dashboard' && <DashboardPage />}
-                    {activeTab === 'students' && <StudentPage />}
-                    {activeTab === 'teachers' && <TeacherPage />}
-                    {activeTab === 'grades' && <GradePage />}
-                    {activeTab === 'registration' && <RegistrationPage />}
-                    {activeTab === 'schedule' && <SchedulePage />}
-                    {activeTab === 'training' && <TrainingPage />}
-                </div>
-
-            </div>
-        </div>
-    );
 }
-
-const sidebarBtnStyle = { width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' };
-
-export default App;
 </file>
 
-<file path="student-management-ui/src/pages/StudentPage.jsx">
+<file path="student-management-ui/src/pages/GradePage.jsx">
 import React, { useState, useEffect } from 'react';
 import axiosClient from '../api/axiosClient';
 
-function StudentPage() {
-    const [students, setStudents] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-
+export default function GradePage() {
     const userRole = localStorage.getItem('roles') || '';
-    const isAdmin = userRole.includes('ADMIN');
+    const username = localStorage.getItem('username') || '';
+    const loggedInStudentId = localStorage.getItem('studentId') || '';
+
     const isTeacher = userRole.includes('TEACHER');
-    const teacherId = localStorage.getItem('teacherId') || '';
+    const isAdmin = userRole.includes('ADMIN');
+    const isStudent = userRole.includes('STUDENT');
 
-    const [showModal, setShowModal] = useState(false);
-    const [isEditMode, setIsEditMode] = useState(false);
-    const [editingStudentId, setEditingStudentId] = useState('');
-
-    // Form States
-    const [studentCode, setStudentCode] = useState('');
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [dateOfBirth, setDateOfBirth] = useState('');
-    const [gender, setGender] = useState('Nam');
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [classId, setClassId] = useState('');
-    const [studentCohort, setStudentCohort] = useState('Khóa 1');
-
-    // List States tải từ DB phục vụ Admin
-    const [classList, setClassList] = useState([]);
+    const [allGrades, setAllGrades] = useState([]);
+    const [allStudents, setAllStudents] = useState([]);
     const [departments, setDepartments] = useState([]);
+    const [classList, setClassList] = useState([]);
 
-    // --- STATES BỘ LỌC CASCADING CHO ADMIN ---
     const [selectedCohort, setSelectedCohort] = useState('');
     const [selectedDept, setSelectedDept] = useState('');
     const [selectedClass, setSelectedClass] = useState('');
-    const [searchQuery, setSearchQuery] = useState('');
 
-    // --- STATES ĐỘC QUYỀN CHO GIẢNG VIÊN (TEACHER) ---
-    const [teacherClasses, setTeacherClasses] = useState([]);
-    const [selectedCourseClass, setSelectedCourseClass] = useState('');
+    const [cohortOptions, setCohortOptions] = useState([]);
+    const [deptOptions, setDeptOptions] = useState([]);
+    const [classOptions, setClassOptions] = useState([]);
 
-    // Danh sách khóa mặc định của hệ thống
-    const [cohorts, setCohorts] = useState(() => {
-        const saved = localStorage.getItem('system_cohorts');
-        return saved ? JSON.parse(saved) : ['Khóa 1', 'Khóa 2', 'Khóa 3'];
-    });
+    const [displayGrades, setDisplayGrades] = useState([]);
+    const [editGradesMap, setEditGradesMap] = useState({});
+    const [isBulkEdit, setIsBulkEdit] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState({ text: '', isError: false });
 
     useEffect(() => {
-        if (isAdmin) {
-            fetchStudents();
-            loadFiltersData();
-        } else if (isTeacher && teacherId) {
-            fetchTeacherClasses();
+        if (isAdmin || isTeacher || isStudent) {
+            loadSystemInitialData();
         }
-    }, [isAdmin, isTeacher, teacherId]);
+    }, [isAdmin, isTeacher, isStudent]);
 
-    // ==================== 🏛️ NGHIỆP VỤ CỦA ADMIN ====================
-    const fetchStudents = async () => {
+    useEffect(() => {
+        if (allStudents.length === 0) return;
+
+        const availCohorts = allStudents.filter(s =>
+            (!selectedDept || s.departmentName === departments.find(d => d.id === Number(selectedDept))?.name) &&
+            (!selectedClass || s.classId === Number(selectedClass))
+        ).map(s => s.cohort).filter(Boolean);
+        setCohortOptions([...new Set(availCohorts)].sort());
+
+        const availDeptNames = allStudents.filter(s =>
+            (!selectedCohort || s.cohort === selectedCohort) &&
+            (!selectedClass || s.classId === Number(selectedClass))
+        ).map(s => s.departmentName).filter(Boolean);
+        setDeptOptions(departments.filter(d => availDeptNames.includes(d.name)));
+
+        const availClassIds = allStudents.filter(s =>
+            (!selectedCohort || s.cohort === selectedCohort) &&
+            (!selectedDept || s.departmentName === departments.find(d => d.id === Number(selectedDept))?.name)
+        ).map(s => s.classId).filter(Boolean);
+        setClassOptions(classList.filter(c => availClassIds.includes(c.id)));
+
+        recalculateFiltersAndData();
+    }, [selectedCohort, selectedDept, selectedClass, allGrades, allStudents, departments, classList]);
+
+    const showMessage = (text, isError = false) => {
+        setMessage({ text, isError });
+        setTimeout(() => setMessage({ text: '', isError: false }), 4000);
+    };
+
+    const loadSystemInitialData = async () => {
         try {
             setLoading(true);
-            const data = await axiosClient.get('/students?includeInactive=true');
-            setStudents(data || []);
+            const [deptsData, classesData, studentsData, gradesData] = await Promise.all([
+                axiosClient.get('/departments').catch(() => []),
+                axiosClient.get('/classes').catch(() => []),
+                axiosClient.get('/students?includeInactive=false').catch(() => []),
+                axiosClient.get('/grades').catch(() => [])
+            ]);
+
+            setDepartments(deptsData || []);
+            setClassList(classesData || []);
+            setAllStudents(studentsData || []);
+
+            if (isStudent && loggedInStudentId) {
+                setAllGrades((gradesData || []).filter(g => String(g.studentId) === String(loggedInStudentId)));
+            } else {
+                setAllGrades(gradesData || []);
+            }
         } catch (err) {
-            setError(err || 'Không thể tải danh sách sinh viên!');
+            showMessage('Lỗi tải dữ liệu hệ thống!', true);
         } finally {
             setLoading(false);
         }
     };
 
-    const loadFiltersData = async () => {
+    const recalculateFiltersAndData = () => {
+        let filtered = allGrades.map(grade => {
+            const studentObj = allStudents.find(s => s.id === grade.studentId);
+            return {
+                ...grade,
+                studentCode: studentObj?.studentCode || 'N/A',
+                studentName: studentObj ? `${studentObj.lastName} ${studentObj.firstName}` : 'Ẩn danh',
+                cohort: studentObj?.cohort || 'Khóa 1',
+                classId: studentObj?.classId || null,
+                departmentName: studentObj?.departmentName || ''
+            };
+        });
+
+        if (selectedCohort) filtered = filtered.filter(g => g.cohort === selectedCohort);
+        if (selectedDept) {
+            const deptObj = departments.find(d => d.id === Number(selectedDept));
+            if (deptObj) filtered = filtered.filter(g => g.departmentName === deptObj.name);
+        }
+        if (selectedClass) filtered = filtered.filter(g => g.classId === Number(selectedClass));
+
+        setDisplayGrades(filtered);
+
+        const newEditMap = {};
+        filtered.forEach(g => {
+            newEditMap[g.id] = {
+                cc: g.attendanceGrade !== undefined && g.attendanceGrade !== null ? String(g.attendanceGrade) : '',
+                gk: g.midtermGrade !== undefined && g.midtermGrade !== null ? String(g.midtermGrade) : '',
+                ck: g.finalGrade !== undefined && g.finalGrade !== null ? String(g.finalGrade) : '',
+                studentId: g.studentId,
+                courseClassId: g.courseClassId
+            };
+        });
+        setEditGradesMap(newEditMap);
+    };
+
+    const handleGradeInputChange = (gradeId, field, value) => {
+        if (value !== '') {
+            if (!/^\d*\.?\d*$/.test(value)) return;
+            const num = parseFloat(value);
+            if (!isNaN(num) && (num < 0 || num > 10)) return;
+        }
+        setEditGradesMap(prev => ({
+            ...prev,
+            [gradeId]: { ...prev[gradeId], [field]: value }
+        }));
+    };
+
+    const handleBulkSave = async () => {
         try {
-            const [deptsData, classesData] = await Promise.all([
-                axiosClient.get('/departments'),
-                axiosClient.get('/classes')
-            ]);
-            setDepartments(deptsData || []);
-            setClassList(classesData || []);
+            setLoading(true);
+            const savePromises = displayGrades.map(g => {
+                const editData = editGradesMap[g.id];
+                return axiosClient.put(`/grades/${g.id}`, {
+                    studentId: editData.studentId,
+                    courseClassId: editData.courseClassId,
+                    attendanceGrade: editData.cc === '' ? 0 : Number(editData.cc),
+                    midtermGrade: editData.gk === '' ? 0 : Number(editData.gk),
+                    finalGrade: editData.ck === '' ? 0 : Number(editData.ck)
+                });
+            });
+
+            await Promise.all(savePromises);
+            showMessage('Đã cập nhật điểm thành công!');
+            setIsBulkEdit(false);
+
+            const gradesData = await axiosClient.get('/grades').catch(() => []);
+            setAllGrades(gradesData);
         } catch (err) {
-            console.error('Lỗi nạp cấu trúc bộ lọc danh mục', err);
+            showMessage(err || 'Có lỗi xảy ra khi lưu bảng điểm!', true);
+        } finally {
+            setLoading(false);
         }
-    };
-
-    const handleAddNewCohort = () => {
-        const nextCohortNumber = cohorts.length + 1;
-        const newCohortName = `Khóa ${nextCohortNumber}`;
-        const updatedCohorts = [...cohorts, newCohortName];
-        setCohorts(updatedCohorts);
-        localStorage.setItem('system_cohorts', JSON.stringify(updatedCohorts));
-        alert(`Khởi tạo đợt niên khóa đào tạo mới thành công: ${newCohortName}!`);
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!classId) { alert("Vui lòng lựa chọn một Lớp hành chính!"); return; }
-
-        if (isEditMode) {
-            const payload = { firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId), cohort: studentCohort };
-            try {
-                await axiosClient.put(`/students/${editingStudentId}`, payload);
-                alert("Cập nhật hồ sơ sinh viên thành công!");
-                setShowModal(false);
-                resetForm();
-                fetchStudents();
-            } catch (err) { alert(err || 'Lỗi cập nhật hồ sơ!'); }
-        } else {
-            const payload = { studentCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId), cohort: studentCohort };
-            try {
-                await axiosClient.post('/students', payload);
-                alert(`Cấp tài khoản sinh viên thành công mượt mà!`);
-                setShowModal(false);
-                resetForm();
-                fetchStudents();
-            } catch (err) { alert(err || 'Có lỗi xảy ra khi tạo sinh viên!'); }
-        }
-    };
-
-    const handleOpenEdit = (student) => {
-        setIsEditMode(true);
-        setEditingStudentId(student.id);
-        setStudentCode(student.studentCode);
-        setFirstName(student.firstName);
-        setLastName(student.lastName);
-        setDateOfBirth(student.dateOfBirth || '');
-        setGender(student.gender || 'Nam');
-        setPhoneNumber(student.phoneNumber || '');
-        setClassId(student.classId || '');
-        setStudentCohort(student.cohort || 'Khóa 1');
-        setShowModal(true);
-    };
-
-    const handleDeleteStudent = async (id, code, name) => {
-        if (window.confirm(`Bạn có chắc chắn muốn KHÓA tài khoản sinh viên [${code} - ${name}] không?`)) {
-            try {
-                await axiosClient.delete(`/students/${id}`);
-                alert('Đã khóa hồ sơ sinh viên và đóng băng tài khoản thành công!');
-                fetchStudents();
-            } catch (err) { alert(err || 'Không thể khóa sinh viên này!'); }
-        }
-    };
-
-    const handleEnableStudent = async (id, code, name) => {
-        if (window.confirm(`Bạn có chắc chắn muốn MỞ KHÓA cho sinh viên [${code} - ${name}] không?`)) {
-            try {
-                await axiosClient.put(`/students/${id}/enable`);
-                alert('Tái kích hoạt hệ thống và mở khóa tài khoản thành công!');
-                fetchStudents();
-            } catch (err) { alert(err || 'Không thể mở khóa sinh viên này!'); }
-        }
-    };
-
-    const resetForm = () => {
-        setStudentCode(''); setFirstName(''); setLastName(''); setDateOfBirth(''); setGender('Nam'); setPhoneNumber(''); setClassId(''); setStudentCohort('Khóa 1');
-        setIsEditMode(false); setEditingStudentId('');
     };
 
     const handleDeptChange = (deptId) => {
@@ -7229,234 +5847,1241 @@ function StudentPage() {
         }
     };
 
-    const filteredClassOptions = selectedDept
-        ? classList.filter(c => c.departmentName === departments.find(d => d.id === Number(selectedDept))?.name)
-        : classList;
+    // ==================== 🔥 LÕI TÍNH ĐIỂM CHUẨN TÍN CHỈ ====================
 
+    // 1. Tính TỪNG MÔN HỌC (Trả về Điểm Chữ: A+, A, B+, B...)
+    const getSubjectGradeDetails = (cc, gk, ck) => {
+        const overall10 = (cc * 0.1 + gk * 0.3 + ck * 0.6);
+        let g4 = 0.0;
+        let letter = 'F';
 
-    // ==================== 👨‍🏫 NGHIỆP VỤ CỦA GIẢNG VIÊN (TEACHER) ====================
-    const fetchTeacherClasses = async () => {
-        try {
-            setLoading(true);
-            const response = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
-            const data = response || [];
-            setTeacherClasses(data);
-            if (data.length > 0) {
-                // Tự động load trước sinh viên của lớp học phần đầu tiên
-                setSelectedCourseClass(String(data[0].id));
-                fetchStudentsInCourseClass(data[0].id);
-            } else {
-                setStudents([]);
-                setLoading(false);
-            }
-        } catch (err) {
-            setError('Không thể tải lịch trình lớp học phần đang dạy!');
-            setLoading(false);
-        }
+        if (overall10 >= 9.0) { g4 = 4.0; letter = 'A+'; }
+        else if (overall10 >= 8.5) { g4 = 3.8; letter = 'A'; }
+        else if (overall10 >= 8.0) { g4 = 3.5; letter = 'B+'; }
+        else if (overall10 >= 7.0) { g4 = 3.0; letter = 'B'; }
+        else if (overall10 >= 6.5) { g4 = 2.5; letter = 'C+'; }
+        else if (overall10 >= 5.5) { g4 = 2.0; letter = 'C'; }
+        else if (overall10 >= 5.0) { g4 = 1.5; letter = 'D+'; }
+        else if (overall10 >= 4.0) { g4 = 1.0; letter = 'D'; }
+
+        return { overall10: Number(overall10.toFixed(2)), g4, letter };
     };
 
-    const fetchStudentsInCourseClass = async (courseClassId) => {
-        try {
-            setLoading(true);
-            const response = await axiosClient.get(`/registration/classes/${courseClassId}/students`);
-            setStudents(response || []);
-        } catch (err) {
-            setError('Lỗi tải danh sách sinh viên thuộc lớp học phần phụ trách!');
-        } finally {
-            setLoading(false);
-        }
+    // 2. Tính TỔNG KẾT TÍCH LŨY (Trả về Xếp Loại Học Lực chuẩn: Xuất sắc, Giỏi, Khá...)
+    const calculateWeightedGPA = (gradesArray) => {
+        let totalCredits = 0;
+        let sum10 = 0;
+        let sum4 = 0;
+
+        gradesArray.forEach(g => {
+            const credits = g.credits || 3;
+            const ccVal = g.attendanceGrade !== undefined && g.attendanceGrade !== null ? Number(g.attendanceGrade) : 0;
+            const gkVal = g.midtermGrade !== undefined && g.midtermGrade !== null ? Number(g.midtermGrade) : 0;
+            const ckVal = g.finalGrade !== undefined && g.finalGrade !== null ? Number(g.finalGrade) : 0;
+
+            const { overall10, g4 } = getSubjectGradeDetails(ccVal, gkVal, ckVal);
+
+            totalCredits += credits;
+            sum10 += overall10 * credits;
+            sum4 += g4 * credits;
+        });
+
+        if (totalCredits === 0) return { gpa10: '-', gpa4: '-', rank: 'Chưa có' };
+
+        const gpa10 = (sum10 / totalCredits).toFixed(2);
+        const gpa4Num = sum4 / totalCredits;
+        const gpa4 = gpa4Num.toFixed(2);
+
+        // 🔥 ĐÃ FIX: Chỉ sử dụng Xếp loại học lực cho Tổng kết (Không dùng điểm chữ)
+        let rank = 'Kém';
+        if (gpa4Num >= 3.6) rank = 'Xuất sắc';
+        else if (gpa4Num >= 3.2) rank = 'Giỏi';
+        else if (gpa4Num >= 2.5) rank = 'Khá';
+        else if (gpa4Num >= 2.0) rank = 'Trung bình';
+        else if (gpa4Num >= 1.0) rank = 'Yếu';
+
+        return { gpa10, gpa4, rank };
     };
 
-    const handleTeacherClassChange = (courseClassId) => {
-        setSelectedCourseClass(courseClassId);
-        if (courseClassId) {
-            fetchStudentsInCourseClass(courseClassId);
-        } else {
-            setStudents([]);
-        }
+    const groupGradesBySemester = (gradesArray) => {
+        const grouped = {};
+        gradesArray.forEach(g => {
+            const sem = g.semester || 'Học kỳ tiêu chuẩn';
+            if (!grouped[sem]) grouped[sem] = [];
+            grouped[sem].push(g);
+        });
+        return grouped;
     };
 
-
-    // ==================== 🔄 THUẬT TOÁN QUÉT MẢNG LỌC HIỂN THỊ CHUNG ====================
-    const filteredStudents = students.filter(student => {
-        const matchesSearch = student.studentCode.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
-            `${student.lastName} ${student.firstName}`.toLowerCase().includes(searchQuery.trim().toLowerCase());
-
-        if (isAdmin) {
-            const matchesCohort = !selectedCohort || student.cohort === selectedCohort;
-            const matchesClass = !selectedClass || student.classId === Number(selectedClass);
-            const selectedDeptObj = departments.find(d => d.id === Number(selectedDept));
-            const matchesDept = !selectedDept || student.departmentName === selectedDeptObj?.name;
-            return matchesSearch && matchesCohort && matchesDept && matchesClass;
+    const getAdminAggregatedRows = () => {
+        let filteredStudents = [...allStudents];
+        if (selectedCohort) filteredStudents = filteredStudents.filter(s => s.cohort === selectedCohort);
+        if (selectedDept) {
+            const deptObj = departments.find(d => d.id === Number(selectedDept));
+            if (deptObj) filteredStudents = filteredStudents.filter(s => s.departmentName === deptObj.name);
         }
+        if (selectedClass) filteredStudents = filteredStudents.filter(s => s.classId === Number(selectedClass));
 
-        return matchesSearch; // Với Giáo viên chỉ cần lọc theo ô tìm kiếm trên mảng sinh viên lớp học phần
-    });
+        return filteredStudents.map((student, index) => {
+            const studentGrades = allGrades.filter(g => g.studentId === student.id);
+            const cumulative = calculateWeightedGPA(studentGrades);
 
-    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang đồng bộ cơ sở dữ liệu học viên...</div>;
-    if (error) return <div style={{ color: 'var(--color-danger)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>{error}</div>;
+            const grouped = groupGradesBySemester(studentGrades);
+            const semesters = Object.keys(grouped).sort();
+            const latestSem = semesters.length > 0 ? semesters[semesters.length - 1] : null;
+            const latestSemGrades = latestSem ? grouped[latestSem] : [];
+            const semesterGpa = calculateWeightedGPA(latestSemGrades);
 
+            return {
+                ...student,
+                stt: index + 1,
+                studentName: `${student.lastName} ${student.firstName}`,
+                semGpa10: semesterGpa.gpa10,
+                semGpa4: semesterGpa.gpa4,
+                semRank: semesterGpa.rank,
+                cumGpa10: cumulative.gpa10,
+                cumGpa4: cumulative.gpa4,
+                cumRank: cumulative.rank
+            };
+        });
+    };
+
+    const adminRows = getAdminAggregatedRows();
+
+    // ==================== 🎓 GIAO DIỆN 1: SINH VIÊN (STUDENT VIEW) ====================
+    if (isStudent) {
+        const studentGrades = allGrades;
+        const cumulative = calculateWeightedGPA(studentGrades);
+        const groupedGrades = groupGradesBySemester(studentGrades);
+
+        return (
+            <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)', textAlign: 'left' }}>
+                <div style={{ marginBottom: '20px' }}>
+                    <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>📋 XEM ĐIỂM HỌC TẬP CÁ NHÂN</h2>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>Mã học viên: {username}. Xem toàn bộ chi tiết điểm học phần và GPA phân rã theo từng học kỳ.</p>
+                </div>
+
+                {loading ? (
+                    <p style={{textAlign:'center', color:'var(--text-muted)'}}>Đang tải bảng điểm học viên...</p>
+                ) : (
+                    <div>
+                        <div style={{ display: 'flex', gap: '20px', marginBottom: '25px', flexWrap: 'wrap' }}>
+                            <div style={{ flex: 1, minWidth: '150px', backgroundColor: 'var(--color-primary)', padding: '15px', borderRadius: '6px', textAlign: 'center' }}>
+                                <span style={{ fontSize: '13px', opacity: 0.9 }}>Tín Chỉ Tích Lũy</span>
+                                <h2 style={{ margin: '5px 0 0 0' }}>{studentGrades.reduce((sum, g) => sum + (g.credits || 3), 0)} tín</h2>
+                            </div>
+                            <div style={{ flex: 1, minWidth: '150px', backgroundColor: 'var(--color-success)', padding: '15px', borderRadius: '6px', textAlign: 'center' }}>
+                                <span style={{ fontSize: '13px', opacity: 0.9 }}>GPA Tổng Hệ 10</span>
+                                <h2 style={{ margin: '5px 0 0 0' }}>{cumulative.gpa10}</h2>
+                            </div>
+                            <div style={{ flex: 1, minWidth: '150px', backgroundColor: 'var(--color-warning)', padding: '15px', borderRadius: '6px', textAlign: 'center', color: '#000' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 'bold' }}>GPA Tổng Hệ 4</span>
+                                <h2 style={{ margin: '5px 0 0 0' }}>{cumulative.gpa4}</h2>
+                            </div>
+                            {/* 🔥 ĐÃ FIX: Chỉ hiển thị Xếp loại Học Lực toàn khóa */}
+                            <div style={{ flex: 1, minWidth: '150px', backgroundColor: 'var(--color-danger)', padding: '15px', borderRadius: '6px', textAlign: 'center', color: '#fff' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Xếp Loại Tích Lũy</span>
+                                <h2 style={{ margin: '5px 0 0 0', fontSize: '18px' }}>{cumulative.rank}</h2>
+                            </div>
+                        </div>
+
+                        {Object.keys(groupedGrades).sort().map(sem => {
+                            const semGrades = groupedGrades[sem];
+                            const semGpa = calculateWeightedGPA(semGrades);
+
+                            return (
+                                <div key={sem} style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', marginBottom: '25px' }}>
+                                    <h3 style={{ color: 'var(--color-warning)', marginTop: 0, marginBottom: '15px', borderBottom: '1px solid var(--color-border)', paddingBottom: '10px' }}>
+                                        📅 {sem}
+                                    </h3>
+                                    <div style={{ overflowX: 'auto' }}>
+                                        <table style={tableStyle}>
+                                            <thead>
+                                            <tr style={thStyle}>
+                                                <th>Môn Học Phần</th>
+                                                <th>Mã Lớp HP</th>
+                                                <th style={{...thCenterStyle, width: '60px'}}>Tín chỉ</th>
+                                                <th style={{...thCenterStyle, width: '60px'}}>CC</th>
+                                                <th style={{...thCenterStyle, width: '60px'}}>GK</th>
+                                                <th style={{...thCenterStyle, width: '60px'}}>CK</th>
+                                                <th style={thCenterStyle}>Hệ 10</th>
+                                                <th style={thCenterStyle}>Hệ 4</th>
+                                                <th style={thCenterStyle}>Điểm Chữ</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            {semGrades.map((g, i) => {
+                                                const ccVal = g.attendanceGrade !== undefined && g.attendanceGrade !== null ? Number(g.attendanceGrade) : 0;
+                                                const gkVal = g.midtermGrade !== undefined && g.midtermGrade !== null ? Number(g.midtermGrade) : 0;
+                                                const ckVal = g.finalGrade !== undefined && g.finalGrade !== null ? Number(g.finalGrade) : 0;
+
+                                                // 🔥 TỪNG MÔN: Giữ nguyên quy đổi Điểm Chữ A+, B+, C...
+                                                const details = getSubjectGradeDetails(ccVal, gkVal, ckVal);
+
+                                                return (
+                                                    <tr key={i} style={trStyle}>
+                                                        <td style={{ fontWeight: 'bold' }}>{g.subjectName}</td>
+                                                        <td style={{ color: 'var(--text-cyan)', fontWeight: 'bold' }}>{g.courseClassCode}</td>
+                                                        <td style={{ textAlign: 'center', color: 'var(--color-warning)' }}>{g.credits || 3}</td>
+                                                        <td style={{ textAlign: 'center' }}>{g.attendanceGrade !== null ? g.attendanceGrade : '-'}</td>
+                                                        <td style={{ textAlign: 'center' }}>{g.midtermGrade !== null ? g.midtermGrade : '-'}</td>
+                                                        <td style={{ textAlign: 'center' }}>{g.finalGrade !== null ? g.finalGrade : '-'}</td>
+                                                        <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--color-success)' }}>{details.overall10}</td>
+                                                        <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--color-warning)' }}>{details.g4}</td>
+                                                        <td style={{ textAlign: 'center', fontWeight: 'bold', color: details.letter.includes('F') ? 'var(--color-danger)' : 'var(--color-success)' }}>{details.letter}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div style={{ marginTop: '15px', padding: '12px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px', display: 'flex', justifyContent: 'flex-end', gap: '25px', fontSize: '14px' }}>
+                                        <span><b>Tín chỉ đạt:</b> <span style={{ color: 'var(--color-warning)' }}>{semGrades.reduce((sum, g) => sum + (g.credits || 3), 0)}</span></span>
+                                        <span><b>TB Kỳ (Hệ 10):</b> <span style={{ color: 'var(--text-cyan)' }}>{semGpa.gpa10}</span></span>
+                                        <span><b>TB Kỳ (Hệ 4):</b> <span style={{ color: 'var(--color-warning)' }}>{semGpa.gpa4}</span></span>
+                                        {/* 🔥 ĐÃ FIX: Footer học kỳ tính theo Xếp loại Học Lực */}
+                                        <span><b>Xếp loại học lực:</b> <span style={{ color: semGpa.rank === 'Yếu' || semGpa.rank === 'Kém' ? 'var(--color-danger)' : 'var(--color-success)' }}>{semGpa.rank}</span></span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {studentGrades.length === 0 && (
+                            <p style={{ color: 'var(--text-muted)' }}>Chưa có dữ liệu kết quả học tập nào.</p>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // ==================== 👨‍🏫 GIÁO VIÊN & QUẢN TRỊ VIÊN (ADMIN & TEACHER) ====================
     return (
         <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)', textAlign: 'left' }}>
-
-            {/* THANH ĐIỀU HƯỚNG TIÊU ĐỀ */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)', flexWrap: 'wrap', gap: '15px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
                 <div>
                     <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>
-                        {isAdmin ? '🏛️ HỆ THỐNG QUẢN TRỊ SINH VIÊN' : '👨‍🏫 DANH SÁCH SINH VIÊN ĐANG GIẢNG DẠY'}
+                        {isTeacher ? '👨‍🏫 BẢNG NHẬP ĐIỂM THÀNH PHẦN' : '🏛️ BẢNG ĐIỂM TỔNG HỢP TOÀN TRƯỜNG'}
                     </h2>
                     <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
-                        {isAdmin ? 'Quyền hạn Quản trị viên: Toàn quyền khởi tạo, chỉnh sửa và cấu hình hồ sơ.' : 'Quyền hạn Giảng viên: Theo dõi danh sách học viên đăng ký lớp học phần phụ trách.'}
+                        {isTeacher ? 'Quyền hạn Giảng viên: Sửa để gõ điểm và chọn Lưu để cập nhật.' : 'Quyền hạn Quản trị viên: Theo dõi điểm số tổng kết tích lũy của từng học viên.'}
                     </p>
                 </div>
 
-                {isAdmin && (
+                {displayGrades.length > 0 && isTeacher && (
                     <div style={{ display: 'flex', gap: '10px' }}>
-                        <button onClick={handleAddNewCohort} style={{ padding: '8px 14px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-                            ⏳ + Thêm Khóa Mới (Tăng theo năm)
-                        </button>
-                        <button onClick={() => { resetForm(); setShowModal(true); }} style={{ padding: '8px 14px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-                            + Cấp Tài Khoản Sinh Viên
-                        </button>
+                        {!isBulkEdit ? (
+                            <button onClick={() => setIsBulkEdit(true)} style={primaryBtnStyle}>Sửa</button>
+                        ) : (
+                            <>
+                                <button onClick={() => { setIsBulkEdit(false); recalculateFiltersAndData(); }} style={{ ...primaryBtnStyle, backgroundColor: '#6c757d' }}>Hủy</button>
+                                <button onClick={handleBulkSave} style={{ ...primaryBtnStyle, backgroundColor: 'var(--color-success)' }}>Lưu</button>
+                            </>
+                        )}
                     </div>
                 )}
             </div>
 
-            {/* 🔥 THANH BỘ LỌC ĐA CẤP PHÂN RÃ THEO ROLE */}
-            <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', flexWrap: 'wrap' }}>
+            {message.text && (
+                <div style={{ padding: '12px', marginBottom: '20px', backgroundColor: message.isError ? 'var(--color-danger)' : 'var(--color-primary)', color: 'white', borderRadius: '4px', fontWeight: 'bold' }}>
+                    {message.text}
+                </div>
+            )}
 
-                {isAdmin ? (
-                    /* LUỒNG HIỂN THỊ CASCADING DROPDOWN CỦA ADMIN */
-                    <>
-                        <div style={{ width: '200px' }}>
-                            <label style={labelStyle}>⏳ Lọc theo Khóa học:</label>
-                            <select value={selectedCohort} onChange={(e) => setSelectedCohort(e.target.value)} style={selectStyle}>
-                                <option value="">Tất cả các khóa</option>
-                                {cohorts.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        </div>
+            <div style={{ display: 'flex', gap: '15px', marginBottom: '25px', backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', flexWrap: 'wrap' }}>
+                <div style={{ flex: '1', minWidth: '140px' }}>
+                    <label style={labelStyle}>⏳ Lọc Khóa học:</label>
+                    <select value={selectedCohort} onChange={(e) => setSelectedCohort(e.target.value)} style={selectStyle}>
+                        <option value="">-- Tất cả Khóa --</option>
+                        {cohortOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                </div>
 
-                        <div style={{ width: '220px' }}>
-                            <label style={labelStyle}>🏛️ Lọc theo Khoa:</label>
-                            <select value={selectedDept} onChange={(e) => handleDeptChange(e.target.value)} style={selectStyle}>
-                                <option value="">Tất cả các Khoa</option>
-                                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                            </select>
-                        </div>
+                <div style={{ flex: '1', minWidth: '180px' }}>
+                    <label style={labelStyle}>🏛️ Lọc Khoa chuyên môn:</label>
+                    <select value={selectedDept} onChange={(e) => handleDeptChange(e.target.value)} style={selectStyle}>
+                        <option value="">-- Tất cả Khoa --</option>
+                        {deptOptions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                </div>
 
-                        <div style={{ width: '220px' }}>
-                            <label style={labelStyle}>👥 Lọc theo Lớp hành chính:</label>
-                            <select value={selectedClass} onChange={(e) => handleClassChange(e.target.value)} style={selectStyle}>
-                                <option value="">Tất cả các Lớp</option>
-                                {filteredClassOptions.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
-                            </select>
-                        </div>
-                    </>
-                ) : (
-                    /* 🔥 LUỒNG HIỂN THỊ ĐỘC QUYỀN CỦA GIẢNG VIÊN (TEACHER) */
-                    <div style={{ width: '350px' }}>
-                        <label style={labelStyle}>📖 Lựa chọn Lớp học phần đang đảm nhiệm:</label>
-                        <select value={selectedCourseClass} onChange={(e) => handleTeacherClassChange(e.target.value)} style={selectStyle}>
-                            {teacherClasses.map(c => (
-                                <option key={c.id} value={c.id}>
-                                    {c.code} — {c.subjectName} ({c.registeredStudents} SV)
-                                </option>
-                            ))}
-                            {teacherClasses.length === 0 && <option value="">Chưa có lớp học phần phân công</option>}
-                        </select>
-                    </div>
-                )}
-
-                <div style={{ flex: '1', minWidth: '200px' }}>
-                    <label style={labelStyle}>🔍 Tìm nhanh học viên (Mã số / Họ tên):</label>
-                    <input
-                        type="text"
-                        placeholder="Nhập từ khóa cần tìm kiếm..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{ width: '100%', padding: '9px 12px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', outline: 'none' }}
-                    />
+                <div style={{ flex: '1.2', minWidth: '180px' }}>
+                    <label style={labelStyle}>👥 Lọc Lớp hành chính:</label>
+                    <select value={selectedClass} onChange={(e) => handleClassChange(e.target.value)} style={selectStyle}>
+                        <option value="">-- Tất cả Lớp --</option>
+                        {classOptions.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+                    </select>
                 </div>
             </div>
 
-            {/* BẢNG RENDERING HIỂN THỊ DANH SÁCH */}
+            <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                {loading ? (
+                    <p style={{textAlign:'center', color:'var(--text-muted)'}}>Đang đồng bộ cơ sở dữ liệu điểm số...</p>
+                ) : isAdmin ? (
+                    /* 🏛️ BẢNG ĐIỂM ĐỘC QUYỀN ADMIN - ĐÃ ĐỔI NHÃN THÀNH XẾP LOẠI */
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={tableStyle}>
+                            <thead>
+                            <tr style={thStyle}>
+                                <th style={{ width: '50px' }}>STT</th>
+                                <th>Mã Sinh Viên</th>
+                                <th>Họ Và Tên Học Viên</th>
+                                <th>Lớp Hành Chính</th>
+                                <th style={thCenterStyle}>TB Kỳ Gần Nhất<br/><span style={{fontSize:'10.5px', color:'var(--text-muted)'}}>(Hệ 10 / Hệ 4 / Xếp loại)</span></th>
+                                <th style={thCenterStyle}>TB Tích Lũy Khóa<br/><span style={{fontSize:'10.5px', color:'var(--text-muted)'}}>(Hệ 10 / Hệ 4 / Xếp loại)</span></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {adminRows.map((row) => (
+                                <tr key={row.id} style={trStyle}>
+                                    <td>{row.stt}</td>
+                                    <td style={{ fontWeight: 'bold', color: 'var(--color-warning)' }}>{row.studentCode}</td>
+                                    <td>{row.studentName}</td>
+                                    <td>{row.className || 'Chưa xếp'}</td>
+
+                                    <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
+                                        <span style={{ color: 'var(--text-cyan)' }}>{row.semGpa10}</span> <span style={{ color: 'var(--text-muted)' }}>/</span> <span style={{ color: 'var(--color-warning)' }}>{row.semGpa4}</span> <span style={{ color: 'var(--text-muted)' }}>/</span> <span style={{ color: row.semRank === 'Yếu' || row.semRank === 'Kém' || row.semRank === 'Chưa có' ? 'var(--color-danger)' : 'var(--color-success)' }}>{row.semRank}</span>
+                                    </td>
+
+                                    <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
+                                        <span style={{ color: 'var(--text-cyan)' }}>{row.cumGpa10}</span> <span style={{ color: 'var(--text-muted)' }}>/</span> <span style={{ color: 'var(--color-warning)' }}>{row.cumGpa4}</span> <span style={{ color: 'var(--text-muted)' }}>/</span> <span style={{ color: row.cumRank === 'Yếu' || row.cumRank === 'Kém' || row.cumRank === 'Chưa có' ? 'var(--color-danger)' : 'var(--color-success)' }}>{row.cumRank}</span>
+                                    </td>
+                                </tr>
+                            ))}
+                            {adminRows.length === 0 && (
+                                <tr><td colSpan="6" style={{textAlign:'center', padding:'15px', color:'var(--text-muted)'}}>Không tìm thấy hồ sơ sinh viên phù hợp.</td></tr>
+                            )}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    /* 👨‍🏫 BẢNG ĐIỂM DÀNH CHO GIẢNG VIÊN (TEACHER) - HIỂN THỊ ĐỦ CÁC HỆ ĐIỂM ĐỂ SỬA */
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={tableStyle}>
+                            <thead>
+                            <tr style={thStyle}>
+                                <th style={{ width: '40px' }}>STT</th>
+                                <th style={{ width: '130px' }}>Sinh Viên / Mã Số</th>
+                                <th>Môn Học Phần</th>
+                                <th style={{ width: '60px', textAlign: 'center' }}>Tín chỉ</th>
+                                <th style={{ ...thCenterStyle, width: '70px' }}>CC (10%)</th>
+                                <th style={{ ...thCenterStyle, width: '70px' }}>GK (30%)</th>
+                                <th style={{ ...thCenterStyle, width: '70px' }}>CK (60%)</th>
+                                <th style={thCenterStyle}>Hệ 10</th>
+                                <th style={thCenterStyle}>Hệ 4</th>
+                                <th style={thCenterStyle}>Điểm Chữ</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {displayGrades.map((g, index) => {
+                                const editRow = editGradesMap[g.id] || { cc: '', gk: '', ck: '' };
+                                const ccVal = editRow.cc === '' ? 0 : parseFloat(editRow.cc);
+                                const gkVal = editRow.gk === '' ? 0 : parseFloat(editRow.gk);
+                                const ckVal = editRow.ck === '' ? 0 : parseFloat(editRow.ck);
+
+                                // Preview điểm số Realtime cho Teacher khi nhập liệu (Điểm Chữ từng môn)
+                                const details = getSubjectGradeDetails(ccVal, gkVal, ckVal);
+
+                                return (
+                                    <tr key={g.id} style={trStyle}>
+                                        <td>{index + 1}</td>
+                                        <td>
+                                            <b>{g.studentName}</b><br/>
+                                            <span style={{fontSize:'12px', color:'var(--color-warning)', fontWeight:'bold'}}>{g.studentCode}</span>
+                                        </td>
+                                        <td style={{fontWeight:'500'}}>{g.subjectName}</td>
+                                        <td style={{color:'var(--text-cyan)', fontWeight:'bold', textAlign: 'center'}}>{g.credits || 3}</td>
+
+                                        <td style={{ textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                <input
+                                                    type="text" value={editRow.cc} disabled={!isBulkEdit}
+                                                    onChange={(e) => handleGradeInputChange(g.id, 'cc', e.target.value)}
+                                                    style={{ ...gradeInputStyle, backgroundColor: isBulkEdit ? 'var(--color-bg)' : 'rgba(255,255,255,0.02)' }}
+                                                />
+                                            </div>
+                                        </td>
+                                        <td style={{ textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                <input
+                                                    type="text" value={editRow.gk} disabled={!isBulkEdit}
+                                                    onChange={(e) => handleGradeInputChange(g.id, 'gk', e.target.value)}
+                                                    style={{ ...gradeInputStyle, backgroundColor: isBulkEdit ? 'var(--color-bg)' : 'rgba(255,255,255,0.02)' }}
+                                                />
+                                            </div>
+                                        </td>
+                                        <td style={{ textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                <input
+                                                    type="text" value={editRow.ck} disabled={!isBulkEdit}
+                                                    onChange={(e) => handleGradeInputChange(g.id, 'ck', e.target.value)}
+                                                    style={{ ...gradeInputStyle, backgroundColor: isBulkEdit ? 'var(--color-bg)' : 'rgba(255,255,255,0.02)' }}
+                                                />
+                                            </div>
+                                        </td>
+
+                                        <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--color-success)', fontSize: '14.5px' }}>{details.overall10}</td>
+                                        <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--color-warning)', fontSize: '14.5px' }}>{details.g4}</td>
+                                        <td style={{ textAlign: 'center', fontWeight: 'bold', color: details.letter.includes('F') ? 'var(--color-danger)' : 'var(--color-success)' }}>{details.letter}</td>
+                                    </tr>
+                                );
+                            })}
+                            {displayGrades.length === 0 && (
+                                <tr><td colSpan="10" style={{textAlign:'center', padding:'15px', color:'var(--text-muted)'}}>Không tìm thấy bảng điểm môn học phù hợp.</td></tr>
+                            )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+const labelStyle = { display: 'block', fontSize: '13px', marginBottom: '6px', fontWeight: 'bold', color: 'var(--text-cyan)', textAlign: 'left' };
+const selectStyle = { width: '100%', padding: '10px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', outline: 'none', cursor: 'pointer' };
+const gradeInputStyle = { width: '55px', padding: '6px', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', textAlign: 'center', outline: 'none', transition: 'all 0.2s' };
+const primaryBtnStyle = { padding: '8px 24px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' };
+const tableStyle = { width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)' };
+const thStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', backgroundColor: 'var(--color-surface-hover)', textAlign: 'left', padding: '12px' };
+const thCenterStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', backgroundColor: 'var(--color-surface-hover)', textAlign: 'center', padding: '12px' };
+const trStyle = { borderBottom: '1px solid var(--color-border)', padding: '12px' };
+</file>
+
+<file path="student-management-ui/src/pages/RegistrationPage.jsx">
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
+
+export default function RegistrationPage() {
+    const role = localStorage.getItem('roles') || '';
+    const teacherId = localStorage.getItem('teacherId') || '';
+    const loggedInStudentId = localStorage.getItem('studentId') || '';
+
+    const [message, setMessage] = useState({ text: '', isError: false });
+
+    // --- STATE PHÂN HỆ ADMIN ---
+    const [periodForm, setPeriodForm] = useState({ semester: 'HK1-2026', startTime: '', endTime: '' });
+    const [allPeriods, setAllPeriods] = useState([]);
+    const [selectedPeriod, setSelectedPeriod] = useState(null);
+    const [courseClasses, setCourseClasses] = useState([]);
+
+    // --- STATE PHÂN HỆ TEACHER ---
+    const [teacherClasses, setTeacherClasses] = useState([]);
+    const [selectedClassId, setSelectedClassId] = useState(null);
+    const [classStudents, setClassStudents] = useState([]);
+
+    // --- STATE PHÂN HỆ STUDENT ---
+    const [availableClasses, setAvailableClasses] = useState([]);
+    const [myRegisteredClasses, setMyRegisteredClasses] = useState([]);
+    const [isRegistrationTime, setIsRegistrationTime] = useState(false);
+    const [activePeriodInfo, setActivePeriodInfo] = useState(null);
+
+    const [selectedClassIds, setSelectedClassIds] = useState([]);
+
+    const [tick, setTick] = useState(Date.now());
+
+    useEffect(() => {
+        refreshData();
+    }, [role]);
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setTick(Date.now());
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    useEffect(() => {
+        if (activePeriodInfo) {
+            const now = new Date();
+            const start = new Date(activePeriodInfo.startTime);
+            const end = new Date(activePeriodInfo.endTime);
+
+            if (activePeriodInfo.isActive && now >= start && now <= end) {
+                if (!isRegistrationTime) {
+                    setIsRegistrationTime(true);
+                    if (role.includes('STUDENT')) fetchOpenClassesForStudent(activePeriodInfo.semester);
+                }
+            } else {
+                if (isRegistrationTime) {
+                    setIsRegistrationTime(false);
+                    if (role.includes('STUDENT')) setAvailableClasses([]);
+                }
+            }
+        }
+    }, [tick, activePeriodInfo, role]);
+
+    const refreshData = () => {
+        if (role.includes('ADMIN')) loadAdminPeriodsAndClasses();
+        if (role.includes('TEACHER')) {
+            fetchActivePeriodStatus();
+            loadTeacherSchedule();
+        }
+        if (role.includes('STUDENT')) loadStudentRegistrationFlow();
+    };
+
+    const showMessage = (text, isError = false) => {
+        setMessage({ text, isError });
+        setTimeout(() => setMessage({ text: '', isError: false }), 4000);
+    };
+
+    const fetchActivePeriodStatus = async () => {
+        try {
+            const periods = await axiosClient.get('/registration/periods');
+            if (periods && periods.length > 0) {
+                const sorted = [...periods].sort((a, b) => b.id - a.id);
+                setActivePeriodInfo(sorted[0]);
+            }
+        } catch (err) { console.error(err); }
+    };
+
+    // ==================== 🛠️ NGHIỆP VỤ ADMIN (GIỮ NGUYÊN 100%) ====================
+    const loadAdminPeriodsAndClasses = async () => {
+        try {
+            const periodsData = await axiosClient.get('/registration/periods');
+            if (periodsData && periodsData.length > 0) {
+                const sortedPeriods = [...periodsData].sort((a, b) => b.id - a.id);
+                setAllPeriods(sortedPeriods);
+
+                if (selectedPeriod) {
+                    const updated = sortedPeriods.find(p => p.id === selectedPeriod.id);
+                    setSelectedPeriod(updated || sortedPeriods[0]);
+                } else {
+                    setSelectedPeriod(sortedPeriods[0]);
+                }
+            }
+            const classesData = await axiosClient.get('/course-classes');
+            setCourseClasses(classesData);
+        } catch (err) { showMessage('Không thể tải dữ liệu quản trị hệ thống', true); }
+    };
+
+    const handleCreatePeriod = async (e) => {
+        e.preventDefault();
+        try {
+            await axiosClient.post('/registration/periods', periodForm);
+            showMessage('Kích hoạt cấu hình khung giờ và lưu đợt mở đăng ký học kỳ mới thành công!');
+            setPeriodForm({ semester: 'HK1-2026', startTime: '', endTime: '' });
+            refreshData();
+        } catch (err) { showMessage(err || 'Lỗi kích hoạt khung giờ', true); }
+    };
+
+    const handleClosePeriod = async (id) => {
+        if (!window.confirm("⚠️ Bạn có chắc chắn muốn HỦY KÍCH HOẠT khung giờ đăng ký tín chỉ này không?")) return;
+        try {
+            await axiosClient.put(`/registration/periods/${id}/close`);
+            showMessage('Đã đóng cổng và hủy kích hoạt khung giờ thành công!');
+            refreshData();
+        } catch (err) { showMessage(err || 'Không thể thực hiện hủy kích hoạt!', true); }
+    };
+
+    const handleToggleClassRegistration = async (id) => {
+        try {
+            await axiosClient.put(`/registration/course-class/${id}/toggle`);
+            showMessage(`Cập nhật trạng thái tích chọn mở lớp học phần thành công!`);
+            const classesData = await axiosClient.get('/course-classes');
+            setCourseClasses(classesData);
+        } catch (err) { showMessage(err || 'Không thể thay đổi trạng thái tích chọn môn', true); }
+    };
+
+    // 🔥 THUẬT TOÁN KIỂM TRA TRÙNG LỊCH CHUẨN KHUNG 3 CA
+    const checkScheduleConflicts = (selectedItems, existingItems) => {
+        const slotsMap = {};
+        const allItemsToCheck = [...existingItems, ...selectedItems];
+
+        for (const item of allItemsToCheck) {
+            const schedStr = (item.schedule || '').toLowerCase();
+            if (!schedStr) continue;
+
+            // 1. Xác định Thứ (Từ Thứ 2 đến Chủ Nhật)
+            let dayKey = '';
+            if (schedStr.includes('chủ nhật') || schedStr.includes('cn')) dayKey = 'CN';
+            else {
+                const dayMatch = schedStr.match(/thứ\s*(\d+)/) || schedStr.match(/t(\d+)/);
+                if (dayMatch) dayKey = dayMatch[1];
+            }
+
+            if (!dayKey) continue;
+            if (!slotsMap[dayKey]) slotsMap[dayKey] = {};
+
+            // 2. Xác định Ca học (Sáng / Chiều / Tối)
+            let shiftKey = '';
+            if (schedStr.includes('sáng') || schedStr.match(/tiết\s*[1-4]/)) shiftKey = 'Sáng';
+            else if (schedStr.includes('chiều') || schedStr.match(/tiết\s*[5-8]/)) shiftKey = 'Chiều';
+            else if (schedStr.includes('tối') || schedStr.match(/tiết\s*(9|10|11|12)/)) shiftKey = 'Tối';
+
+            if (!shiftKey) continue; // Bỏ qua nếu không xác định được ca
+
+            // 3. Đối chiếu trùng lặp theo Ca
+            if (slotsMap[dayKey][shiftKey]) {
+                const dayLabel = dayKey === 'CN' ? 'Chủ Nhật' : `Thứ ${dayKey}`;
+                return `🚨 Xung đột lịch học: Bạn không thể đăng ký môn [${item.subjectName}] vì đã bị trùng vào Buổi ${shiftKey} ${dayLabel} với môn [${slotsMap[dayKey][shiftKey]}]!`;
+            }
+
+            // Ghi nhận slot đã chiếm
+            slotsMap[dayKey][shiftKey] = item.subjectName;
+        }
+        return null;
+    };
+    // ==================== 💼 NGHIỆP VỤ TEACHER ====================
+    const loadTeacherSchedule = async () => {
+        if (!teacherId) return;
+        try {
+            const data = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
+            setTeacherClasses(data);
+        } catch (err) { showMessage('Không thể tải lịch giảng dạy cá nhân', true); }
+    };
+
+    const viewClassStudents = async (classId) => {
+        setSelectedClassId(classId);
+        try {
+            const data = await axiosClient.get(`/registration/classes/${classId}/students`);
+            setClassStudents(data);
+        } catch (err) { showMessage('Không thể tải danh sách sinh viên lớp học phần', true); }
+    };
+
+    const handleToggleApproveStudent = (studentId) => {
+        const key = `approved_st_${selectedClassId}_${studentId}`;
+        const isApproved = localStorage.getItem(key) === 'true';
+        localStorage.setItem(key, String(!isApproved));
+        setClassStudents([...classStudents]);
+    };
+
+    // ==================== 🎓 NGHIỆP VỤ STUDENT ====================
+    const fetchOpenClassesForStudent = async (semester) => {
+        try {
+            const allSystemClasses = await axiosClient.get('/course-classes');
+            const filteredOpenClasses = allSystemClasses.filter(
+                c => c.openForRegistration === true && c.semester === semester
+            );
+            setAvailableClasses(filteredOpenClasses);
+        } catch (err) { console.error(err); }
+    };
+
+    const loadStudentRegistrationFlow = async () => {
+        try {
+            const periods = await axiosClient.get('/registration/periods');
+            let period = null;
+            if (periods && periods.length > 0) {
+                const sorted = [...periods].sort((a, b) => b.id - a.id);
+                period = sorted[0];
+                setActivePeriodInfo(period);
+            }
+
+            if (period && period.isActive) {
+                const now = new Date();
+                const start = new Date(period.startTime);
+                const end = new Date(period.endTime);
+
+                if (now >= start && now <= end) {
+                    setIsRegistrationTime(true);
+                    await fetchOpenClassesForStudent(period.semester);
+                } else {
+                    setIsRegistrationTime(false);
+                    setAvailableClasses([]);
+                }
+            } else {
+                setIsRegistrationTime(false);
+                setAvailableClasses([]);
+            }
+
+            const myClasses = await axiosClient.get('/registration/my-classes');
+            setMyRegisteredClasses(myClasses);
+        } catch (err) { console.error(err); }
+    };
+
+    const handleBulkEnroll = async () => {
+        if (selectedClassIds.length === 0) return alert('Vui lòng chọn ít nhất 1 môn để đăng ký!');
+
+        const itemsToEnroll = availableClasses.filter(c => selectedClassIds.includes(c.id));
+
+        // CHỈ LẤY NHỮNG MÔN ĐÃ ĐƯỢC DUYỆT (Hoặc môn cũ) ĐỂ CHECK TRÙNG, BỎ QUA MÔN PENDING
+        const validExistingClasses = myRegisteredClasses.filter(reg => {
+            const isCurrentSem = activePeriodInfo && reg.semester === activePeriodInfo.semester;
+            const isApproved = localStorage.getItem(`approved_st_${reg.courseClassId}_${loggedInStudentId}`) === 'true';
+            return !isCurrentSem || isApproved;
+        });
+
+        const conflictError = checkScheduleConflicts(itemsToEnroll, validExistingClasses);
+        if (conflictError) {
+            alert(conflictError);
+            return;
+        }
+
+        try {
+            const promises = selectedClassIds.map(id => axiosClient.post(`/registration/enroll?courseClassId=${id}`));
+            await Promise.all(promises);
+            showMessage('Đăng ký tín chỉ thành công! Đơn đang chờ Giảng viên phê duyệt.');
+            setSelectedClassIds([]);
+            loadStudentRegistrationFlow();
+        } catch (err) { showMessage(err || 'Không thể đăng ký học phần này!', true); }
+    };
+
+    const formatDate = (dateStr) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')} ngày ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+    };
+
+    const renderPeriodStatusLabel = (period) => {
+        if (!period) return <span style={{color:'var(--text-muted)'}}>Chưa rõ</span>;
+        if (!period.isActive) return <span style={{color:'var(--color-danger)', fontWeight:'bold'}}>🔒 Đã đóng / Hủy kích hoạt</span>;
+
+        const now = new Date();
+        const start = new Date(period.startTime);
+        const end = new Date(period.endTime);
+
+        if (now < start) return <span style={{color:'var(--color-warning)', fontWeight:'bold'}}>⏳ Chờ đến mốc giờ mở</span>;
+        else if (now > end) return <span style={{color:'var(--color-danger)', fontWeight:'bold'}}>⏰ Đã hết hạn đóng cổng</span>;
+        else return <span style={{color:'var(--color-success)', fontWeight:'bold'}}>🟢 Đang mở đăng ký</span>;
+    };
+
+    return (
+        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
+            <h2 style={{ color: 'var(--text-cyan)', marginBottom: 'var(--spacing-xl)' }}>⏰ TRUNG TÂM ĐIỀU PHỐI ĐĂNG KÝ TÍN CHỈ REALTIME</h2>
+
+            {message.text && (
+                <div style={{ padding: '12px', marginBottom: '20px', backgroundColor: message.isError ? 'var(--color-danger)' : 'var(--color-primary)', color: 'white', borderRadius: '4px', fontWeight: 'bold' }}>
+                    {message.text}
+                </div>
+            )}
+
+            {/* ==================== VIEW ADMIN (GIỮ NGUYÊN BẢN GỐC) ==================== */}
+            {role.includes('ADMIN') && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                        <h3 style={{ color: 'var(--text-cyan)', margin: '0 0 12px 0' }}>📂 LỊCH SỬ CÁC ĐỢT MỞ CỔNG ĐĂNG KÝ HỆ THỐNG</h3>
+                        <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
+                            {allPeriods.map(p => {
+                                const isSelected = selectedPeriod?.id === p.id;
+                                let statusText = '🔒 Đã hủy/Đóng cổng';
+                                let statusColor = 'var(--color-danger)';
+
+                                if (p.isActive) {
+                                    const now = new Date();
+                                    const start = new Date(p.startTime);
+                                    const end = new Date(p.endTime);
+                                    if (now < start) {
+                                        statusText = '⏳ Chờ mốc giờ';
+                                        statusColor = 'var(--color-warning)';
+                                    } else if (now > end) {
+                                        statusText = '⏰ Đã hết hạn';
+                                        statusColor = 'var(--color-danger)';
+                                    } else {
+                                        statusText = '● Đang hoạt động';
+                                        statusColor = 'var(--color-success)';
+                                    }
+                                }
+
+                                return (
+                                    <div
+                                        key={p.id}
+                                        onClick={() => setSelectedPeriod(p)}
+                                        style={{
+                                            padding: '10px 15px',
+                                            backgroundColor: isSelected ? 'rgba(0, 188, 212, 0.08)' : 'var(--color-bg)',
+                                            border: isSelected ? '2px solid var(--text-cyan)' : '1px solid var(--color-border)',
+                                            boxShadow: isSelected ? '0 0 10px rgba(0, 188, 212, 0.25)' : 'none',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            minWidth: '220px',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        <div style={{ fontWeight: 'bold', fontSize: '14px', color: isSelected ? 'var(--text-cyan)' : 'white' }}>Học kỳ: {p.semester}</div>
+                                        <div style={{ fontSize: '12px', color: isSelected ? 'white' : 'var(--text-muted)', marginTop: '4px' }}>Mã đợt: #RP_{p.id}</div>
+                                        <div style={{ fontSize: '11px', marginTop: '6px', color: statusColor, fontWeight: 'bold' }}>{statusText}</div>
+                                    </div>
+                                );
+                            })}
+                            {allPeriods.length === 0 && <p style={{color:'var(--text-muted)', fontSize:'13px'}}>Chưa có dữ liệu lịch sử đợt mở đăng ký.</p>}
+                        </div>
+                    </div>
+
+                    {selectedPeriod && (
+                        <div style={{ padding: '15px 20px', backgroundColor: 'var(--color-surface)', borderLeft: '5px solid var(--color-success)', borderRadius: '4px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid var(--color-border)' }}>
+                            <div>
+                                <h4 style={{ margin: '0 0 6px 0', color: 'var(--text-cyan)' }}>🟢 CHI TIẾT ĐỢT ĐANG CHỌN GIÁM SÁT REALTIME</h4>
+                                <div style={{ fontSize: '13px' }}>
+                                    Học kỳ áp dụng: <b style={{color:'var(--color-warning)'}}>{selectedPeriod.semester}</b> |
+                                    Thời gian cấu hình: Từ <b>{formatDate(selectedPeriod.startTime)}</b> đến <b>{formatDate(selectedPeriod.endTime)}</b> |
+                                    Trạng thái thực tế: {renderPeriodStatusLabel(selectedPeriod)}
+                                </div>
+                            </div>
+                            {selectedPeriod && selectedPeriod.isActive && (
+                                <button
+                                    onClick={() => handleClosePeriod(selectedPeriod.id)}
+                                    style={{ padding: '8px 14px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
+                                >
+                                    🛑 Hủy Kích Hoạt Đợt Này
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: 'var(--spacing-xl)', flexWrap: 'wrap' }}>
+                        <form onSubmit={handleCreatePeriod} style={{ width: '310px', display: 'flex', flexDirection: 'column', gap: '12px', padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)', height: 'fit-content' }}>
+                            <style>{`
+                                .calendar-click-overlay { position: relative; }
+                                .calendar-click-overlay::-webkit-calendar-picker-indicator { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+                            `}</style>
+
+                            <h4 style={{color: 'var(--text-cyan)', margin: 0}}>🔒 MỞ ĐĂNG KÝ TÍN CHỈ MỚI</h4>
+                            <input type="text" placeholder="Học kỳ (VD: HK1-2026)" value={periodForm.semester} onChange={e => setPeriodForm({...periodForm, semester: e.target.value})} required style={inputStyle} />
+                            <label style={{fontSize:'13px', fontWeight: 'bold'}}>Thời gian bắt đầu:</label>
+                            <input type="datetime-local" value={periodForm.startTime} onChange={e => setPeriodForm({...periodForm, startTime: e.target.value})} required className="calendar-click-overlay" style={inputStyle} />
+                            <label style={{fontSize:'13px', fontWeight: 'bold'}}>Thời gian kết thúc:</label>
+                            <input type="datetime-local" value={periodForm.endTime} onChange={e => setPeriodForm({...periodForm, endTime: e.target.value})} required className="calendar-click-overlay" style={inputStyle} />
+
+                            <button type="submit" style={{ padding: '12px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', marginTop: '5px' }}>
+                                Kích Hoạt Đợt Mở Mới
+                            </button>
+                        </form>
+
+                        <div style={{ flex: 1, minWidth: '450px', padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                            <h4>📋 Danh sách môn học phần thuộc học kỳ: {selectedPeriod?.semester || 'Chưa chọn'}</h4>
+                            <p style={{fontSize: '12px', color: 'var(--color-warning)', marginTop: 0, marginBottom: '12px'}}>
+                                💡 <b>Tác vụ Admin:</b> Tích chọn checkbox để cho phép mở hoặc khóa môn học phần tương ứng của học kỳ đang xem.
+                            </p>
+
+                            <table style={tableStyle}>
+                                <thead>
+                                <tr style={thStyle}>
+                                    <th>Mã Lớp HP</th><th>Tên Môn Học</th><th>Số Tín</th><th>Giảng Viên</th><th>Thời Khóa Biểu (Lịch học)</th><th style={{textAlign: 'center'}}>Tích Chọn Mở Môn</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {courseClasses
+                                    .filter(c => c.semester === selectedPeriod?.semester)
+                                    .map((cls) => (
+                                        <tr key={cls.id} style={trStyle}>
+                                            <td style={{fontWeight:'bold', color: 'var(--text-cyan)'}}>{cls.code}</td>
+                                            <td>{cls.subjectName}</td>
+                                            <td>{cls.credits} tín</td>
+                                            <td>{cls.teacherName || 'Chưa phân công'}</td>
+                                            <td style={{color:'var(--color-warning)', fontSize:'13px', fontWeight:'bold'}}>{cls.schedule || 'Chưa xếp'}</td>
+                                            <td style={{textAlign: 'center'}}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={cls.openForRegistration}
+                                                    onChange={() => handleToggleClassRegistration(cls.id)}
+                                                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                {courseClasses.filter(c => c.semester === selectedPeriod?.semester).length === 0 && (
+                                    <tr>
+                                        <td colSpan="6" style={{textAlign:'center', padding:'20px', color:'var(--text-muted)'}}>Học kỳ này chưa được Admin mở lớp học phần nào ở trang Quản lý đào tạo.</td>
+                                    </tr>
+                                )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ==================== 💼 VIEW TEACHER ==================== */}
+            {role.includes('TEACHER') && !role.includes('ADMIN') && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {isRegistrationTime ? (
+                        <>
+                            <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                                <h3 style={{ color: 'var(--text-cyan)', marginTop: 0 }}>👨‍🏫 PHÊ DUYỆT ĐĂNG KÝ TÍN CHỈ</h3>
+                                <label style={{ display: 'block', fontSize: '13px', marginBottom: '8px', fontWeight: 'bold' }}>Hệ thống đang mở đăng ký. Vui lòng chọn lớp bạn đang dạy để duyệt đơn:</label>
+                                <select
+                                    value={selectedClassId || ''}
+                                    onChange={(e) => viewClassStudents(e.target.value)}
+                                    style={{ width: '100%', padding: '10px', backgroundColor: 'var(--color-bg)', color: 'white', border: '1px solid var(--color-border)', borderRadius: '4px', outline: 'none' }}
+                                >
+                                    <option value="">-- Chọn lớp học phần --</option>
+                                    {teacherClasses.map(c => (
+                                        <option key={c.id} value={c.id}>{c.code} - {c.subjectName}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {selectedClassId && (
+                                <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                                    <h4 style={{ marginTop: 0, color: 'white' }}>👥 Danh sách sinh viên đăng ký nộp đơn vào lớp</h4>
+                                    <table style={tableStyle}>
+                                        <thead>
+                                        <tr style={thStyle}>
+                                            <th>Sinh Viên Đăng Ký</th>
+                                            <th style={{ textAlign: 'center' }}>Thao Tác Duyệt Đơn</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        {classStudents.map((sv, i) => {
+                                            const isApproved = localStorage.getItem(`approved_st_${selectedClassId}_${sv.id}`) === 'true';
+                                            return (
+                                                <tr key={i} style={trStyle}>
+                                                    <td><b>{sv.firstName} {sv.lastName}</b> ({sv.studentCode})</td>
+                                                    <td style={{ textAlign: 'center' }}>
+                                                        <button
+                                                            onClick={() => handleToggleApproveStudent(sv.id)}
+                                                            style={{ padding: '6px 12px', backgroundColor: isApproved ? '#6c757d' : 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                                                        >
+                                                            {isApproved ? 'Đã Duyệt (Hủy)' : 'Duyệt Đơn'}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        {classStudents.length === 0 && (
+                                            <tr><td colSpan="2" style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)' }}>Chưa có sinh viên đăng ký lớp này đợt hiện tại.</td></tr>
+                                        )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px dashed var(--color-border)' }}>
+                            <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔒</div>
+                            <h3 style={{ color: 'var(--color-warning)', margin: '0 0 5px 0' }}>CHƯA CÓ ĐỢT MỞ ĐĂNG KÝ TÍN CHỈ NÀO</h3>
+                            <p style={{ margin: 0, fontSize: '13px' }}>Tính năng duyệt đơn chỉ hiển thị khi Phòng Đào tạo (Admin) mở cổng đăng ký.</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ==================== 🎓 VIEW STUDENT ==================== */}
+            {role.includes('STUDENT') && !role.includes('ADMIN') && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+                    {isRegistrationTime ? (
+                        <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                            <h3 style={{ color: 'var(--text-cyan)', marginBottom: '15px', marginTop: 0 }}>🛒 DANH SÁCH MÔN HỌC MỞ ĐĂNG KÝ (TÍCH CHỌN)</h3>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={tableStyle}>
+                                    <thead>
+                                    <tr style={thStyle}>
+                                        <th style={{ textAlign: 'center', width: '60px' }}>Chọn</th>
+                                        <th>Mã Lớp HP</th>
+                                        <th>Tên Môn Học</th>
+                                        <th>Số Tín Chỉ</th>
+                                        <th>Giảng Viên</th>
+                                        <th>Thời Khóa Biểu</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {availableClasses.map(c => (
+                                        <tr key={c.id} style={trStyle}>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedClassIds.includes(c.id)}
+                                                    onChange={() => {
+                                                        setSelectedClassIds(prev => prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]);
+                                                    }}
+                                                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                                                />
+                                            </td>
+                                            <td style={{ fontWeight: 'bold', color: 'var(--text-cyan)' }}>{c.code}</td>
+                                            <td>{c.subjectName}</td>
+                                            <td>{c.credits} tín</td>
+                                            <td>{c.teacherName || 'Chưa xếp'}</td>
+                                            <td style={{ color: 'var(--color-warning)' }}>{c.schedule}</td>
+                                        </tr>
+                                    ))}
+                                    {availableClasses.length === 0 && (
+                                        <tr><td colSpan="6" style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)' }}>Không có môn học phần nào được mở đợt này.</td></tr>
+                                    )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {availableClasses.length > 0 && (
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '15px' }}>
+                                    <button
+                                        onClick={handleBulkEnroll}
+                                        style={{ padding: '10px 24px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                                    >
+                                        Đăng Ký
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px dashed var(--color-border)' }}>
+                            <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔒</div>
+                            <h3 style={{ color: 'var(--color-warning)', margin: '0 0 5px 0' }}>CỔNG ĐĂNG KÝ TÍN CHỈ ĐANG ĐÓNG</h3>
+                            <p style={{ margin: 0, fontSize: '13px' }}>Vui lòng đợi thông báo chính thức từ Phòng Đào tạo (Admin) để thực hiện đăng ký mới.</p>
+                        </div>
+                    )}
+
+                    <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                        <h3 style={{ color: 'var(--color-warning)', marginBottom: '15px', marginTop: 0 }}>📋 CÁC MÔN HỌC TRONG HỒ SƠ</h3>
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={tableStyle}>
+                                <thead>
+                                <tr style={thStyle}>
+                                    <th style={{ textAlign: 'center', width: '90px' }}>Trạng thái</th>
+                                    <th>Mã Lớp HP</th>
+                                    <th>Tên Môn Học</th>
+                                    <th>Số Tín Chỉ</th>
+                                    <th>Giảng Viên</th>
+                                    <th>Lịch Học</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {myRegisteredClasses.map(reg => {
+                                    // Kiểm tra xem môn này có nằm trong đợt học kỳ đang mở hay không
+                                    const isCurrentSemester = activePeriodInfo && reg.semester === activePeriodInfo.semester;
+                                    // Kiểm tra giáo viên đã duyệt đơn này chưa
+                                    const isApproved = localStorage.getItem(`approved_st_${reg.courseClassId}_${loggedInStudentId}`) === 'true';
+
+                                    return (
+                                        <tr key={reg.id} style={trStyle}>
+                                            <td style={{ textAlign: 'center' }}>
+                                                {(!isCurrentSemester || isApproved) ? (
+                                                    <input type="checkbox" checked readOnly style={{ width: '18px', height: '18px', accentColor: 'var(--color-success)', cursor: 'default' }} />
+                                                ) : (
+                                                    <span style={{ color: 'var(--color-warning)', fontWeight: 'bold', fontSize: '13px' }}>⏳ Chờ duyệt</span>
+                                                )}
+                                            </td>
+                                            <td style={{ fontWeight: 'bold', color: 'var(--text-cyan)' }}>{reg.courseClassCode}</td>
+                                            <td>{reg.subjectName}</td>
+                                            <td>{reg.credits} tín</td>
+                                            <td>{reg.teacherName}</td>
+                                            <td style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>{reg.schedule || 'Chưa xếp'}</td>
+                                        </tr>
+                                    );
+                                })}
+                                {myRegisteredClasses.length === 0 && (
+                                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)' }}>Chưa đăng ký môn học nào.</td></tr>
+                                )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const inputStyle = { padding: '8px', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)', border: '1px solid var(--color-border)', borderRadius: '4px', outline: 'none' };
+const tableStyle = { width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' };
+const thStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', backgroundColor: 'var(--color-surface-hover)', textAlign: 'left', padding: '10px' };
+const trStyle = { borderBottom: '1px solid var(--color-border)', padding: '10px' };
+</file>
+
+<file path="student-management-ui/src/pages/TeacherPage.jsx">
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
+
+function TeacherPage() {
+    const [teachers, setTeachers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [modalError, setModalError] = useState('');
+
+    // Khởi tạo chế độ sửa
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingTeacherId, setEditingTeacherId] = useState('');
+
+    // Form States
+    const [teacherCode, setTeacherCode] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [dateOfBirth, setDateOfBirth] = useState('');
+    const [gender, setGender] = useState('Nam');
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [departmentId, setDepartmentId] = useState('');
+
+    // List States dữ liệu gợi ý Dropdown
+    const [departmentList, setDepartmentList] = useState([]);
+
+    // STATE TÌM KIẾM MÃ GIẢNG VIÊN
+    const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        fetchTeachers();
+        fetchDepartmentList();
+    }, []);
+
+    const fetchTeachers = async () => {
+        try {
+            setLoading(true);
+            const data = await axiosClient.get('/teachers');
+            setTeachers(data);
+        } catch (err) {
+            console.error(err);
+        } finally { // 🔥 ĐÃ SỬA: Thay thế từ khóa lỗi 'fill' thành 'finally' chuẩn cú pháp
+            setLoading(false);
+        }
+    };
+
+    const fetchDepartmentList = async () => {
+        try {
+            const data = await axiosClient.get('/departments');
+            setDepartmentList(data);
+        } catch (err) {
+            console.error("Lỗi nạp danh sách khoa dropdown:", err);
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setModalError('');
+
+        if (isEditMode) {
+            const payload = { firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber };
+            try {
+                await axiosClient.put(`/teachers/${editingTeacherId}`, payload);
+                alert("Cập nhật thông tin hồ sơ giảng viên thành công!");
+                setShowModal(false);
+                resetForm();
+                fetchTeachers();
+            } catch (err) { setModalError(err || 'Lỗi cập nhật hồ sơ giảng viên.'); }
+        } else {
+            if (!departmentId) { setModalError('Vui lòng chọn Khoa/Viện chuyên môn gợi ý!'); return; }
+            const payload = { teacherCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, departmentId: Number(departmentId) };
+            try {
+                await axiosClient.post('/teachers', payload);
+                alert(`Cấp tài khoản Giảng viên thành công!\nTài khoản: ${teacherCode}\nMật khẩu mặc định: password1234`);
+                setShowModal(false);
+                resetForm();
+                fetchTeachers();
+            } catch (err) { setModalError(err || 'Lỗi khởi tạo hồ sơ giảng viên.'); }
+        }
+    };
+
+    const handleOpenEdit = (t) => {
+        setIsEditMode(true);
+        setEditingTeacherId(t.id);
+        setTeacherCode(t.teacherCode);
+        setFirstName(t.firstName);
+        setLastName(t.lastName);
+        setDateOfBirth(t.dateOfBirth || '');
+        setGender(t.gender || 'Nam');
+        setPhoneNumber(t.phoneNumber || '');
+        setDepartmentId(''); // Khóa chỉnh sửa khoa khi đang sửa thông tin cá nhân để bảo vệ toàn vẹn dữ liệu
+        setShowModal(true);
+    };
+
+    const handleLockTeacher = async (id, code, name) => {
+        if (window.confirm(`Bạn có chắc chắn muốn KHÓA tài khoản giảng viên [${code} - ${name}] không?\nTài khoản này sẽ lập tức bị đóng băng quyền truy cập.`)) {
+            try {
+                await axiosClient.delete(`/teachers/${id}`);
+                alert('Đã khóa hồ sơ và đóng băng tài khoản giảng viên thành công!');
+                fetchTeachers();
+            } catch (err) { alert(err || 'Không thể thực hiện khóa giảng viên!'); }
+        }
+    };
+
+    const handleUnlockTeacher = async (id, code, name) => {
+        if (window.confirm(`Bạn có chắc chắn muốn MỞ KHÓA lại cho giảng viên [${code} - ${name}] không?`)) {
+            try {
+                await axiosClient.put(`/teachers/${id}/enable`);
+                alert('Mở khóa tài khoản và tái khôi phục quyền giảng dạy thành công!');
+                fetchTeachers();
+            } catch (err) { alert(err || 'Không thể thực hiện mở khóa giảng viên!'); }
+        }
+    };
+
+    const resetForm = () => {
+        setTeacherCode(''); setFirstName(''); setLastName(''); setDateOfBirth(''); setGender('Nam'); setPhoneNumber(''); setDepartmentId(''); setModalError('');
+        setIsEditMode(false); setEditingTeacherId('');
+    };
+
+    // BỘ LỌC TÌM KIẾM MÃ GIẢNG VIÊN REALTIME
+    const filteredTeachers = teachers.filter(t =>
+        t.teacherCode.toLowerCase().includes(searchQuery.trim().toLowerCase())
+    );
+
+    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang tải danh sách giảng viên...</div>;
+
+    return (
+        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
+                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>QUẢN LÝ DANH SÁCH GIẢNG VIÊN</h2>
+                <button onClick={() => { resetForm(); setShowModal(true); }} style={{ padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-success)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                    + Cấp Tài Khoản Giảng Viên
+                </button>
+            </div>
+
+            {/* THANH TÌM KIẾM MÃ GIẢNG VIÊN */}
+            <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '13px', marginBottom: '6px', fontWeight: 'bold', color: 'var(--text-cyan)' }}>🔍 Tìm kiếm nhanh theo Mã giảng viên:</label>
+                <input
+                    type="text"
+                    placeholder="Nhập mã số giảng viên cần tìm kiếm..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{ width: '100%', maxWidth: '400px', padding: '8px 12px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', outline: 'none' }}
+                />
+            </div>
+
             <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
                 <thead>
                 <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Mã Sinh Viên</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Mã Giảng Viên</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Tên</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Thuộc Niên Khóa</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Khoa Chuyên Môn</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Lớp Hành Chính</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Trạng thái tài khoản</th>
-                    {isAdmin && <th style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>Hành Động Tác Vụ</th>}
+                    <th style={{ padding: 'var(--spacing-md)' }}>Email Giảng Dạy</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Trạng thái hệ thống</th>
+                    <th style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>Hành Động Tác Vụ</th>
                 </tr>
                 </thead>
                 <tbody>
-                {filteredStudents.map((student) => (
-                    <tr key={student.id} style={{ borderBottom: '1px solid var(--color-border)', opacity: student.active ? 1 : 0.55 }}>
-                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{student.studentCode}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{student.lastName} {student.firstName}</td>
-                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)', fontWeight: 'bold' }}>{student.cohort || 'Khóa 1'}</td>
-                        <td style={{ padding: 'var(--spacing-md)', color: 'white', fontWeight: '500' }}>{student.departmentName || 'Chưa cập nhật'}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{student.className}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{student.gender}</td>
+                {filteredTeachers.map((t) => (
+                    <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)', opacity: t.active ? 1 : 0.55 }}>
+                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{t.teacherCode}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{t.lastName} {t.firstName}</td>
+                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)' }}>{t.departmentName}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{t.gender}</td>
+                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-muted)' }}>{t.email}</td>
                         <td style={{ padding: 'var(--spacing-md)' }}>
-                            {student.active ? <span style={{ color: 'var(--color-success)', fontSize: '12px', fontWeight: 'bold' }}>● Đang học</span> : <span style={{ color: 'var(--color-danger)', fontSize: '12px', fontWeight: 'bold' }}>🔒 Đã khóa tài khoản</span>}
+                            {t.active ? <span style={{ color: 'var(--color-success)', fontSize: '12px', fontWeight: 'bold' }}>● Đang giảng dạy</span> : <span style={{ color: 'var(--color-danger)', fontSize: '12px', fontWeight: 'bold' }}>🔒 Đã khóa tài khoản</span>}
                         </td>
-                        {isAdmin && (
-                            <td style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>
-                                <button onClick={() => handleOpenEdit(student)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', marginRight: '5px', fontWeight: 'bold' }}>Sửa</button>
-                                {student.active ? (
-                                    <button onClick={() => handleDeleteStudent(student.id, student.studentCode, student.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Khóa</button>
-                                ) : (
-                                    <button onClick={() => handleEnableStudent(student.id, student.studentCode, student.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Mở Khóa</button>
-                                )}
-                            </td>
-                        )}
+                        <td style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>
+                            <button onClick={() => handleOpenEdit(t)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', marginRight: '5px', fontWeight: 'bold' }}>Sửa</button>
+                            {t.active ? (
+                                <button onClick={() => handleLockTeacher(t.id, t.teacherCode, t.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Khóa</button>
+                            ) : (
+                                <button onClick={() => handleUnlockTeacher(t.id, t.teacherCode, t.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Mở Khóa</button>
+                            )}
+                        </td>
                     </tr>
                 ))}
-                {filteredStudents.length === 0 && (
+                {filteredTeachers.length === 0 && (
                     <tr>
-                        <td colSpan={isAdmin ? 8 : 7} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
-                            Không tìm thấy dữ liệu sinh viên nào phù hợp.
-                        </td>
+                        <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>Không có dữ liệu giảng viên tương thích với từ khóa tìm kiếm.</td>
                     </tr>
                 )}
                 </tbody>
             </table>
 
-            {/* MODAL BIỂU MẪU CỦA ADMIN (CHỈ GENERATE KHI LÀ ADMIN) */}
-            {showModal && isAdmin && (
+            {/* MODAL CẤP TÀI KHOẢN / SỬA HỒ SƠ */}
+            {showModal && (
                 <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 }}>
                     <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--spacing-xl)', borderRadius: '8px', width: '550px' }}>
-                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>{isEditMode ? '📝 CẬP NHẬT HỒ SƠ SINH VIÊN' : '✍️ KHỞI TẠO HỒ SƠ SYSTEM'}</h3>
+                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>{isEditMode ? '📝 CẬP NHẬT HỒ SƠ GIẢNG VIÊN' : '✍️ THÊM MỚI HỒ SƠ GIẢNG VIÊN'}</h3>
+                        {modalError && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)' }}>{modalError}</div>}
                         <form onSubmit={handleSubmit}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
-                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Mã Sinh Viên:</label><input type="text" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} disabled={isEditMode} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Mã Giảng Viên:</label><input type="text" placeholder="GV2026_01" value={teacherCode} onChange={(e) => setTeacherCode(e.target.value)} required disabled={isEditMode} style={inputStyle} /></div>
+
+                                {/* Dropdown menu bốc từ khoa chuyên môn thật dưới DB */}
                                 <div>
-                                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Lớp Hành Chính:</label>
-                                    <select value={classId} onChange={(e) => setClassId(e.target.value)} required style={inputStyle}>
-                                        <option value="">-- Chọn lớp gợi ý --</option>
-                                        {classList.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+                                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Khoa Chuyên Môn:</label>
+                                    <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required disabled={isEditMode} style={inputStyle}>
+                                        <option value="">{isEditMode ? '-- Không hoán đổi khoa --' : '-- Chọn khoa chuyên môn --'}</option>
+                                        {departmentList.map(dept => <option key={dept.id} value={dept.id}>{dept.name} ({dept.code})</option>)}
                                     </select>
                                 </div>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Phân vào Khóa học:</label>
-                                    <select value={studentCohort} onChange={(e) => setStudentCohort(e.target.value)} required style={inputStyle}>
-                                        {cohorts.map(c => <option key={c} value={c}>{c}</option>)}
-                                    </select>
-                                </div>
+
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Họ Và Tên Đệm:</label><input type="text" placeholder="Trần Quốc" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Tên Giảng Viên:</label><input type="text" placeholder="Tuấn" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
                                 <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Giới Tính:</label><select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Họ Và Tên Đệm:</label><input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Tên Sinh Viên:</label><input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Số Điện Thoại:</label><input type="text" placeholder="0912345678" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
                                 <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
-                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Số Điện Thoại:</label><input type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
-                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Hủy Bỏ</button>
-                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>{isEditMode ? 'Lưu Thay Đổi' : 'Khởi Tạo & Cấp TK'}</button>
+                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Hủy</button>
+                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>{isEditMode ? 'Lưu Thay Đổi' : 'Khởi Tạo & Cấp TK'}</button>
                             </div>
                         </form>
                     </div>
@@ -7466,11 +7091,8 @@ function StudentPage() {
     );
 }
 
-const labelStyle = { display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: 'bold', color: 'var(--text-cyan)' };
-const selectStyle = { width: '100%', padding: '9px 12px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', outline: 'none', cursor: 'pointer' };
 const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
-
-export default StudentPage;
+export default TeacherPage;
 </file>
 
 <file path="pom.xml">
@@ -7778,63 +7400,6 @@ public class UserController {
         userService.disableUser(userId);
         return new ApiResponse<>(1000, "Khoa tai khoan thanh cong", "ID " + userId + " da bi khoa");
     }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Student.java">
-package com.dangdepzaivaio.StudentManagement.entity;
-
-import jakarta.persistence.*;
-import lombok.*;
-import java.time.LocalDate;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Entity
-@Table(name = "students")
-public class Student extends BaseEntity {
-
-    @Id
-    @Column(name = "id", length = 20)
-    private String id;
-
-    @Column(name = "student_code", nullable = false, unique = true, length = 20)
-    private String studentCode;
-
-    @Column(name = "first_name", nullable = false, length = 50)
-    private String firstName;
-
-    @Column(name = "last_name", nullable = false, length = 100)
-    private String lastName;
-
-    @Column(name = "date_of_birth")
-    private LocalDate dateOfBirth;
-
-    @Column(name = "gender", length = 10)
-    private String gender;
-
-    @Column(name = "phone_number", length = 15)
-    private String phoneNumber;
-
-    // 🔥 THÊM MỚI: Cột khóa học sinh viên lưu trữ thẳng xuống Database thật
-    @Column(name = "cohort", length = 20)
-    private String cohort;
-
-    @Builder.Default
-    @Column(name = "is_active", nullable = false)
-    private boolean isActive = true;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @MapsId
-    @JoinColumn(name = "id")
-    private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "class_id", nullable = false)
-    private Class studentClass;
 }
 </file>
 
@@ -8324,6 +7889,568 @@ UNLOCK TABLES;
 -- Dump completed on 2026-06-10 17:56:00
 </file>
 
+<file path="student-management-ui/src/App.jsx">
+import React, { useState, useEffect } from 'react';
+import LoginPage from './pages/LoginPage';
+import StudentPage from './pages/StudentPage';
+import TeacherPage from './pages/TeacherPage';
+import GradePage from './pages/GradePage';
+import RegistrationPage from './pages/RegistrationPage';
+import TrainingPage from './pages/TrainingPage';
+import DashboardPage from './pages/DashboardPage';
+import SchedulePage from './pages/SchedulePage';
+
+function App() {
+    const [token, setToken] = useState(localStorage.getItem('token'));
+    const [username, setUsername] = useState(localStorage.getItem('username'));
+    const [role, setRole] = useState(localStorage.getItem('roles') || '');
+    const [activeTab, setActiveTab] = useState('dashboard');
+
+    const executeLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        localStorage.removeItem('roles');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('studentId');
+        localStorage.removeItem('teacherId');
+        localStorage.removeItem('lastExitTime');
+
+        setToken(null);
+        setUsername(null);
+        setRole('');
+    };
+
+    useEffect(() => {
+        const checkSession = () => {
+            const lastExitTime = localStorage.getItem('lastExitTime');
+            const currentToken = localStorage.getItem('token');
+
+            if (currentToken && lastExitTime) {
+                const timeAway = Date.now() - parseInt(lastExitTime, 10);
+                const FIFTEEN_MINUTES = 15 * 60 * 1000;
+
+                if (timeAway > FIFTEEN_MINUTES) {
+                    executeLogout();
+                    alert("Phiên làm việc của bạn đã hết hạn do không hoạt động trong 15 phút. Vui lòng đăng nhập lại!");
+                } else {
+                    localStorage.removeItem('lastExitTime');
+                }
+            }
+        };
+
+        checkSession();
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                localStorage.setItem('lastExitTime', Date.now().toString());
+            } else if (document.visibilityState === 'visible') {
+                checkSession();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        const handleBeforeUnload = () => {
+            localStorage.setItem('lastExitTime', Date.now().toString());
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, []);
+
+    const handleLogout = () => {
+        executeLogout();
+    };
+
+    if (!token) {
+        return <LoginPage />;
+    }
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)' }}>
+
+            {/* HEADER SYSTEM */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-sm) var(--spacing-xl)', backgroundColor: 'var(--color-surface)', color: 'var(--text-main)', borderBottom: '2px solid var(--text-cyan)' }}>
+                <h3>CMS - STUDENT MANAGEMENT</h3>
+                <div>
+                    <span style={{ marginRight: 'var(--spacing-xl)', color: 'var(--text-muted)' }}>Xin chào: <b>{username}</b> ({role})</span>
+                    <button onClick={handleLogout} style={{ padding: '6px 12px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Đăng xuất</button>
+                </div>
+            </div>
+
+            {/* BODY SYSTEM */}
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+                {/* SIDEBAR NAVIGATION */}
+                <div style={{ width: '240px', backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl) var(--spacing-sm)', borderRight: '1px solid var(--color-border)' }}>
+                    <button onClick={() => setActiveTab('dashboard')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'dashboard' ? 'var(--color-primary)' : 'transparent' }}>📊 Tổng Quan System</button>
+
+                    {(role.includes('ADMIN') || role.includes('TEACHER')) && (
+                        <button onClick={() => setActiveTab('students')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'students' ? 'var(--color-primary)' : 'transparent' }}>👥 Quản Lý Sinh Viên</button>
+                    )}
+
+                    {role.includes('ADMIN') && (
+                        <button onClick={() => setActiveTab('teachers')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'teachers' ? 'var(--color-primary)' : 'transparent' }}>💼 Quản Lý Giảng Viên</button>
+                    )}
+
+                    <button onClick={() => setActiveTab('grades')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'grades' ? 'var(--color-primary)' : 'transparent' }}>🎯 Quản Lý Điểm Số</button>
+
+                    {/* 🔥 ĐÃ FIX: Cho phép cả ADMIN, STUDENT và TEACHER nhìn thấy phân hệ này */}
+                    {(role.includes('ADMIN') || role.includes('STUDENT') || role.includes('TEACHER')) && (
+                        <button onClick={() => setActiveTab('registration')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'registration' ? 'var(--color-primary)' : 'transparent' }}>⏰ Đăng Ký Tín Chỉ</button>
+                    )}
+
+                    {(role.includes('TEACHER') || role.includes('STUDENT')) && (
+                        <button onClick={() => setActiveTab('schedule')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'schedule' ? 'var(--color-primary)' : 'transparent' }}>
+                            📅 {role.includes('TEACHER') ? 'Lịch Dạy' : 'Lịch Học'}
+                        </button>
+                    )}
+
+                    {role.includes('ADMIN') && (
+                        <button onClick={() => setActiveTab('training')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'training' ? 'var(--color-primary)' : 'transparent' }}>🏛️ Quản Lý Đào Tạo</button>
+                    )}
+                </div>
+
+                {/* MAIN CONTENT AREA */}
+                <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)', padding: 'var(--spacing-xl)' }}>
+                    {activeTab === 'dashboard' && <DashboardPage />}
+                    {activeTab === 'students' && <StudentPage />}
+                    {activeTab === 'teachers' && <TeacherPage />}
+                    {activeTab === 'grades' && <GradePage />}
+                    {activeTab === 'registration' && <RegistrationPage />}
+                    {activeTab === 'schedule' && <SchedulePage />}
+                    {activeTab === 'training' && <TrainingPage />}
+                </div>
+
+            </div>
+        </div>
+    );
+}
+
+const sidebarBtnStyle = { width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' };
+
+export default App;
+</file>
+
+<file path="student-management-ui/src/pages/StudentPage.jsx">
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
+
+function StudentPage() {
+    const [students, setStudents] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    const userRole = localStorage.getItem('roles') || '';
+    const isAdmin = userRole.includes('ADMIN');
+    const isTeacher = userRole.includes('TEACHER');
+    const teacherId = localStorage.getItem('teacherId') || '';
+
+    const [showModal, setShowModal] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingStudentId, setEditingStudentId] = useState('');
+
+    // Form States
+    const [studentCode, setStudentCode] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [dateOfBirth, setDateOfBirth] = useState('');
+    const [gender, setGender] = useState('Nam');
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [classId, setClassId] = useState('');
+    const [studentCohort, setStudentCohort] = useState('Khóa 1');
+
+    // List States tải từ DB phục vụ Admin
+    const [classList, setClassList] = useState([]);
+    const [departments, setDepartments] = useState([]);
+
+    // --- STATES BỘ LỌC CASCADING CHO ADMIN ---
+    const [selectedCohort, setSelectedCohort] = useState('');
+    const [selectedDept, setSelectedDept] = useState('');
+    const [selectedClass, setSelectedClass] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // --- STATES ĐỘC QUYỀN CHO GIẢNG VIÊN (TEACHER) ---
+    const [teacherClasses, setTeacherClasses] = useState([]);
+    const [selectedCourseClass, setSelectedCourseClass] = useState('');
+
+    // Danh sách khóa mặc định của hệ thống
+    const [cohorts, setCohorts] = useState(() => {
+        const saved = localStorage.getItem('system_cohorts');
+        return saved ? JSON.parse(saved) : ['Khóa 1', 'Khóa 2', 'Khóa 3'];
+    });
+
+    useEffect(() => {
+        if (isAdmin) {
+            fetchStudents();
+            loadFiltersData();
+        } else if (isTeacher && teacherId) {
+            fetchTeacherClasses();
+        }
+    }, [isAdmin, isTeacher, teacherId]);
+
+    // ==================== 🏛️ NGHIỆP VỤ CỦA ADMIN ====================
+    const fetchStudents = async () => {
+        try {
+            setLoading(true);
+            const data = await axiosClient.get('/students?includeInactive=true');
+            setStudents(data || []);
+        } catch (err) {
+            setError(err || 'Không thể tải danh sách sinh viên!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadFiltersData = async () => {
+        try {
+            const [deptsData, classesData] = await Promise.all([
+                axiosClient.get('/departments'),
+                axiosClient.get('/classes')
+            ]);
+            setDepartments(deptsData || []);
+            setClassList(classesData || []);
+        } catch (err) {
+            console.error('Lỗi nạp cấu trúc bộ lọc danh mục', err);
+        }
+    };
+
+    const handleAddNewCohort = () => {
+        const nextCohortNumber = cohorts.length + 1;
+        const newCohortName = `Khóa ${nextCohortNumber}`;
+        const updatedCohorts = [...cohorts, newCohortName];
+        setCohorts(updatedCohorts);
+        localStorage.setItem('system_cohorts', JSON.stringify(updatedCohorts));
+        alert(`Khởi tạo đợt niên khóa đào tạo mới thành công: ${newCohortName}!`);
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!classId) { alert("Vui lòng lựa chọn một Lớp hành chính!"); return; }
+
+        if (isEditMode) {
+            const payload = { firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId), cohort: studentCohort };
+            try {
+                await axiosClient.put(`/students/${editingStudentId}`, payload);
+                alert("Cập nhật hồ sơ sinh viên thành công!");
+                setShowModal(false);
+                resetForm();
+                fetchStudents();
+            } catch (err) { alert(err || 'Lỗi cập nhật hồ sơ!'); }
+        } else {
+            const payload = { studentCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId), cohort: studentCohort };
+            try {
+                await axiosClient.post('/students', payload);
+                alert(`Cấp tài khoản sinh viên thành công mượt mà!`);
+                setShowModal(false);
+                resetForm();
+                fetchStudents();
+            } catch (err) { alert(err || 'Có lỗi xảy ra khi tạo sinh viên!'); }
+        }
+    };
+
+    const handleOpenEdit = (student) => {
+        setIsEditMode(true);
+        setEditingStudentId(student.id);
+        setStudentCode(student.studentCode);
+        setFirstName(student.firstName);
+        setLastName(student.lastName);
+        setDateOfBirth(student.dateOfBirth || '');
+        setGender(student.gender || 'Nam');
+        setPhoneNumber(student.phoneNumber || '');
+        setClassId(student.classId || '');
+        setStudentCohort(student.cohort || 'Khóa 1');
+        setShowModal(true);
+    };
+
+    const handleDeleteStudent = async (id, code, name) => {
+        if (window.confirm(`Bạn có chắc chắn muốn KHÓA tài khoản sinh viên [${code} - ${name}] không?`)) {
+            try {
+                await axiosClient.delete(`/students/${id}`);
+                alert('Đã khóa hồ sơ sinh viên và đóng băng tài khoản thành công!');
+                fetchStudents();
+            } catch (err) { alert(err || 'Không thể khóa sinh viên này!'); }
+        }
+    };
+
+    const handleEnableStudent = async (id, code, name) => {
+        if (window.confirm(`Bạn có chắc chắn muốn MỞ KHÓA cho sinh viên [${code} - ${name}] không?`)) {
+            try {
+                await axiosClient.put(`/students/${id}/enable`);
+                alert('Tái kích hoạt hệ thống và mở khóa tài khoản thành công!');
+                fetchStudents();
+            } catch (err) { alert(err || 'Không thể mở khóa sinh viên này!'); }
+        }
+    };
+
+    const resetForm = () => {
+        setStudentCode(''); setFirstName(''); setLastName(''); setDateOfBirth(''); setGender('Nam'); setPhoneNumber(''); setClassId(''); setStudentCohort('Khóa 1');
+        setIsEditMode(false); setEditingStudentId('');
+    };
+
+    const handleDeptChange = (deptId) => {
+        setSelectedDept(deptId);
+        setSelectedClass('');
+    };
+
+    const handleClassChange = (classId) => {
+        setSelectedClass(classId);
+        if (classId) {
+            const clsObj = classList.find(c => c.id === Number(classId));
+            if (clsObj) {
+                const matchedDept = departments.find(d => d.name === clsObj.departmentName);
+                if (matchedDept) setSelectedDept(String(matchedDept.id));
+            }
+        }
+    };
+
+    const filteredClassOptions = selectedDept
+        ? classList.filter(c => c.departmentName === departments.find(d => d.id === Number(selectedDept))?.name)
+        : classList;
+
+
+    // ==================== 👨‍🏫 NGHIỆP VỤ CỦA GIẢNG VIÊN (TEACHER) ====================
+    const fetchTeacherClasses = async () => {
+        try {
+            setLoading(true);
+            const response = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
+            const data = response || [];
+            setTeacherClasses(data);
+            if (data.length > 0) {
+                // Tự động load trước sinh viên của lớp học phần đầu tiên
+                setSelectedCourseClass(String(data[0].id));
+                fetchStudentsInCourseClass(data[0].id);
+            } else {
+                setStudents([]);
+                setLoading(false);
+            }
+        } catch (err) {
+            setError('Không thể tải lịch trình lớp học phần đang dạy!');
+            setLoading(false);
+        }
+    };
+
+    const fetchStudentsInCourseClass = async (courseClassId) => {
+        try {
+            setLoading(true);
+            const response = await axiosClient.get(`/registration/classes/${courseClassId}/students`);
+            setStudents(response || []);
+        } catch (err) {
+            setError('Lỗi tải danh sách sinh viên thuộc lớp học phần phụ trách!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleTeacherClassChange = (courseClassId) => {
+        setSelectedCourseClass(courseClassId);
+        if (courseClassId) {
+            fetchStudentsInCourseClass(courseClassId);
+        } else {
+            setStudents([]);
+        }
+    };
+
+
+    // ==================== 🔄 THUẬT TOÁN QUÉT MẢNG LỌC HIỂN THỊ CHUNG ====================
+    const filteredStudents = students.filter(student => {
+        const matchesSearch = student.studentCode.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+            `${student.lastName} ${student.firstName}`.toLowerCase().includes(searchQuery.trim().toLowerCase());
+
+        if (isAdmin) {
+            const matchesCohort = !selectedCohort || student.cohort === selectedCohort;
+            const matchesClass = !selectedClass || student.classId === Number(selectedClass);
+            const selectedDeptObj = departments.find(d => d.id === Number(selectedDept));
+            const matchesDept = !selectedDept || student.departmentName === selectedDeptObj?.name;
+            return matchesSearch && matchesCohort && matchesDept && matchesClass;
+        }
+
+        return matchesSearch; // Với Giáo viên chỉ cần lọc theo ô tìm kiếm trên mảng sinh viên lớp học phần
+    });
+
+    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang đồng bộ cơ sở dữ liệu học viên...</div>;
+    if (error) return <div style={{ color: 'var(--color-danger)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>{error}</div>;
+
+    return (
+        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)', textAlign: 'left' }}>
+
+            {/* THANH ĐIỀU HƯỚNG TIÊU ĐỀ */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)', flexWrap: 'wrap', gap: '15px' }}>
+                <div>
+                    <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>
+                        {isAdmin ? '🏛️ HỆ THỐNG QUẢN TRỊ SINH VIÊN' : '👨‍🏫 DANH SÁCH SINH VIÊN ĐANG GIẢNG DẠY'}
+                    </h2>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+                        {isAdmin ? 'Quyền hạn Quản trị viên: Toàn quyền khởi tạo, chỉnh sửa và cấu hình hồ sơ.' : 'Quyền hạn Giảng viên: Theo dõi danh sách học viên đăng ký lớp học phần phụ trách.'}
+                    </p>
+                </div>
+
+                {isAdmin && (
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={handleAddNewCohort} style={{ padding: '8px 14px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+                            ⏳ + Thêm Khóa Mới (Tăng theo năm)
+                        </button>
+                        <button onClick={() => { resetForm(); setShowModal(true); }} style={{ padding: '8px 14px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+                            + Cấp Tài Khoản Sinh Viên
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* 🔥 THANH BỘ LỌC ĐA CẤP PHÂN RÃ THEO ROLE */}
+            <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', flexWrap: 'wrap' }}>
+
+                {isAdmin ? (
+                    /* LUỒNG HIỂN THỊ CASCADING DROPDOWN CỦA ADMIN */
+                    <>
+                        <div style={{ width: '200px' }}>
+                            <label style={labelStyle}>⏳ Lọc theo Khóa học:</label>
+                            <select value={selectedCohort} onChange={(e) => setSelectedCohort(e.target.value)} style={selectStyle}>
+                                <option value="">Tất cả các khóa</option>
+                                {cohorts.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+
+                        <div style={{ width: '220px' }}>
+                            <label style={labelStyle}>🏛️ Lọc theo Khoa:</label>
+                            <select value={selectedDept} onChange={(e) => handleDeptChange(e.target.value)} style={selectStyle}>
+                                <option value="">Tất cả các Khoa</option>
+                                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            </select>
+                        </div>
+
+                        <div style={{ width: '220px' }}>
+                            <label style={labelStyle}>👥 Lọc theo Lớp hành chính:</label>
+                            <select value={selectedClass} onChange={(e) => handleClassChange(e.target.value)} style={selectStyle}>
+                                <option value="">Tất cả các Lớp</option>
+                                {filteredClassOptions.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+                            </select>
+                        </div>
+                    </>
+                ) : (
+                    /* 🔥 LUỒNG HIỂN THỊ ĐỘC QUYỀN CỦA GIẢNG VIÊN (TEACHER) */
+                    <div style={{ width: '350px' }}>
+                        <label style={labelStyle}>📖 Lựa chọn Lớp học phần đang đảm nhiệm:</label>
+                        <select value={selectedCourseClass} onChange={(e) => handleTeacherClassChange(e.target.value)} style={selectStyle}>
+                            {teacherClasses.map(c => (
+                                <option key={c.id} value={c.id}>
+                                    {c.code} — {c.subjectName} ({c.registeredStudents} SV)
+                                </option>
+                            ))}
+                            {teacherClasses.length === 0 && <option value="">Chưa có lớp học phần phân công</option>}
+                        </select>
+                    </div>
+                )}
+
+                <div style={{ flex: '1', minWidth: '200px' }}>
+                    <label style={labelStyle}>🔍 Tìm nhanh học viên (Mã số / Họ tên):</label>
+                    <input
+                        type="text"
+                        placeholder="Nhập từ khóa cần tìm kiếm..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{ width: '100%', padding: '9px 12px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', outline: 'none' }}
+                    />
+                </div>
+            </div>
+
+            {/* BẢNG RENDERING HIỂN THỊ DANH SÁCH */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+                <thead>
+                <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Mã Sinh Viên</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Tên</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Thuộc Niên Khóa</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Khoa Chuyên Môn</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Lớp Hành Chính</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Trạng thái tài khoản</th>
+                    {isAdmin && <th style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>Hành Động Tác Vụ</th>}
+                </tr>
+                </thead>
+                <tbody>
+                {filteredStudents.map((student) => (
+                    <tr key={student.id} style={{ borderBottom: '1px solid var(--color-border)', opacity: student.active ? 1 : 0.55 }}>
+                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{student.studentCode}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{student.lastName} {student.firstName}</td>
+                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)', fontWeight: 'bold' }}>{student.cohort || 'Khóa 1'}</td>
+                        <td style={{ padding: 'var(--spacing-md)', color: 'white', fontWeight: '500' }}>{student.departmentName || 'Chưa cập nhật'}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{student.className}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{student.gender}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>
+                            {student.active ? <span style={{ color: 'var(--color-success)', fontSize: '12px', fontWeight: 'bold' }}>● Đang học</span> : <span style={{ color: 'var(--color-danger)', fontSize: '12px', fontWeight: 'bold' }}>🔒 Đã khóa tài khoản</span>}
+                        </td>
+                        {isAdmin && (
+                            <td style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>
+                                <button onClick={() => handleOpenEdit(student)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', marginRight: '5px', fontWeight: 'bold' }}>Sửa</button>
+                                {student.active ? (
+                                    <button onClick={() => handleDeleteStudent(student.id, student.studentCode, student.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Khóa</button>
+                                ) : (
+                                    <button onClick={() => handleEnableStudent(student.id, student.studentCode, student.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Mở Khóa</button>
+                                )}
+                            </td>
+                        )}
+                    </tr>
+                ))}
+                {filteredStudents.length === 0 && (
+                    <tr>
+                        <td colSpan={isAdmin ? 8 : 7} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                            Không tìm thấy dữ liệu sinh viên nào phù hợp.
+                        </td>
+                    </tr>
+                )}
+                </tbody>
+            </table>
+
+            {/* MODAL BIỂU MẪU CỦA ADMIN (CHỈ GENERATE KHI LÀ ADMIN) */}
+            {showModal && isAdmin && (
+                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 }}>
+                    <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--spacing-xl)', borderRadius: '8px', width: '550px' }}>
+                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>{isEditMode ? '📝 CẬP NHẬT HỒ SƠ SINH VIÊN' : '✍️ KHỞI TẠO HỒ SƠ SYSTEM'}</h3>
+                        <form onSubmit={handleSubmit}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Mã Sinh Viên:</label><input type="text" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} disabled={isEditMode} required style={inputStyle} /></div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Lớp Hành Chính:</label>
+                                    <select value={classId} onChange={(e) => setClassId(e.target.value)} required style={inputStyle}>
+                                        <option value="">-- Chọn lớp gợi ý --</option>
+                                        {classList.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Phân vào Khóa học:</label>
+                                    <select value={studentCohort} onChange={(e) => setStudentCohort(e.target.value)} required style={inputStyle}>
+                                        {cohorts.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Giới Tính:</label><select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Họ Và Tên Đệm:</label><input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Tên Sinh Viên:</label><input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
+                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
+                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Số Điện Thoại:</label><input type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
+                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Hủy Bỏ</button>
+                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>{isEditMode ? 'Lưu Thay Đổi' : 'Khởi Tạo & Cấp TK'}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const labelStyle = { display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: 'bold', color: 'var(--text-cyan)' };
+const selectStyle = { width: '100%', padding: '9px 12px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', outline: 'none', cursor: 'pointer' };
+const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
+
+export default StudentPage;
+</file>
+
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/StudentController.java">
 package com.dangdepzaivaio.StudentManagement.controller;
 
@@ -8378,6 +8505,63 @@ public class StudentController {
 }
 </file>
 
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Student.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDate;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "students")
+public class Student extends BaseEntity {
+
+    @Id
+    @Column(name = "id", length = 20)
+    private String id;
+
+    @Column(name = "student_code", nullable = false, unique = true, length = 20)
+    private String studentCode;
+
+    @Column(name = "first_name", nullable = false, length = 50)
+    private String firstName;
+
+    @Column(name = "last_name", nullable = false, length = 100)
+    private String lastName;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(name = "gender", length = 10)
+    private String gender;
+
+    @Column(name = "phone_number", length = 15)
+    private String phoneNumber;
+
+    // 🔥 THÊM MỚI: Cột khóa học sinh viên lưu trữ thẳng xuống Database thật
+    @Column(name = "cohort", length = 20)
+    private String cohort;
+
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId
+    @JoinColumn(name = "id")
+    private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "class_id", nullable = false)
+    private Class studentClass;
+}
+</file>
+
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/User.java">
 package com.dangdepzaivaio.StudentManagement.entity;
 
@@ -8422,35 +8606,6 @@ public class User extends BaseEntity {
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private Set<Role> roles;
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/StudentMapper.java">
-package com.dangdepzaivaio.StudentManagement.mapper;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
-import com.dangdepzaivaio.StudentManagement.entity.Student;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
-
-@Mapper(componentModel = "spring")
-public interface StudentMapper {
-    StudentMapper INSTANCE = Mappers.getMapper(StudentMapper.class);
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "studentClass", ignore = true)
-    @Mapping(target = "user", ignore = true)
-    Student toEntity(StudentCreationRequest request);
-
-    @Mapping(target = "username", source = "user.username")
-    @Mapping(target = "email", source = "user.email")
-    @Mapping(target = "classId", source = "studentClass.id") // 🔥 ÉP MAP: Lấy ID của Class đưa vào DTO
-    @Mapping(target = "className", source = "studentClass.name")
-    @Mapping(target = "active", source = "active")
-    @Mapping(target = "departmentName", source = "studentClass.department.name")
-    StudentResponse toResponse(Student student);
 }
 </file>
 
@@ -8684,6 +8839,35 @@ public enum ErrorCode {
         this.message = message;
         this.statusCode = statusCode;
     }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/mapper/StudentMapper.java">
+package com.dangdepzaivaio.StudentManagement.mapper;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
+import com.dangdepzaivaio.StudentManagement.entity.Student;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.factory.Mappers;
+
+@Mapper(componentModel = "spring")
+public interface StudentMapper {
+    StudentMapper INSTANCE = Mappers.getMapper(StudentMapper.class);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "studentClass", ignore = true)
+    @Mapping(target = "user", ignore = true)
+    Student toEntity(StudentCreationRequest request);
+
+    @Mapping(target = "username", source = "user.username")
+    @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "classId", source = "studentClass.id") // 🔥 ÉP MAP: Lấy ID của Class đưa vào DTO
+    @Mapping(target = "className", source = "studentClass.name")
+    @Mapping(target = "active", source = "active")
+    @Mapping(target = "departmentName", source = "studentClass.department.name")
+    StudentResponse toResponse(Student student);
 }
 </file>
 

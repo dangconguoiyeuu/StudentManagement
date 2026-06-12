@@ -190,4 +190,20 @@ public class RegistrationController {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
     }
+
+    // ================== THÊM MỚI API DUYỆT ĐƠN ==================
+    @PutMapping("/classes/{classId}/students/{studentId}/toggle-approve")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public ApiResponse<String> toggleApproveStudent(
+            @PathVariable Long classId,
+            @PathVariable String studentId) { // Nhận chuẩn chuỗi "HS_01" từ Frontend
+
+        // 1. Kiểm tra xem giảng viên đang thao tác có đúng là người dạy lớp này không
+        assertTeacherAssignedIfNeeded(classId);
+
+        // 2. Gọi Service để xử lý logic lưu trạng thái duyệt vào Database
+        registrationService.toggleApproveStatus(classId, studentId);
+
+        return new ApiResponse<>(1000, "Cập nhật trạng thái duyệt đơn thành công", "OK");
+    }
 }
