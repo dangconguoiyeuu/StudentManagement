@@ -13,4 +13,5 @@ public interface GradeService {
     GradeResponse getGradeById(Long id);
     void deleteGrade(Long id);
     StudentAcademicSummaryResponse getAcademicSummary(String studentId); // 🔥 Sửa sang String
+    void adminCancelCredit(String studentId, Long courseClassId);
 }

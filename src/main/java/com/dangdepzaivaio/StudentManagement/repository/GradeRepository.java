@@ -2,6 +2,7 @@ package com.dangdepzaivaio.StudentManagement.repository;
 
 import com.dangdepzaivaio.StudentManagement.entity.Grade;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -83,4 +84,8 @@ public interface GradeRepository extends JpaRepository<Grade, Long> {
             "JOIN FETCH t.user " +
             "WHERE t.user.email = :email")
     List<Grade> findByCourseClassTeacherUserEmail(@Param("email") String email);
+
+    @Modifying
+    @Query("DELETE FROM Grade g WHERE g.student.id = :studentId AND g.courseClass.id = :courseClassId")
+    void hardDeleteByStudentAndCourseClass(@Param("studentId") String studentId, @Param("courseClassId") Long courseClassId);
 }

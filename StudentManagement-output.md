@@ -1534,140 +1534,6 @@ public class DepartmentServiceImpl implements DepartmentService { // 🔥 SỬA:
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/RegistrationServiceImpl.java">
-package com.dangdepzaivaio.StudentManagement.service.impl;
-
-import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
-import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
-import com.dangdepzaivaio.StudentManagement.entity.Grade;
-import com.dangdepzaivaio.StudentManagement.entity.Student;
-import com.dangdepzaivaio.StudentManagement.entity.User;
-import com.dangdepzaivaio.StudentManagement.exception.AppException;
-import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
-import com.dangdepzaivaio.StudentManagement.mapper.GradeMapper;
-import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
-import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
-import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
-import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
-import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.List;
-
-@Service
-@RequiredArgsConstructor
-public class RegistrationServiceImpl {
-
-    private final RegistrationPeriodRepository periodRepository;
-    private final CourseClassRepository courseClassRepository;
-    private final StudentRepository studentRepository;
-    private final UserRepository userRepository;
-    private final GradeRepository gradeRepository;
-    private final CourseClassMapper courseClassMapper;
-    private final GradeMapper gradeMapper;
-
-    @Transactional
-    public void registerCourseClass(Long courseClassId) {
-        Student student = getCurrentStudent();
-        CourseClass courseClass = getCourseClass(courseClassId);
-
-        assertRegistrationOpen(courseClass);
-
-        if (gradeRepository.existsByStudentIdAndCourseClassId(student.getId(), courseClassId)) {
-            throw new AppException(ErrorCode.GRADE_EXISTED);
-        }
-
-        long registered = gradeRepository.countByCourseClassId(courseClassId);
-        int maxStudents = courseClass.getMaxStudents() == null ? 60 : courseClass.getMaxStudents();
-        if (registered >= maxStudents) {
-            throw new AppException(ErrorCode.COURSE_CLASS_FULL);
-        }
-
-        Grade enrollment = Grade.builder()
-                .student(student)
-                .courseClass(courseClass)
-                .build();
-
-        gradeRepository.save(enrollment);
-    }
-
-    @Transactional
-    public void cancelRegistration(Long courseClassId) {
-        Student student = getCurrentStudent();
-        CourseClass courseClass = getCourseClass(courseClassId);
-
-        assertRegistrationOpen(courseClass);
-
-        Grade grade = gradeRepository.findByStudentIdAndCourseClassId(student.getId(), courseClassId)
-                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_ENROLLED));
-
-        if (hasAnyGradeValue(grade)) {
-            throw new AppException(ErrorCode.GRADE_ALREADY_ENTERED);
-        }
-
-        gradeRepository.delete(grade);
-    }
-
-    public List<CourseClassResponse> getOpenCourseClasses() {
-        LocalDateTime now = LocalDateTime.now();
-        return courseClassRepository.findByOpenForRegistrationTrue().stream()
-                .filter(courseClass -> periodRepository.findActivePeriod(courseClass.getSemester(), now).isPresent())
-                .map(this::toResponseWithCount)
-                .toList();
-    }
-
-    public List<GradeResponse> getCurrentStudentRegistrations() {
-        Student student = getCurrentStudent();
-        return gradeRepository.findByStudentId(student.getId()).stream()
-                .map(gradeMapper::toResponse)
-                .toList();
-    }
-
-    private CourseClass getCourseClass(Long courseClassId) {
-        return courseClassRepository.findByIdWithSubjectAndTeacher(courseClassId)
-                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
-    }
-
-    private void assertRegistrationOpen(CourseClass courseClass) {
-        if (!courseClass.isOpenForRegistration()) {
-            throw new AppException(ErrorCode.COURSE_CLASS_CLOSED);
-        }
-
-        periodRepository.findActivePeriod(courseClass.getSemester(), LocalDateTime.now())
-                .orElseThrow(() -> new AppException(ErrorCode.REGISTRATION_PERIOD_CLOSED));
-    }
-
-    private Student getCurrentStudent() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
-
-        return studentRepository.findByIdWithJoinFetch(user.getId())
-                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
-    }
-
-    private boolean hasAnyGradeValue(Grade grade) {
-        return grade.getAttendanceGrade() != null
-                || grade.getMidtermGrade() != null
-                || grade.getFinalGrade() != null
-                || grade.getOverallGrade() != null
-                || grade.getLetterGrade() != null
-                || grade.getGrade4() != null;
-    }
-
-    private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
-        courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
-        return courseClassMapper.toResponse(courseClass);
-    }
-}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/TeacherService.java">
 package com.dangdepzaivaio.StudentManagement.service;
 
@@ -2729,208 +2595,6 @@ const thStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text
 const trStyle = { borderBottom: '1px solid var(--color-border)', padding: '8px' };
 </file>
 
-<file path="student-management-ui/src/pages/SchedulePage.jsx">
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
-
-export default function SchedulePage() {
-    const role = localStorage.getItem('roles') || '';
-    const loggedInStudentId = localStorage.getItem('studentId') || '';
-    const teacherId = localStorage.getItem('teacherId') || '';
-
-    const isStudent = role.includes('STUDENT');
-    const isTeacher = role.includes('TEACHER');
-
-    const [loading, setLoading] = useState(false);
-    const [scheduleGrid, setScheduleGrid] = useState({
-        'Sáng': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] },
-        'Chiều': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] },
-        'Tối': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] }
-    });
-
-    useEffect(() => {
-        loadScheduleData();
-    }, [role]);
-
-    const loadScheduleData = async () => {
-        setLoading(true);
-        try {
-            let validClasses = [];
-
-            if (isStudent) {
-                // Lấy toàn bộ môn sinh viên đã đăng ký
-                const myClasses = await axiosClient.get('/registration/my-classes');
-
-                // CHỈ LẤY NHỮNG MÔN ĐÃ ĐƯỢC GIÁO VIÊN DUYỆT
-                validClasses = myClasses.filter(reg => {
-                    return localStorage.getItem(`approved_st_${reg.courseClassId}_${loggedInStudentId}`) === 'true';
-                });
-            } else if (isTeacher && teacherId) {
-                // Giáo viên xem lịch dạy của mình
-                validClasses = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
-            }
-
-            buildGrid(validClasses);
-        } catch (err) {
-            console.error('Lỗi tải thời khóa biểu:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const buildGrid = (classes) => {
-        // Khởi tạo lưới rỗng
-        const newGrid = {
-            'Sáng': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] },
-            'Chiều': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] },
-            'Tối': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] }
-        };
-
-        classes.forEach(cls => {
-            const schedStr = (cls.schedule || '').toLowerCase();
-            if (!schedStr) return;
-
-            // Bóc tách Thứ
-            let dayKey = '';
-            if (schedStr.includes('chủ nhật') || schedStr.includes('cn')) dayKey = 'CN';
-            else {
-                const dayMatch = schedStr.match(/thứ\s*(\d+)/) || schedStr.match(/t(\d+)/);
-                if (dayMatch) dayKey = dayMatch[1];
-            }
-
-            // Bóc tách Buổi
-            let shiftKey = '';
-            if (schedStr.includes('sáng') || schedStr.match(/tiết\s*[1-4]/)) shiftKey = 'Sáng';
-            else if (schedStr.includes('chiều') || schedStr.match(/tiết\s*[5-8]/)) shiftKey = 'Chiều';
-            else if (schedStr.includes('tối') || schedStr.match(/tiết\s*(9|10|11|12)/)) shiftKey = 'Tối';
-
-            // Nếu lấy được đủ Thứ và Buổi, ném vào ô tương ứng trên lưới
-            if (dayKey && shiftKey && newGrid[shiftKey][dayKey]) {
-                newGrid[shiftKey][dayKey].push(cls);
-            }
-        });
-
-        setScheduleGrid(newGrid);
-    };
-
-    const daysList = ['2', '3', '4', '5', '6', '7', 'CN'];
-    const shiftsList = [
-        { key: 'Sáng', label: 'Buổi Sáng', time: '(Tiết 1-4)' },
-        { key: 'Chiều', label: 'Buổi Chiều', time: '(Tiết 5-8)' },
-        { key: 'Tối', label: 'Buổi Tối', time: '(Tiết 9-12)' }
-    ];
-
-    return (
-        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
-            <div style={{ marginBottom: '20px' }}>
-                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>
-                    {isTeacher ? '👨‍🏫 LỊCH GIẢNG DẠY CÁ NHÂN' : '🎓 THỜI KHÓA BIỂU HỌC TẬP'}
-                </h2>
-                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
-                    {isTeacher
-                        ? 'Lịch hiển thị các lớp học phần bạn được phân công giảng dạy.'
-                        : 'Lưu ý: Thời khóa biểu chỉ hiển thị những môn học đã được Giảng viên phê duyệt đơn đăng ký.'}
-                </p>
-            </div>
-
-            {loading ? (
-                <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Đang xếp lịch...</p>
-            ) : (
-                <div style={{ overflowX: 'auto', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)', padding: '15px' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px', tableLayout: 'fixed' }}>
-                        <thead>
-                        <tr>
-                            <th style={{ ...thStyle, width: '10%' }}>Ca Học</th>
-                            {daysList.map(day => (
-                                <th key={day} style={{ ...thStyle, width: '12.8%' }}>
-                                    {day === 'CN' ? 'Chủ Nhật' : `Thứ ${day}`}
-                                </th>
-                            ))}
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {shiftsList.map(shift => (
-                            <tr key={shift.key}>
-                                {/* Cột tiêu đề Ca học */}
-                                <td style={{ ...tdShiftLabelStyle }}>
-                                    <div style={{ fontWeight: 'bold', color: 'var(--color-warning)' }}>{shift.label}</div>
-                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{shift.time}</div>
-                                </td>
-
-                                {/* Các cột Thứ trong tuần */}
-                                {daysList.map(day => {
-                                    const classesInSlot = scheduleGrid[shift.key][day];
-                                    return (
-                                        <td key={day} style={{ ...tdStyle, verticalAlign: 'top', backgroundColor: classesInSlot.length > 0 ? 'rgba(0, 188, 212, 0.05)' : 'transparent' }}>
-                                            {classesInSlot.length > 0 ? (
-                                                classesInSlot.map((cls, index) => (
-                                                    <div key={index} style={classCardStyle}>
-                                                        <div style={{ fontWeight: 'bold', color: 'var(--text-cyan)', marginBottom: '4px' }}>
-                                                            {cls.subjectName}
-                                                        </div>
-                                                        <div style={{ fontSize: '12px', marginBottom: '2px' }}>
-                                                            <span style={{ color: 'var(--text-muted)' }}>Mã HP:</span> {cls.code || cls.courseClassCode}
-                                                        </div>
-                                                        {isStudent && (
-                                                            <div style={{ fontSize: '12px', marginBottom: '2px' }}>
-                                                                <span style={{ color: 'var(--text-muted)' }}>GV:</span> {cls.teacherName || 'Chưa xếp'}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <div style={{ color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center', marginTop: '20px', opacity: 0.5 }}>
-                                                    Trống
-                                                </div>
-                                            )}
-                                        </td>
-                                    );
-                                })}
-                            </tr>
-                        ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
-        </div>
-    );
-}
-
-// ================= CSS CHO BẢNG LỊCH =================
-const thStyle = {
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'var(--color-surface-hover)',
-    color: 'var(--text-cyan)',
-    padding: '12px',
-    textAlign: 'center',
-    fontWeight: 'bold'
-};
-
-const tdShiftLabelStyle = {
-    border: '1px solid var(--color-border)',
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    padding: '15px',
-    textAlign: 'center',
-    verticalAlign: 'middle'
-};
-
-const tdStyle = {
-    border: '1px solid var(--color-border)',
-    padding: '10px',
-    height: '140px' // Đảm bảo các ô có độ cao đồng đều
-};
-
-const classCardStyle = {
-    backgroundColor: 'var(--color-bg)',
-    borderLeft: '4px solid var(--color-success)',
-    padding: '10px',
-    borderRadius: '4px',
-    marginBottom: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    wordWrap: 'break-word'
-};
-</file>
-
 <file path="student-management-ui/src/pages/TrainingPage.jsx">
 import React, { useState, useEffect } from 'react';
 import axiosClient from '../api/axiosClient';
@@ -3409,202 +3073,6 @@ public class GradeController {
 }
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/RegistrationController.java">
-package com.dangdepzaivaio.StudentManagement.controller;
-
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassStatResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
-import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
-import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
-import com.dangdepzaivaio.StudentManagement.entity.User;
-import com.dangdepzaivaio.StudentManagement.exception.AppException;
-import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
-import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
-import com.dangdepzaivaio.StudentManagement.mapper.StudentMapper;
-import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
-import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
-import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
-import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
-import com.dangdepzaivaio.StudentManagement.service.impl.RegistrationServiceImpl;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-
-@RestController
-@RequestMapping("/registration")
-@RequiredArgsConstructor
-public class RegistrationController {
-
-    private final RegistrationServiceImpl registrationService;
-    private final RegistrationPeriodRepository periodRepository;
-    private final CourseClassRepository courseClassRepository;
-    private final GradeRepository gradeRepository;
-    private final UserRepository userRepository;
-    private final CourseClassMapper courseClassMapper;
-    private final StudentMapper studentMapper;
-
-    @PostMapping("/periods")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<RegistrationPeriod> createPeriod(@RequestBody RegistrationPeriod period) {
-        period.setIsActive(true);
-        return new ApiResponse<>(1000, "Mo cong dang ky tin chi thanh cong", periodRepository.save(period));
-    }
-
-    @GetMapping("/periods")
-    // 🔥 ĐÃ SỬA: Cho phép cả Học sinh và Giáo viên gọi API này để xem lịch đóng/mở cổng công khai
-    @PreAuthorize("hasAnyRole('ADMIN', 'STUDENT', 'TEACHER')")
-    public ApiResponse<List<RegistrationPeriod>> getPeriods() {
-        return new ApiResponse<>(1000, "Lay danh sach cong dang ky thanh cong", periodRepository.findAll());
-    }
-
-    @PutMapping("/periods/{id}/open")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<RegistrationPeriod> openPeriod(@PathVariable Long id) {
-        RegistrationPeriod period = periodRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
-        period.setIsActive(true);
-        return new ApiResponse<>(1000, "Da mo cong dang ky", periodRepository.save(period));
-    }
-
-    @PutMapping("/periods/{id}/close")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<RegistrationPeriod> closePeriod(@PathVariable Long id) {
-        RegistrationPeriod period = periodRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
-        period.setIsActive(false);
-        return new ApiResponse<>(1000, "Da dong cong dang ky", periodRepository.save(period));
-    }
-
-    @GetMapping("/statistics")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<CourseClassStatResponse>> getStats() {
-        return new ApiResponse<>(1000, "Tai thong ke dang ky thanh cong", courseClassRepository.getRegistrationStatistics());
-    }
-
-    @PutMapping("/course-class/{id}/toggle")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<CourseClassResponse> toggleCourseClass(@PathVariable Long id) {
-        CourseClass courseClass = getCourseClass(id);
-        courseClass.setOpenForRegistration(!courseClass.isOpenForRegistration());
-        return new ApiResponse<>(1000, "Cap nhat trang thai lop hoc phan thanh cong",
-                toResponseWithCount(courseClassRepository.save(courseClass)));
-    }
-
-    @PutMapping("/course-class/{id}/open")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<CourseClassResponse> openCourseClass(@PathVariable Long id) {
-        CourseClass courseClass = getCourseClass(id);
-        courseClass.setOpenForRegistration(true);
-        return new ApiResponse<>(1000, "Da mo lop hoc phan cho dang ky",
-                toResponseWithCount(courseClassRepository.save(courseClass)));
-    }
-
-    @PutMapping("/course-class/{id}/close")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<CourseClassResponse> closeCourseClass(@PathVariable Long id) {
-        CourseClass courseClass = getCourseClass(id);
-        courseClass.setOpenForRegistration(false);
-        return new ApiResponse<>(1000, "Da dong lop hoc phan",
-                toResponseWithCount(courseClassRepository.save(courseClass)));
-    }
-
-    @GetMapping("/teacher/{teacherId}/classes")
-    @PreAuthorize("hasRole('TEACHER')")
-    public ApiResponse<List<CourseClassResponse>> getTeacherClasses(@PathVariable String teacherId) {
-        assertTeacherSelf(teacherId);
-        List<CourseClassResponse> list = courseClassRepository.findByTeacherId(teacherId).stream()
-                .map(this::toResponseWithCount)
-                .toList();
-        return new ApiResponse<>(1000, "Tai lich giang day thanh cong", list);
-    }
-
-    @GetMapping("/classes/{classId}/students")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
-    public ApiResponse<List<StudentResponse>> getStudentsInCourseClass(@PathVariable Long classId) {
-        assertTeacherAssignedIfNeeded(classId);
-        List<StudentResponse> list = gradeRepository.findByCourseClassId(classId).stream()
-                .map(g -> studentMapper.toResponse(g.getStudent()))
-                .toList();
-        return new ApiResponse<>(1000, "Tai danh sach sinh vien lop hoc phan thanh cong", list);
-    }
-
-    @GetMapping("/open-course-classes")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ApiResponse<List<CourseClassResponse>> getOpenCourseClasses() {
-        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan dang mo thanh cong",
-                registrationService.getOpenCourseClasses());
-    }
-
-    @GetMapping("/my-classes")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ApiResponse<List<GradeResponse>> getMyRegisteredClasses() {
-        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan da dang ky thanh cong",
-                registrationService.getCurrentStudentRegistrations());
-    }
-
-    @PostMapping("/enroll")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ApiResponse<String> enroll(@RequestParam Long courseClassId) {
-        registrationService.registerCourseClass(courseClassId);
-        return new ApiResponse<>(1000, "Dang ky lop hoc phan thanh cong", "OK");
-    }
-
-    @DeleteMapping("/unenroll")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ApiResponse<String> unenroll(@RequestParam Long courseClassId) {
-        registrationService.cancelRegistration(courseClassId);
-        return new ApiResponse<>(1000, "Huy dang ky lop hoc phan thanh cong", "OK");
-    }
-
-    private CourseClass getCourseClass(Long id) {
-        return courseClassRepository.findByIdWithSubjectAndTeacher(id)
-                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
-    }
-
-    private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
-        courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
-        return courseClassMapper.toResponse(courseClass);
-    }
-
-    private void assertTeacherSelf(String teacherId) {
-        User user = currentUser();
-        if (!user.getId().equals(teacherId)) {
-            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
-        }
-    }
-
-    private void assertTeacherAssignedIfNeeded(Long courseClassId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        boolean isTeacher = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_TEACHER"));
-        if (!isTeacher) {
-            return;
-        }
-
-        CourseClass courseClass = getCourseClass(courseClassId);
-        String email = authentication.getName();
-        if (courseClass.getTeacher() == null
-                || courseClass.getTeacher().getUser() == null
-                || !email.equalsIgnoreCase(courseClass.getTeacher().getUser().getEmail())) {
-            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
-        }
-    }
-
-    private User currentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
-    }
-}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/SubjectController.java">
 package com.dangdepzaivaio.StudentManagement.controller;
 
@@ -3833,58 +3301,6 @@ public record UserResponse(
         boolean active,
         Set<String> roles
 ) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Grade.java">
-package com.dangdepzaivaio.StudentManagement.entity;
-
-import jakarta.persistence.*;
-import lombok.*;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Entity
-@Table(name = "grades", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"student_id", "course_class_id"}) // Một SV chỉ có 1 dòng điểm trong 1 lớp học phần
-})
-public class Grade extends BaseEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    // Nhiều dòng điểm thuộc về một Sinh viên
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "student_id", nullable = false)
-    private Student student;
-
-    // Nhiều dòng điểm thuộc về một Lớp học phần
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "course_class_id", nullable = false)
-    private CourseClass courseClass;
-
-    @Column(name = "attendance_grade")
-    private Double attendanceGrade; // Điểm chuyên cần
-
-    @Column(name = "midterm_grade")
-    private Double midtermGrade; // Điểm giữa kỳ
-
-    @Column(name = "final_grade")
-    private Double finalGrade; // Điểm cuối kỳ
-
-    @Column(name = "overall_grade")
-    private Double overallGrade; // Điểm tổng kết hệ 10
-
-    @Column(name = "letter_grade", length = 5)
-    private String letterGrade; // Điểm chữ (A, B+, B, C...)
-
-    // BỔ SUNG THÊM DÒNG NÀY
-    @Column(name = "grade_4")
-    private Double grade4; // Điểm số hệ 4 (Ví dụ: 3.5, 4.0)
-}
 </file>
 
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/RegistrationPeriod.java">
@@ -4346,6 +3762,158 @@ public class ClassServiceImpl implements ClassService {
 }
 </file>
 
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/RegistrationServiceImpl.java">
+package com.dangdepzaivaio.StudentManagement.service.impl;
+
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
+import com.dangdepzaivaio.StudentManagement.entity.Grade;
+import com.dangdepzaivaio.StudentManagement.entity.Student;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
+import com.dangdepzaivaio.StudentManagement.mapper.GradeMapper;
+import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
+import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
+import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
+import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class RegistrationServiceImpl {
+
+    private final RegistrationPeriodRepository periodRepository;
+    private final CourseClassRepository courseClassRepository;
+    private final StudentRepository studentRepository;
+    private final UserRepository userRepository;
+    private final GradeRepository gradeRepository;
+    private final CourseClassMapper courseClassMapper;
+    private final GradeMapper gradeMapper;
+
+    @Transactional
+    public void registerCourseClass(Long courseClassId) {
+        Student student = getCurrentStudent();
+        CourseClass courseClass = getCourseClass(courseClassId);
+
+        assertRegistrationOpen(courseClass);
+
+        if (gradeRepository.existsByStudentIdAndCourseClassId(student.getId(), courseClassId)) {
+            throw new AppException(ErrorCode.GRADE_EXISTED);
+        }
+
+        long registered = gradeRepository.countByCourseClassId(courseClassId);
+        int maxStudents = courseClass.getMaxStudents() == null ? 60 : courseClass.getMaxStudents();
+        if (registered >= maxStudents) {
+            throw new AppException(ErrorCode.COURSE_CLASS_FULL);
+        }
+
+        Grade enrollment = Grade.builder()
+                .student(student)
+                .courseClass(courseClass)
+                .status("PENDING")
+                .build();
+
+        gradeRepository.save(enrollment);
+    }
+
+    @Transactional
+    public void cancelRegistration(Long courseClassId) {
+        Student student = getCurrentStudent();
+        CourseClass courseClass = getCourseClass(courseClassId);
+
+        assertRegistrationOpen(courseClass);
+
+        Grade grade = gradeRepository.findByStudentIdAndCourseClassId(student.getId(), courseClassId)
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_ENROLLED));
+
+        if (hasAnyGradeValue(grade)) {
+            throw new AppException(ErrorCode.GRADE_ALREADY_ENTERED);
+        }
+
+        gradeRepository.delete(grade);
+    }
+
+    // ================= MỚI THÊM: HÀM XỬ LÝ DUYỆT ĐƠN =================
+    @Transactional
+    public void toggleApproveStatus(Long courseClassId, String studentId) {
+        // Tìm đơn đăng ký của sinh viên
+        Grade grade = gradeRepository.findByStudentIdAndCourseClassId(studentId, courseClassId)
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_ENROLLED));
+
+        if ("APPROVED".equalsIgnoreCase(grade.getStatus())) {
+            // NẾU GIÁO VIÊN BẤM HỦY DUYỆT -> XÓA LUÔN ĐƠN KHỎI DATABASE
+            gradeRepository.delete(grade);
+        } else {
+            // NẾU GIÁO VIÊN BẤM DUYỆT -> LƯU TRẠNG THÁI APPROVED
+            grade.setStatus("APPROVED");
+            gradeRepository.save(grade);
+        }
+    }
+
+    public List<CourseClassResponse> getOpenCourseClasses() {
+        LocalDateTime now = LocalDateTime.now();
+        return courseClassRepository.findByOpenForRegistrationTrue().stream()
+                .filter(courseClass -> periodRepository.findActivePeriod(courseClass.getSemester(), now).isPresent())
+                .map(this::toResponseWithCount)
+                .toList();
+    }
+
+    public List<GradeResponse> getCurrentStudentRegistrations() {
+        Student student = getCurrentStudent();
+        return gradeRepository.findByStudentId(student.getId()).stream()
+                .map(gradeMapper::toResponse)
+                .toList();
+    }
+
+    private CourseClass getCourseClass(Long courseClassId) {
+        return courseClassRepository.findByIdWithSubjectAndTeacher(courseClassId)
+                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
+    }
+
+    private void assertRegistrationOpen(CourseClass courseClass) {
+        if (!courseClass.isOpenForRegistration()) {
+            throw new AppException(ErrorCode.COURSE_CLASS_CLOSED);
+        }
+
+        periodRepository.findActivePeriod(courseClass.getSemester(), LocalDateTime.now())
+                .orElseThrow(() -> new AppException(ErrorCode.REGISTRATION_PERIOD_CLOSED));
+    }
+
+    private Student getCurrentStudent() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+
+        return studentRepository.findByIdWithJoinFetch(user.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
+    }
+
+    private boolean hasAnyGradeValue(Grade grade) {
+        return grade.getAttendanceGrade() != null
+                || grade.getMidtermGrade() != null
+                || grade.getFinalGrade() != null
+                || grade.getOverallGrade() != null
+                || grade.getLetterGrade() != null
+                || grade.getGrade4() != null;
+    }
+
+    private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
+        courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
+        return courseClassMapper.toResponse(courseClass);
+    }
+}
+</file>
+
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/impl/TeacherServiceImpl.java">
 package com.dangdepzaivaio.StudentManagement.service.impl;
 
@@ -4516,253 +4084,206 @@ Markdown
 - [x] Dọn dẹp môi trường, tối ưu MapStruct ánh xạ phẳng và dập tắt hoàn toàn log Hibernate SQ
 </file>
 
-<file path="student-management-ui/src/pages/LoginPage.jsx">
-import React, { useState } from 'react';
+<file path="student-management-ui/src/pages/SchedulePage.jsx">
+import React, { useState, useEffect } from 'react';
 import axiosClient from '../api/axiosClient';
 
-function LoginPage() {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
+export default function SchedulePage() {
+    const role = localStorage.getItem('roles') || '';
+    const loggedInStudentId = localStorage.getItem('studentId') || '';
+    const teacherId = localStorage.getItem('teacherId') || '';
 
-    const [showPassword, setShowPassword] = useState(false);
-    const [showNewPassword, setShowNewPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const isStudent = role.includes('STUDENT');
+    const isTeacher = role.includes('TEACHER');
 
-    const [isFirstLoginMode, setIsFirstLoginMode] = useState(false);
-    const [tempAuthData, setTempAuthData] = useState(null);
-
-    const [showDropdown, setShowDropdown] = useState(false);
-    const [hoveredAcc, setHoveredAcc] = useState('');
-
-    const [savedAccounts, setSavedAccounts] = useState(() => {
-        try {
-            const saved = localStorage.getItem('savedAccounts');
-            return saved ? JSON.parse(saved) : [];
-        } catch { return []; }
+    const [loading, setLoading] = useState(false);
+    const [scheduleGrid, setScheduleGrid] = useState({
+        'Sáng': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] },
+        'Chiều': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] },
+        'Tối': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] }
     });
 
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    useEffect(() => {
+        loadScheduleData();
+    }, [role]);
 
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        setError('');
+    const loadScheduleData = async () => {
         setLoading(true);
-
         try {
-            const data = await axiosClient.post('/auth/login', { username, password });
+            let validClasses = [];
 
-            if (data.firstLogin === true || data.isFirstLogin === true) {
-                setIsFirstLoginMode(true);
-                setTempAuthData(data);
-                alert("Hệ thống phát hiện đây là lần đầu bạn đăng nhập. Bạn bắt buộc phải đổi mật khẩu để bảo mật tài khoản!");
-            } else {
-                processSuccessfulLogin(data);
+            if (isStudent) {
+                const myClasses = await axiosClient.get(`/registration/my-classes?_t=${Date.now()}`);
+                // 🔥 SỬA 1: Bỏ localStorage, lọc lịch dựa vào trạng thái APPROVED từ Backend trả về
+                validClasses = myClasses.filter(reg => reg.status === 'APPROVED');
+            } else if (isTeacher && teacherId) {
+                validClasses = await axiosClient.get(`/registration/teacher/${teacherId}/classes?_t=${Date.now()}`)
             }
+
+            buildGrid(validClasses);
         } catch (err) {
-            setError(err || 'Email hoặc mật khẩu không chính xác!');
+            console.error('Lỗi tải thời khóa biểu:', err);
         } finally {
             setLoading(false);
         }
     };
 
-    // 🔥 HÀM ĐÃ SỬA LỖI LƯU DỮ LIỆU: Đọc/Ghi trực tiếp từ nguồn LocalStorage loại bỏ Stale Closure
-    const processSuccessfulLogin = (data) => {
-        const saved = localStorage.getItem('savedAccounts');
-        let accounts = saved ? JSON.parse(saved) : [];
+    const buildGrid = (classes) => {
+        // Khởi tạo lưới rỗng
+        const newGrid = {
+            'Sáng': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] },
+            'Chiều': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] },
+            'Tối': { '2': [], '3': [], '4': [], '5': [], '6': [], '7': [], 'CN': [] }
+        };
 
-        // Chuẩn hóa chuỗi Email lấy trực tiếp từ ô Input vừa nhập thành công
-        const emailToSave = username.trim().toLowerCase();
+        classes.forEach(cls => {
+            const fullSchedule = (cls.schedule || '').toLowerCase();
+            if (!fullSchedule) return;
 
-        if (emailToSave && !accounts.includes(emailToSave)) {
-            accounts.push(emailToSave);
-            localStorage.setItem('savedAccounts', JSON.stringify(accounts));
-            setSavedAccounts(accounts);
-        }
+            // 🔥 SỬA 2: Tách chuỗi theo dấu "|" để rải đều các ca học ra các ô tương ứng
+            const sessions = fullSchedule.split('|');
 
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('username', data.username);
-        localStorage.setItem('roles', data.roles);
-        localStorage.setItem('userId', data.userId);
+            sessions.forEach(sessionStr => {
+                // Bóc tách Thứ cho ca này
+                let dayKey = '';
+                if (sessionStr.includes('chủ nhật') || sessionStr.includes('cn')) dayKey = 'CN';
+                else {
+                    const dayMatch = sessionStr.match(/thứ\s*(\d+)/) || sessionStr.match(/t(\d+)/);
+                    if (dayMatch) dayKey = dayMatch[1];
+                }
 
-        if (data.studentId) localStorage.setItem('studentId', data.studentId);
-        if (data.teacherId) localStorage.setItem('teacherId', data.teacherId);
+                // Bóc tách Buổi cho ca này
+                let shiftKey = '';
+                if (sessionStr.includes('sáng') || sessionStr.match(/tiết\s*[1-4]/)) shiftKey = 'Sáng';
+                else if (sessionStr.includes('chiều') || sessionStr.match(/tiết\s*[5-8]/)) shiftKey = 'Chiều';
+                else if (sessionStr.includes('tối') || sessionStr.match(/tiết\s*(9|10|11|12)/)) shiftKey = 'Tối';
 
-        window.location.href = '/';
+                // Ném vào ô tương ứng trên lưới
+                if (dayKey && shiftKey && newGrid[shiftKey][dayKey]) {
+                    newGrid[shiftKey][dayKey].push(cls);
+                }
+            });
+        });
+
+        setScheduleGrid(newGrid);
     };
 
-    const handleChangePassword = async (e) => {
-        e.preventDefault();
-        setError('');
-
-        if (newPassword.length < 6) {
-            setError('Mật khẩu mới phải từ 6 ký tự trở lên!');
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            setError('Mật khẩu xác nhận không trùng khớp!');
-            return;
-        }
-
-        try {
-            setLoading(true);
-            await axiosClient.post('/auth/change-password', { username, newPassword });
-            alert('Đổi mật khẩu thành công mượt mà! Hệ thống sẽ tự động đăng nhập cho bạn.');
-
-            if (tempAuthData) {
-                processSuccessfulLogin(tempAuthData);
-            }
-        } catch (err) {
-            setError(err || 'Có lỗi phát sinh khi đổi mật khẩu. Vui lòng thử lại!');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleRemoveSavedAccount = (accToRemove) => {
-        const newAccounts = savedAccounts.filter(acc => acc !== accToRemove);
-        setSavedAccounts(newAccounts);
-        localStorage.setItem('savedAccounts', JSON.stringify(newAccounts));
-        if (username === accToRemove) setUsername('');
-    };
-
-    const filteredAccounts = savedAccounts.filter(acc => acc.toLowerCase().includes(username.toLowerCase()));
+    const daysList = ['2', '3', '4', '5', '6', '7', 'CN'];
+    const shiftsList = [
+        { key: 'Sáng', label: 'Buổi Sáng', time: '(Tiết 1-4)' },
+        { key: 'Chiều', label: 'Buổi Chiều', time: '(Tiết 5-8)' },
+        { key: 'Tối', label: 'Buổi Tối', time: '(Tiết 9-12)' }
+    ];
 
     return (
-        <div style={{ maxWidth: '400px', margin: '100px auto', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--text-main)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
+        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
+            <div style={{ marginBottom: '20px' }}>
+                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>
+                    {isTeacher ? '👨‍🏫 LỊCH GIẢNG DẠY CÁ NHÂN' : '🎓 THỜI KHÓA BIỂU HỌC TẬP'}
+                </h2>
+                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+                    {isTeacher
+                        ? 'Lịch hiển thị các lớp học phần bạn được phân công giảng dạy.'
+                        : 'Lưu ý: Thời khóa biểu chỉ hiển thị những môn học đã được Giảng viên phê duyệt đơn đăng ký.'}
+                </p>
+            </div>
 
-            {isFirstLoginMode ? (
-                <form onSubmit={handleChangePassword}>
-                    <h2 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)', color: 'var(--color-warning)' }}>🔒 ĐỔI MẬT KHẨU LẦN ĐẦU</h2>
-                    {error && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>{error}</div>}
-
-                    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                        <label style={{ display: 'block', marginBottom: '4px' }}>Mật khẩu mới:</label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                type={showNewPassword ? "text" : "password"}
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                required
-                                style={inputStyle}
-                            />
-                            <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} style={eyeButtonStyle}>
-                                {showNewPassword ? '👁️' : '🙈'}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                        <label style={{ display: 'block', marginBottom: '4px' }}>Xác nhận mật khẩu mới:</label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                type={showConfirmPassword ? "text" : "password"}
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                required
-                                style={inputStyle}
-                            />
-                            <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={eyeButtonStyle}>
-                                {showConfirmPassword ? '👁️' : '🙈'}
-                            </button>
-                        </div>
-                    </div>
-
-                    <button type="submit" disabled={loading} style={buttonStyle}>
-                        {loading ? 'Đang xử lý...' : 'Xác Nhận & Đăng Nhập'}
-                    </button>
-                </form>
+            {loading ? (
+                <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Đang xếp lịch...</p>
             ) : (
-                <form onSubmit={handleLogin}>
-                    <h2 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)', color: 'var(--text-cyan)' }}>ĐĂNG NHẬP HỆ THỐNG</h2>
-                    {error && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>{error}</div>}
+                <div style={{ overflowX: 'auto', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)', padding: '15px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px', tableLayout: 'fixed' }}>
+                        <thead>
+                        <tr>
+                            <th style={{ ...thStyle, width: '10%' }}>Ca Học</th>
+                            {daysList.map(day => (
+                                <th key={day} style={{ ...thStyle, width: '12.8%' }}>
+                                    {day === 'CN' ? 'Chủ Nhật' : `Thứ ${day}`}
+                                </th>
+                            ))}
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {shiftsList.map(shift => (
+                            <tr key={shift.key}>
+                                {/* Cột tiêu đề Ca học */}
+                                <td style={{ ...tdShiftLabelStyle }}>
+                                    <div style={{ fontWeight: 'bold', color: 'var(--color-warning)' }}>{shift.label}</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{shift.time}</div>
+                                </td>
 
-                    {/* CLICK TEXT TỰ ĐỘNG SỔ DROPDOWN */}
-                    <div style={{ marginBottom: 'var(--spacing-lg)', position: 'relative' }}>
-                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Email đăng nhập (@open.edu.vn):</label>
-                        <input
-                            type="text"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            onFocus={() => setShowDropdown(true)}
-                            onClick={() => setShowDropdown(true)}
-                            onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-                            autoComplete="off"
-                            required
-                            style={inputStyleForUsername}
-                        />
-
-                        {showDropdown && (
-                            <div style={dropdownPanelStyle}>
-                                {filteredAccounts.length > 0 ? (
-                                    filteredAccounts.map(acc => (
-                                        <div
-                                            key={acc}
-                                            onClick={() => { setUsername(acc); setShowDropdown(false); }}
-                                            onMouseEnter={() => setHoveredAcc(acc)}
-                                            onMouseLeave={() => setHoveredAcc('')}
-                                            style={{
-                                                ...dropdownItemStyle,
-                                                backgroundColor: hoveredAcc === acc ? 'var(--color-surface-hover)' : 'transparent',
-                                            }}
-                                        >
-                                            <span style={{ flex: 1, color: hoveredAcc === acc ? 'var(--text-cyan)' : 'var(--text-main)' }}>👤 {acc}</span>
-                                            <span
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleRemoveSavedAccount(acc);
-                                                }}
-                                                style={{ color: 'var(--color-danger)', fontWeight: 'bold', padding: '0 8px', fontSize: '15px' }}
-                                                title="Xóa tài khoản này khỏi bộ nhớ"
-                                            >
-                                                &times;
-                                            </span>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div style={{ padding: '12px', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', fontStyle: 'italic' }}>
-                                        {savedAccounts.length === 0 ? 'Chưa có lịch sử đăng nhập nào.' : 'Không tìm thấy tài khoản phù hợp.'}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Mật khẩu:</label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                type={showPassword ? "text" : "password"}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                style={inputStyle}
-                            />
-                            <button type="button" onClick={() => setShowPassword(!showPassword)} style={eyeButtonStyle}>
-                                {showPassword ? '👁️' : '🙈'}
-                            </button>
-                        </div>
-                    </div>
-
-                    <button type="submit" disabled={loading} style={buttonStyle}>
-                        {loading ? 'Đang xác thực...' : 'Đăng Nhập'}
-                    </button>
-                </form>
+                                {/* Các cột Thứ trong tuần */}
+                                {daysList.map(day => {
+                                    const classesInSlot = scheduleGrid[shift.key][day];
+                                    return (
+                                        <td key={day} style={{ ...tdStyle, verticalAlign: 'top', backgroundColor: classesInSlot.length > 0 ? 'rgba(0, 188, 212, 0.05)' : 'transparent' }}>
+                                            {classesInSlot.length > 0 ? (
+                                                classesInSlot.map((cls, index) => (
+                                                    <div key={index} style={classCardStyle}>
+                                                        <div style={{ fontWeight: 'bold', color: 'var(--text-cyan)', marginBottom: '4px' }}>
+                                                            {cls.subjectName}
+                                                        </div>
+                                                        <div style={{ fontSize: '12px', marginBottom: '2px' }}>
+                                                            <span style={{ color: 'var(--text-muted)' }}>Mã HP:</span> {cls.code || cls.courseClassCode}
+                                                        </div>
+                                                        {isStudent && (
+                                                            <div style={{ fontSize: '12px', marginBottom: '2px' }}>
+                                                                <span style={{ color: 'var(--text-muted)' }}>GV:</span> {cls.teacherName || 'Chưa xếp'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div style={{ color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center', marginTop: '20px', opacity: 0.5 }}>
+                                                    Trống
+                                                </div>
+                                            )}
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
             )}
         </div>
     );
 }
 
-const dropdownPanelStyle = { position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '4px', zIndex: 99, maxHeight: '160px', overflowY: 'auto', boxShadow: '0 8px 16px rgba(0,0,0,0.4)', marginTop: '4px' };
-const dropdownItemStyle = { padding: '10px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border)', transition: 'all 0.1s ease' };
-const inputStyle = { width: '100%', padding: '10px 12px', paddingRight: '40px', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
-const inputStyleForUsername = { width: '100%', padding: '10px 12px', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
-const eyeButtonStyle = { position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', padding: 0, userSelect: 'none' };
-const buttonStyle = { width: '100%', padding: '12px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
+// ================= CSS CHO BẢNG LỊCH =================
+const thStyle = {
+    border: '1px solid var(--color-border)',
+    backgroundColor: 'var(--color-surface-hover)',
+    color: 'var(--text-cyan)',
+    padding: '12px',
+    textAlign: 'center',
+    fontWeight: 'bold'
+};
 
-export default LoginPage;
+const tdShiftLabelStyle = {
+    border: '1px solid var(--color-border)',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    padding: '15px',
+    textAlign: 'center',
+    verticalAlign: 'middle'
+};
+
+const tdStyle = {
+    border: '1px solid var(--color-border)',
+    padding: '10px',
+    height: '140px'
+};
+
+const classCardStyle = {
+    backgroundColor: 'var(--color-bg)',
+    borderLeft: '4px solid var(--color-success)',
+    padding: '10px',
+    borderRadius: '4px',
+    marginBottom: '8px',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    wordWrap: 'break-word'
+};
 </file>
 
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/configuration/DatabaseInitializer.java">
@@ -4827,6 +4348,218 @@ public class DatabaseInitializer {
                         "Xem xét tắt tính năng này sau khi deploy production.", resetCount);
             }
         };
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/RegistrationController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.CourseClassStatResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
+import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
+import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.exception.AppException;
+import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
+import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
+import com.dangdepzaivaio.StudentManagement.mapper.StudentMapper;
+import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
+import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
+import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import com.dangdepzaivaio.StudentManagement.service.impl.RegistrationServiceImpl;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/registration")
+@RequiredArgsConstructor
+public class RegistrationController {
+
+    private final RegistrationServiceImpl registrationService;
+    private final RegistrationPeriodRepository periodRepository;
+    private final CourseClassRepository courseClassRepository;
+    private final GradeRepository gradeRepository;
+    private final UserRepository userRepository;
+    private final CourseClassMapper courseClassMapper;
+    private final StudentMapper studentMapper;
+
+    @PostMapping("/periods")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<RegistrationPeriod> createPeriod(@RequestBody RegistrationPeriod period) {
+        period.setIsActive(true);
+        return new ApiResponse<>(1000, "Mo cong dang ky tin chi thanh cong", periodRepository.save(period));
+    }
+
+    @GetMapping("/periods")
+    // 🔥 ĐÃ SỬA: Cho phép cả Học sinh và Giáo viên gọi API này để xem lịch đóng/mở cổng công khai
+    @PreAuthorize("hasAnyRole('ADMIN', 'STUDENT', 'TEACHER')")
+    public ApiResponse<List<RegistrationPeriod>> getPeriods() {
+        return new ApiResponse<>(1000, "Lay danh sach cong dang ky thanh cong", periodRepository.findAll());
+    }
+
+    @PutMapping("/periods/{id}/open")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<RegistrationPeriod> openPeriod(@PathVariable Long id) {
+        RegistrationPeriod period = periodRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
+        period.setIsActive(true);
+        return new ApiResponse<>(1000, "Da mo cong dang ky", periodRepository.save(period));
+    }
+
+    @PutMapping("/periods/{id}/close")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<RegistrationPeriod> closePeriod(@PathVariable Long id) {
+        RegistrationPeriod period = periodRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
+        period.setIsActive(false);
+        return new ApiResponse<>(1000, "Da dong cong dang ky", periodRepository.save(period));
+    }
+
+    @GetMapping("/statistics")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<List<CourseClassStatResponse>> getStats() {
+        return new ApiResponse<>(1000, "Tai thong ke dang ky thanh cong", courseClassRepository.getRegistrationStatistics());
+    }
+
+    @PutMapping("/course-class/{id}/toggle")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<CourseClassResponse> toggleCourseClass(@PathVariable Long id) {
+        CourseClass courseClass = getCourseClass(id);
+        courseClass.setOpenForRegistration(!courseClass.isOpenForRegistration());
+        return new ApiResponse<>(1000, "Cap nhat trang thai lop hoc phan thanh cong",
+                toResponseWithCount(courseClassRepository.save(courseClass)));
+    }
+
+    @PutMapping("/course-class/{id}/open")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<CourseClassResponse> openCourseClass(@PathVariable Long id) {
+        CourseClass courseClass = getCourseClass(id);
+        courseClass.setOpenForRegistration(true);
+        return new ApiResponse<>(1000, "Da mo lop hoc phan cho dang ky",
+                toResponseWithCount(courseClassRepository.save(courseClass)));
+    }
+
+    @PutMapping("/course-class/{id}/close")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<CourseClassResponse> closeCourseClass(@PathVariable Long id) {
+        CourseClass courseClass = getCourseClass(id);
+        courseClass.setOpenForRegistration(false);
+        return new ApiResponse<>(1000, "Da dong lop hoc phan",
+                toResponseWithCount(courseClassRepository.save(courseClass)));
+    }
+
+    @GetMapping("/teacher/{teacherId}/classes")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ApiResponse<List<CourseClassResponse>> getTeacherClasses(@PathVariable String teacherId) {
+        assertTeacherSelf(teacherId);
+        List<CourseClassResponse> list = courseClassRepository.findByTeacherId(teacherId).stream()
+                .map(this::toResponseWithCount)
+                .toList();
+        return new ApiResponse<>(1000, "Tai lich giang day thanh cong", list);
+    }
+
+    @GetMapping("/classes/{classId}/students")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public ApiResponse<List<StudentResponse>> getStudentsInCourseClass(@PathVariable Long classId) {
+        assertTeacherAssignedIfNeeded(classId);
+        List<StudentResponse> list = gradeRepository.findByCourseClassId(classId).stream()
+                .map(g -> studentMapper.toResponse(g.getStudent()))
+                .toList();
+        return new ApiResponse<>(1000, "Tai danh sach sinh vien lop hoc phan thanh cong", list);
+    }
+
+    @GetMapping("/open-course-classes")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<List<CourseClassResponse>> getOpenCourseClasses() {
+        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan dang mo thanh cong",
+                registrationService.getOpenCourseClasses());
+    }
+
+    @GetMapping("/my-classes")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<List<GradeResponse>> getMyRegisteredClasses() {
+        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan da dang ky thanh cong",
+                registrationService.getCurrentStudentRegistrations());
+    }
+
+    @PostMapping("/enroll")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<String> enroll(@RequestParam Long courseClassId) {
+        registrationService.registerCourseClass(courseClassId);
+        return new ApiResponse<>(1000, "Dang ky lop hoc phan thanh cong", "OK");
+    }
+
+    @DeleteMapping("/unenroll")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<String> unenroll(@RequestParam Long courseClassId) {
+        registrationService.cancelRegistration(courseClassId);
+        return new ApiResponse<>(1000, "Huy dang ky lop hoc phan thanh cong", "OK");
+    }
+
+    private CourseClass getCourseClass(Long id) {
+        return courseClassRepository.findByIdWithSubjectAndTeacher(id)
+                .orElseThrow(() -> new AppException(ErrorCode.COURSE_CLASS_NOT_FOUND));
+    }
+
+    private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
+        courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
+        return courseClassMapper.toResponse(courseClass);
+    }
+
+    private void assertTeacherSelf(String teacherId) {
+        User user = currentUser();
+        if (!user.getId().equals(teacherId)) {
+            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
+        }
+    }
+
+    private void assertTeacherAssignedIfNeeded(Long courseClassId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isTeacher = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_TEACHER"));
+        if (!isTeacher) {
+            return;
+        }
+
+        CourseClass courseClass = getCourseClass(courseClassId);
+        String email = authentication.getName();
+        if (courseClass.getTeacher() == null
+                || courseClass.getTeacher().getUser() == null
+                || !email.equalsIgnoreCase(courseClass.getTeacher().getUser().getEmail())) {
+            throw new AppException(ErrorCode.TEACHER_NOT_ASSIGNED_TO_CLASS);
+        }
+    }
+
+    private User currentUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+    }
+
+    // ================== THÊM MỚI API DUYỆT ĐƠN ==================
+    @PutMapping("/classes/{classId}/students/{studentId}/toggle-approve")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    public ApiResponse<String> toggleApproveStudent(
+            @PathVariable Long classId,
+            @PathVariable String studentId) { // Nhận chuẩn chuỗi "HS_01" từ Frontend
+
+        // 1. Kiểm tra xem giảng viên đang thao tác có đúng là người dạy lớp này không
+        assertTeacherAssignedIfNeeded(classId);
+
+        // 2. Gọi Service để xử lý logic lưu trạng thái duyệt vào Database
+        registrationService.toggleApproveStatus(classId, studentId);
+
+        return new ApiResponse<>(1000, "Cập nhật trạng thái duyệt đơn thành công", "OK");
     }
 }
 </file>
@@ -4906,54 +4639,6 @@ public record AuthenticationResponse(
 ) {}
 </file>
 
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/GradeResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-public record GradeResponse(
-        Long id,
-        String studentId,
-        String studentCode,
-        String studentName,
-        Long courseClassId,
-        String courseClassCode,
-        String subjectName,
-        Integer credits,       // 🔥 THÊM MỚI: Số tín chỉ môn học
-        String teacherName,    // 🔥 THÊM MỚI: Tên giảng viên đứng lớp
-        String schedule,       // 🔥 THÊM MỚI: Lịch học thiết kế (Thứ, Tiết, Phòng)
-        Double attendanceGrade,
-        Double midtermGrade,
-        Double finalGrade,
-        Double overallGrade,
-        String letterGrade,
-        Double grade4
-) {}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentResponse.java">
-package com.dangdepzaivaio.StudentManagement.dto.response;
-
-import java.time.LocalDate;
-
-public record StudentResponse(
-        String id,
-        String studentCode,
-        String firstName,
-        String lastName,
-        LocalDate dateOfBirth,
-        String gender,
-        String phoneNumber,
-        boolean active,
-        String username,
-        String email,
-        Long classId,
-        String className,
-
-        // 🔥 THÊM MỚI: Trường dữ liệu phản hồi khóa học từ Database thật ra ngoài UI
-        String cohort,
-        String departmentName
-) {}
-</file>
-
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/CourseClass.java">
 package com.dangdepzaivaio.StudentManagement.entity;
 
@@ -5000,6 +4685,61 @@ public class CourseClass extends BaseEntity {
 
     @Transient
     private long registeredStudents;
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/entity/Grade.java">
+package com.dangdepzaivaio.StudentManagement.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = "grades", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"student_id", "course_class_id"}) // Một SV chỉ có 1 dòng điểm trong 1 lớp học phần
+})
+public class Grade extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // Nhiều dòng điểm thuộc về một Sinh viên
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "student_id", nullable = false)
+    private Student student;
+
+    // Nhiều dòng điểm thuộc về một Lớp học phần
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_class_id", nullable = false)
+    private CourseClass courseClass;
+
+    @Column(name = "attendance_grade")
+    private Double attendanceGrade; // Điểm chuyên cần
+
+    @Column(name = "midterm_grade")
+    private Double midtermGrade; // Điểm giữa kỳ
+
+    @Column(name = "final_grade")
+    private Double finalGrade; // Điểm cuối kỳ
+
+    @Column(name = "overall_grade")
+    private Double overallGrade; // Điểm tổng kết hệ 10
+
+    @Column(name = "letter_grade", length = 5)
+    private String letterGrade; // Điểm chữ (A, B+, B, C...)
+
+    // BỔ SUNG THÊM DÒNG NÀY
+    @Column(name = "grade_4")
+    private Double grade4; // Điểm số hệ 4 (Ví dụ: 3.5, 4.0)
+    // BỔ SUNG THÊM CỘT TRẠNG THÁI DUYỆT ĐƠN
+    @Column(name = "status", length = 20)
+    private String status; // Lưu các giá trị: PENDING, APPROVED, REJECTED
 }
 </file>
 
@@ -5664,6 +5404,1328 @@ public class StudentManagementApplication {
 }
 </file>
 
+<file path="student-management-ui/src/pages/LoginPage.jsx">
+import React, { useState } from 'react';
+import axiosClient from '../api/axiosClient';
+
+function LoginPage() {
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+
+    const [showPassword, setShowPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    const [isFirstLoginMode, setIsFirstLoginMode] = useState(false);
+    const [tempAuthData, setTempAuthData] = useState(null);
+
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [hoveredAcc, setHoveredAcc] = useState('');
+
+    const [savedAccounts, setSavedAccounts] = useState(() => {
+        try {
+            const saved = localStorage.getItem('savedAccounts');
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    });
+
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+
+        try {
+            const data = await axiosClient.post('/auth/login', { username, password });
+
+            if (data.firstLogin === true || data.isFirstLogin === true) {
+                setIsFirstLoginMode(true);
+                setTempAuthData(data);
+                alert("Hệ thống phát hiện đây là lần đầu bạn đăng nhập. Bạn bắt buộc phải đổi mật khẩu để bảo mật tài khoản!");
+            } else {
+                processSuccessfulLogin(data);
+            }
+        } catch (err) {
+            setError(err || 'Email hoặc mật khẩu không chính xác!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 🔥 HÀM ĐÃ SỬA LỖI LƯU DỮ LIỆU: Đọc/Ghi trực tiếp từ nguồn LocalStorage loại bỏ Stale Closure
+    const processSuccessfulLogin = (data) => {
+        const saved = localStorage.getItem('savedAccounts');
+        let accounts = saved ? JSON.parse(saved) : [];
+
+        // Chuẩn hóa chuỗi Email lấy trực tiếp từ ô Input vừa nhập thành công
+        const emailToSave = username.trim().toLowerCase();
+
+        if (emailToSave && !accounts.includes(emailToSave)) {
+            accounts.push(emailToSave);
+            localStorage.setItem('savedAccounts', JSON.stringify(accounts));
+            setSavedAccounts(accounts);
+        }
+
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('username', data.username);
+        localStorage.setItem('roles', data.roles);
+        localStorage.setItem('userId', data.userId);
+
+        if (data.studentId) localStorage.setItem('studentId', data.studentId);
+        if (data.teacherId) localStorage.setItem('teacherId', data.teacherId);
+
+        window.location.href = '/';
+    };
+
+    const handleChangePassword = async (e) => {
+        e.preventDefault();
+        setError('');
+
+        if (newPassword.length < 6) {
+            setError('Mật khẩu mới phải từ 6 ký tự trở lên!');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setError('Mật khẩu xác nhận không trùng khớp!');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            await axiosClient.post('/auth/change-password', { username, newPassword });
+            alert('Đổi mật khẩu thành công mượt mà! Hệ thống sẽ tự động đăng nhập cho bạn.');
+
+            if (tempAuthData) {
+                processSuccessfulLogin(tempAuthData);
+            }
+        } catch (err) {
+            setError(err || 'Có lỗi phát sinh khi đổi mật khẩu. Vui lòng thử lại!');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRemoveSavedAccount = (accToRemove) => {
+        const newAccounts = savedAccounts.filter(acc => acc !== accToRemove);
+        setSavedAccounts(newAccounts);
+        localStorage.setItem('savedAccounts', JSON.stringify(newAccounts));
+        if (username === accToRemove) setUsername('');
+    };
+
+    const filteredAccounts = savedAccounts.filter(acc => acc.toLowerCase().includes(username.toLowerCase()));
+
+    return (
+        <div style={{ maxWidth: '400px', margin: '100px auto', padding: 'var(--spacing-xl)', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--text-main)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
+
+            {isFirstLoginMode ? (
+                <form onSubmit={handleChangePassword}>
+                    <h2 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)', color: 'var(--color-warning)' }}>🔒 ĐỔI MẬT KHẨU LẦN ĐẦU</h2>
+                    {error && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>{error}</div>}
+
+                    <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                        <label style={{ display: 'block', marginBottom: '4px' }}>Mật khẩu mới:</label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showNewPassword ? "text" : "password"}
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                required
+                                style={inputStyle}
+                            />
+                            <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} style={eyeButtonStyle}>
+                                {showNewPassword ? '👁️' : '🙈'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
+                        <label style={{ display: 'block', marginBottom: '4px' }}>Xác nhận mật khẩu mới:</label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showConfirmPassword ? "text" : "password"}
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                                style={inputStyle}
+                            />
+                            <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={eyeButtonStyle}>
+                                {showConfirmPassword ? '👁️' : '🙈'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" disabled={loading} style={buttonStyle}>
+                        {loading ? 'Đang xử lý...' : 'Xác Nhận & Đăng Nhập'}
+                    </button>
+                </form>
+            ) : (
+                <form onSubmit={handleLogin}>
+                    <h2 style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)', color: 'var(--text-cyan)' }}>ĐĂNG NHẬP HỆ THỐNG</h2>
+                    {error && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)', textAlign: 'center' }}>{error}</div>}
+
+                    {/* CLICK TEXT TỰ ĐỘNG SỔ DROPDOWN */}
+                    <div style={{ marginBottom: 'var(--spacing-lg)', position: 'relative' }}>
+                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Email đăng nhập (@open.edu.vn):</label>
+                        <input
+                            type="text"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            onFocus={() => setShowDropdown(true)}
+                            onClick={() => setShowDropdown(true)}
+                            onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                            autoComplete="off"
+                            required
+                            style={inputStyleForUsername}
+                        />
+
+                        {showDropdown && (
+                            <div style={dropdownPanelStyle}>
+                                {filteredAccounts.length > 0 ? (
+                                    filteredAccounts.map(acc => (
+                                        <div
+                                            key={acc}
+                                            onClick={() => { setUsername(acc); setShowDropdown(false); }}
+                                            onMouseEnter={() => setHoveredAcc(acc)}
+                                            onMouseLeave={() => setHoveredAcc('')}
+                                            style={{
+                                                ...dropdownItemStyle,
+                                                backgroundColor: hoveredAcc === acc ? 'var(--color-surface-hover)' : 'transparent',
+                                            }}
+                                        >
+                                            <span style={{ flex: 1, color: hoveredAcc === acc ? 'var(--text-cyan)' : 'var(--text-main)' }}>👤 {acc}</span>
+                                            <span
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleRemoveSavedAccount(acc);
+                                                }}
+                                                style={{ color: 'var(--color-danger)', fontWeight: 'bold', padding: '0 8px', fontSize: '15px' }}
+                                                title="Xóa tài khoản này khỏi bộ nhớ"
+                                            >
+                                                &times;
+                                            </span>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div style={{ padding: '12px', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', fontStyle: 'italic' }}>
+                                        {savedAccounts.length === 0 ? 'Chưa có lịch sử đăng nhập nào.' : 'Không tìm thấy tài khoản phù hợp.'}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
+                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>Mật khẩu:</label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                style={inputStyle}
+                            />
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} style={eyeButtonStyle}>
+                                {showPassword ? '👁️' : '🙈'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" disabled={loading} style={buttonStyle}>
+                        {loading ? 'Đang xác thực...' : 'Đăng Nhập'}
+                    </button>
+                </form>
+            )}
+        </div>
+    );
+}
+
+const dropdownPanelStyle = { position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '4px', zIndex: 99, maxHeight: '160px', overflowY: 'auto', boxShadow: '0 8px 16px rgba(0,0,0,0.4)', marginTop: '4px' };
+const dropdownItemStyle = { padding: '10px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--color-border)', transition: 'all 0.1s ease' };
+const inputStyle = { width: '100%', padding: '10px 12px', paddingRight: '40px', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
+const inputStyleForUsername = { width: '100%', padding: '10px 12px', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
+const eyeButtonStyle = { position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', padding: 0, userSelect: 'none' };
+const buttonStyle = { width: '100%', padding: '12px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' };
+
+export default LoginPage;
+</file>
+
+<file path="student-management-ui/src/pages/TeacherPage.jsx">
+import React, { useState, useEffect } from 'react';
+import axiosClient from '../api/axiosClient';
+
+function TeacherPage() {
+    const [teachers, setTeachers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [modalError, setModalError] = useState('');
+
+    // Khởi tạo chế độ sửa
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingTeacherId, setEditingTeacherId] = useState('');
+
+    // Form States
+    const [teacherCode, setTeacherCode] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [dateOfBirth, setDateOfBirth] = useState('');
+    const [gender, setGender] = useState('Nam');
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [departmentId, setDepartmentId] = useState('');
+
+    // List States dữ liệu gợi ý Dropdown
+    const [departmentList, setDepartmentList] = useState([]);
+
+    // STATE TÌM KIẾM MÃ GIẢNG VIÊN
+    const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        fetchTeachers();
+        fetchDepartmentList();
+    }, []);
+
+    const fetchTeachers = async () => {
+        try {
+            setLoading(true);
+            const data = await axiosClient.get('/teachers');
+            setTeachers(data);
+        } catch (err) {
+            console.error(err);
+        } finally { // 🔥 ĐÃ SỬA: Thay thế từ khóa lỗi 'fill' thành 'finally' chuẩn cú pháp
+            setLoading(false);
+        }
+    };
+
+    const fetchDepartmentList = async () => {
+        try {
+            const data = await axiosClient.get('/departments');
+            setDepartmentList(data);
+        } catch (err) {
+            console.error("Lỗi nạp danh sách khoa dropdown:", err);
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setModalError('');
+
+        if (isEditMode) {
+            const payload = { firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber };
+            try {
+                await axiosClient.put(`/teachers/${editingTeacherId}`, payload);
+                alert("Cập nhật thông tin hồ sơ giảng viên thành công!");
+                setShowModal(false);
+                resetForm();
+                fetchTeachers();
+            } catch (err) { setModalError(err || 'Lỗi cập nhật hồ sơ giảng viên.'); }
+        } else {
+            if (!departmentId) { setModalError('Vui lòng chọn Khoa/Viện chuyên môn gợi ý!'); return; }
+            const payload = { teacherCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, departmentId: Number(departmentId) };
+            try {
+                await axiosClient.post('/teachers', payload);
+                alert(`Cấp tài khoản Giảng viên thành công!\nTài khoản: ${teacherCode}\nMật khẩu mặc định: password1234`);
+                setShowModal(false);
+                resetForm();
+                fetchTeachers();
+            } catch (err) { setModalError(err || 'Lỗi khởi tạo hồ sơ giảng viên.'); }
+        }
+    };
+
+    const handleOpenEdit = (t) => {
+        setIsEditMode(true);
+        setEditingTeacherId(t.id);
+        setTeacherCode(t.teacherCode);
+        setFirstName(t.firstName);
+        setLastName(t.lastName);
+        setDateOfBirth(t.dateOfBirth || '');
+        setGender(t.gender || 'Nam');
+        setPhoneNumber(t.phoneNumber || '');
+        setDepartmentId(''); // Khóa chỉnh sửa khoa khi đang sửa thông tin cá nhân để bảo vệ toàn vẹn dữ liệu
+        setShowModal(true);
+    };
+
+    const handleLockTeacher = async (id, code, name) => {
+        if (window.confirm(`Bạn có chắc chắn muốn KHÓA tài khoản giảng viên [${code} - ${name}] không?\nTài khoản này sẽ lập tức bị đóng băng quyền truy cập.`)) {
+            try {
+                await axiosClient.delete(`/teachers/${id}`);
+                alert('Đã khóa hồ sơ và đóng băng tài khoản giảng viên thành công!');
+                fetchTeachers();
+            } catch (err) { alert(err || 'Không thể thực hiện khóa giảng viên!'); }
+        }
+    };
+
+    const handleUnlockTeacher = async (id, code, name) => {
+        if (window.confirm(`Bạn có chắc chắn muốn MỞ KHÓA lại cho giảng viên [${code} - ${name}] không?`)) {
+            try {
+                await axiosClient.put(`/teachers/${id}/enable`);
+                alert('Mở khóa tài khoản và tái khôi phục quyền giảng dạy thành công!');
+                fetchTeachers();
+            } catch (err) { alert(err || 'Không thể thực hiện mở khóa giảng viên!'); }
+        }
+    };
+
+    const resetForm = () => {
+        setTeacherCode(''); setFirstName(''); setLastName(''); setDateOfBirth(''); setGender('Nam'); setPhoneNumber(''); setDepartmentId(''); setModalError('');
+        setIsEditMode(false); setEditingTeacherId('');
+    };
+
+    // BỘ LỌC TÌM KIẾM MÃ GIẢNG VIÊN REALTIME
+    const filteredTeachers = teachers.filter(t =>
+        t.teacherCode.toLowerCase().includes(searchQuery.trim().toLowerCase())
+    );
+
+    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang tải danh sách giảng viên...</div>;
+
+    return (
+        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
+                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>QUẢN LÝ DANH SÁCH GIẢNG VIÊN</h2>
+                <button onClick={() => { resetForm(); setShowModal(true); }} style={{ padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-success)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                    + Cấp Tài Khoản Giảng Viên
+                </button>
+            </div>
+
+            {/* THANH TÌM KIẾM MÃ GIẢNG VIÊN */}
+            <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '13px', marginBottom: '6px', fontWeight: 'bold', color: 'var(--text-cyan)' }}>🔍 Tìm kiếm nhanh theo Mã giảng viên:</label>
+                <input
+                    type="text"
+                    placeholder="Nhập mã số giảng viên cần tìm kiếm..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{ width: '100%', maxWidth: '400px', padding: '8px 12px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', outline: 'none' }}
+                />
+            </div>
+
+            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+                <thead>
+                <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Mã Giảng Viên</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Tên</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Khoa Chuyên Môn</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Email Giảng Dạy</th>
+                    <th style={{ padding: 'var(--spacing-md)' }}>Trạng thái hệ thống</th>
+                    <th style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>Hành Động Tác Vụ</th>
+                </tr>
+                </thead>
+                <tbody>
+                {filteredTeachers.map((t) => (
+                    <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)', opacity: t.active ? 1 : 0.55 }}>
+                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{t.teacherCode}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{t.lastName} {t.firstName}</td>
+                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)' }}>{t.departmentName}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>{t.gender}</td>
+                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-muted)' }}>{t.email}</td>
+                        <td style={{ padding: 'var(--spacing-md)' }}>
+                            {t.active ? <span style={{ color: 'var(--color-success)', fontSize: '12px', fontWeight: 'bold' }}>● Đang giảng dạy</span> : <span style={{ color: 'var(--color-danger)', fontSize: '12px', fontWeight: 'bold' }}>🔒 Đã khóa tài khoản</span>}
+                        </td>
+                        <td style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>
+                            <button onClick={() => handleOpenEdit(t)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', marginRight: '5px', fontWeight: 'bold' }}>Sửa</button>
+                            {t.active ? (
+                                <button onClick={() => handleLockTeacher(t.id, t.teacherCode, t.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Khóa</button>
+                            ) : (
+                                <button onClick={() => handleUnlockTeacher(t.id, t.teacherCode, t.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Mở Khóa</button>
+                            )}
+                        </td>
+                    </tr>
+                ))}
+                {filteredTeachers.length === 0 && (
+                    <tr>
+                        <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>Không có dữ liệu giảng viên tương thích với từ khóa tìm kiếm.</td>
+                    </tr>
+                )}
+                </tbody>
+            </table>
+
+            {/* MODAL CẤP TÀI KHOẢN / SỬA HỒ SƠ */}
+            {showModal && (
+                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 }}>
+                    <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--spacing-xl)', borderRadius: '8px', width: '550px' }}>
+                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>{isEditMode ? '📝 CẬP NHẬT HỒ SƠ GIẢNG VIÊN' : '✍️ THÊM MỚI HỒ SƠ GIẢNG VIÊN'}</h3>
+                        {modalError && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)' }}>{modalError}</div>}
+                        <form onSubmit={handleSubmit}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Mã Giảng Viên:</label><input type="text" placeholder="GV2026_01" value={teacherCode} onChange={(e) => setTeacherCode(e.target.value)} required disabled={isEditMode} style={inputStyle} /></div>
+
+                                {/* Dropdown menu bốc từ khoa chuyên môn thật dưới DB */}
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Khoa Chuyên Môn:</label>
+                                    <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required disabled={isEditMode} style={inputStyle}>
+                                        <option value="">{isEditMode ? '-- Không hoán đổi khoa --' : '-- Chọn khoa chuyên môn --'}</option>
+                                        {departmentList.map(dept => <option key={dept.id} value={dept.id}>{dept.name} ({dept.code})</option>)}
+                                    </select>
+                                </div>
+
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Họ Và Tên Đệm:</label><input type="text" placeholder="Trần Quốc" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Tên Giảng Viên:</label><input type="text" placeholder="Tuấn" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Giới Tính:</label><select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
+                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Số Điện Thoại:</label><input type="text" placeholder="0912345678" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
+                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
+                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Hủy</button>
+                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>{isEditMode ? 'Lưu Thay Đổi' : 'Khởi Tạo & Cấp TK'}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
+export default TeacherPage;
+</file>
+
+<file path="pom.xml">
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>4.0.6</version>
+		<relativePath/> </parent>
+	<groupId>com.dangdepzaivaio</groupId>
+	<artifactId>StudentManagement</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>StudentManagement</name>
+	<description>Student Management System API</description>
+
+	<properties>
+		<java.version>26</java.version>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>com.nimbusds</groupId>
+			<artifactId>nimbus-jose-jwt</artifactId>
+			<version>9.37.3</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.mysql</groupId>
+			<artifactId>mysql-connector-j</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>org.mapstruct</groupId>
+			<artifactId>mapstruct</artifactId>
+			<version>1.6.3</version>
+		</dependency>
+		<dependency>
+			<groupId>org.mapstruct</groupId>
+			<artifactId>mapstruct-processor</artifactId>
+			<version>1.6.3</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>default-compile</id>
+						<phase>compile</phase>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+						<configuration>
+							<annotationProcessorPaths>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok</artifactId>
+									<version>${lombok.version}</version>
+								</path>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok-mapstruct-binding</artifactId>
+									<version>0.2.0</version>
+								</path>
+								<path>
+									<groupId>org.mapstruct</groupId>
+									<artifactId>mapstruct-processor</artifactId>
+									<version>1.6.3</version>
+								</path>
+							</annotationProcessorPaths>
+						</configuration>
+					</execution>
+					<execution>
+						<id>default-testCompile</id>
+						<phase>test-compile</phase>
+						<goals>
+							<goal>testCompile</goal>
+						</goals>
+						<configuration>
+							<annotationProcessorPaths>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok</artifactId>
+									<version>${lombok.version}</version>
+								</path>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok-mapstruct-binding</artifactId>
+									<version>0.2.0</version>
+								</path>
+								<path>
+									<groupId>org.mapstruct</groupId>
+									<artifactId>mapstruct-processor</artifactId>
+									<version>1.6.3</version>
+								</path>
+							</annotationProcessorPaths>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/configuration/SecurityConfig.java">
+package com.dangdepzaivaio.StudentManagement.configuration;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
+
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+@RequiredArgsConstructor
+public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
+        httpSecurity.cors(cors -> cors.configurationSource(corsConfigurationSource()));
+
+        httpSecurity.authorizeHttpRequests(request -> request
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/auth/login", "/auth/change-password").permitAll()
+
+                .requestMatchers(HttpMethod.POST, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
+
+                .requestMatchers(HttpMethod.GET, "/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/students/**", "/teachers/**", "/classes/**",
+                        "/departments/**", "/subjects/**", "/course-classes/**").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
+
+                .requestMatchers(HttpMethod.POST, "/grades/**").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.PUT, "/grades/**").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.DELETE, "/grades/**").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.GET, "/grades/**").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
+
+                .requestMatchers(HttpMethod.POST, "/registration/periods").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/registration/periods/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/registration/periods").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
+                .requestMatchers(HttpMethod.GET, "/registration/statistics").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/registration/course-class/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/registration/teacher/**").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.GET, "/registration/classes/**").hasAnyRole("ADMIN", "TEACHER")
+                .requestMatchers(HttpMethod.GET, "/registration/open-course-classes", "/registration/my-classes").hasRole("STUDENT")
+                .requestMatchers(HttpMethod.POST, "/registration/enroll").hasRole("STUDENT")
+                .requestMatchers(HttpMethod.DELETE, "/registration/unenroll").hasRole("STUDENT")
+
+                .anyRequest().authenticated());
+
+        httpSecurity.csrf(AbstractHttpConfigurer::disable);
+        httpSecurity.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return httpSecurity.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/UserController.java">
+package com.dangdepzaivaio.StudentManagement.controller;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
+import com.dangdepzaivaio.StudentManagement.service.UserService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/users")
+@RequiredArgsConstructor
+public class UserController {
+    private final UserService userService;
+
+    @PostMapping
+    public ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request) {
+        return new ApiResponse<>(1000, "Tao nguoi dung thanh cong", userService.createUser(request));
+    }
+
+    @GetMapping
+    public ApiResponse<List<UserResponse>> getAllUsers() {
+        return new ApiResponse<>(1000, "Lay danh sach tai khoan thanh cong", userService.getAllUsers());
+    }
+
+    @GetMapping("/{userId}")
+    public ApiResponse<UserResponse> getUser(@PathVariable String userId) {
+        return new ApiResponse<>(1000, "Lay chi tiet tai khoan thanh cong", userService.getUserById(userId));
+    }
+
+    @PutMapping("/{userId}")
+    public ApiResponse<UserResponse> updateUser(@PathVariable String userId, @RequestBody @Valid UserUpdateRequest request) {
+        return new ApiResponse<>(1000, "Cap nhat tai khoan thanh cong", userService.updateUser(userId, request));
+    }
+
+    @PutMapping("/{userId}/enable")
+    public ApiResponse<UserResponse> enableUser(@PathVariable String userId) {
+        return new ApiResponse<>(1000, "Mo khoa tai khoan thanh cong", userService.enableUser(userId));
+    }
+
+    @PutMapping("/{userId}/reset-password")
+    public ApiResponse<UserResponse> resetPassword(@PathVariable String userId, @RequestBody(required = false) Map<String, String> request) {
+        String newPassword = request == null ? null : request.get("newPassword");
+        return new ApiResponse<>(1000, "Reset mat khau thanh cong", userService.resetPassword(userId, newPassword));
+    }
+
+    @DeleteMapping("/{userId}")
+    public ApiResponse<String> deleteUser(@PathVariable String userId) {
+        userService.disableUser(userId);
+        return new ApiResponse<>(1000, "Khoa tai khoan thanh cong", "ID " + userId + " da bi khoa");
+    }
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/GradeResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+public record GradeResponse(
+        Long id,
+        String studentId,
+        String studentCode,
+        String studentName,
+        Long courseClassId,
+        String courseClassCode,
+        String subjectName,
+        Integer credits,       // 🔥 THÊM MỚI: Số tín chỉ môn học
+        String teacherName,    // 🔥 THÊM MỚI: Tên giảng viên đứng lớp
+        String schedule,       // 🔥 THÊM MỚI: Lịch học thiết kế (Thứ, Tiết, Phòng)
+        Double attendanceGrade,
+        Double midtermGrade,
+        Double finalGrade,
+        Double overallGrade,
+        String letterGrade,
+        Double grade4,
+        String status
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/dto/response/StudentResponse.java">
+package com.dangdepzaivaio.StudentManagement.dto.response;
+
+import java.time.LocalDate;
+
+public record StudentResponse(
+        String id,
+        String studentCode,
+        String firstName,
+        String lastName,
+        LocalDate dateOfBirth,
+        String gender,
+        String phoneNumber,
+        boolean active,
+        String username,
+        String email,
+        Long classId,
+        String className,
+
+        // 🔥 THÊM MỚI: Trường dữ liệu phản hồi khóa học từ Database thật ra ngoài UI
+        String cohort,
+        String departmentName,
+        String status
+) {}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/GradeRepository.java">
+package com.dangdepzaivaio.StudentManagement.repository;
+
+import com.dangdepzaivaio.StudentManagement.entity.Grade;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface GradeRepository extends JpaRepository<Grade, Long> {
+
+    @Query("SELECT g FROM Grade g " +
+            "JOIN FETCH g.courseClass cc " +
+            "JOIN FETCH cc.subject " +
+            "LEFT JOIN FETCH cc.teacher t " +
+            "LEFT JOIN FETCH t.user " +
+            "JOIN FETCH g.student s " +
+            "JOIN FETCH s.user " +
+            "JOIN FETCH s.studentClass " +
+            "WHERE g.student.id = :studentId")
+    List<Grade> findByStudentId(@Param("studentId") String studentId);
+
+    @Query("SELECT g FROM Grade g " +
+            "JOIN FETCH g.student s " +
+            "JOIN FETCH s.user " +
+            "JOIN FETCH s.studentClass " +
+            "JOIN FETCH g.courseClass cc " +
+            "JOIN FETCH cc.subject " +
+            "LEFT JOIN FETCH cc.teacher t " +
+            "LEFT JOIN FETCH t.user " +
+            "WHERE cc.id = :courseClassId")
+    List<Grade> findByCourseClassId(@Param("courseClassId") Long courseClassId);
+
+    @Query("SELECT g FROM Grade g " +
+            "JOIN FETCH g.student s " +
+            "JOIN FETCH s.user " +
+            "JOIN FETCH s.studentClass " +
+            "JOIN FETCH g.courseClass cc " +
+            "JOIN FETCH cc.subject " +
+            "LEFT JOIN FETCH cc.teacher t " +
+            "LEFT JOIN FETCH t.user " +
+            "WHERE s.id = :studentId AND cc.id = :courseClassId")
+    Optional<Grade> findByStudentIdAndCourseClassId(
+            @Param("studentId") String studentId,
+            @Param("courseClassId") Long courseClassId
+    );
+
+    @Query("SELECT g FROM Grade g " +
+            "JOIN FETCH g.student s " +
+            "JOIN FETCH s.user " +
+            "JOIN FETCH s.studentClass " +
+            "JOIN FETCH g.courseClass cc " +
+            "JOIN FETCH cc.subject " +
+            "LEFT JOIN FETCH cc.teacher t " +
+            "LEFT JOIN FETCH t.user " +
+            "WHERE g.id = :id")
+    Optional<Grade> findByIdWithDetails(@Param("id") Long id);
+
+    boolean existsByStudentIdAndCourseClassId(String studentId, Long courseClassId);
+    boolean existsByCourseClassId(Long courseClassId);
+    long countByCourseClassId(Long courseClassId);
+
+    @Query("SELECT g FROM Grade g " +
+            "JOIN FETCH g.student s " +
+            "JOIN FETCH s.user " +
+            "JOIN FETCH s.studentClass " +
+            "JOIN FETCH g.courseClass cc " +
+            "JOIN FETCH cc.subject " +
+            "LEFT JOIN FETCH cc.teacher t " +
+            "LEFT JOIN FETCH t.user")
+    List<Grade> findAllGradesWithJoinFetch();
+
+    @Query("SELECT g FROM Grade g " +
+            "JOIN FETCH g.student s " +
+            "JOIN FETCH s.user " +
+            "JOIN FETCH s.studentClass " +
+            "JOIN FETCH g.courseClass cc " +
+            "JOIN FETCH cc.subject " +
+            "JOIN FETCH cc.teacher t " +
+            "JOIN FETCH t.user " +
+            "WHERE t.user.email = :email")
+    List<Grade> findByCourseClassTeacherUserEmail(@Param("email") String email);
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/StudentRepository.java">
+package com.dangdepzaivaio.StudentManagement.repository;
+
+import com.dangdepzaivaio.StudentManagement.entity.Student;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface StudentRepository extends JpaRepository<Student, String> { // 🔥 Khóa String
+    boolean existsByStudentCode(String studentCode);
+    boolean existsByStudentClassId(Long classId);
+
+    @Query("SELECT s FROM Student s JOIN FETCH s.user u JOIN FETCH s.studentClass c WHERE s.isActive = true")
+    List<Student> findAllActiveStudentsWithJoinFetch();
+
+    @Query("SELECT s FROM Student s JOIN FETCH s.user u JOIN FETCH s.studentClass c")
+    List<Student> findAllStudentsWithJoinFetch();
+
+    @Query("SELECT s FROM Student s JOIN FETCH s.user JOIN FETCH s.studentClass WHERE s.id = :id")
+    Optional<Student> findByIdWithJoinFetch(@Param("id") String id); // 🔥 Đổi sang tham số String id
+}
+</file>
+
+<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/UserService.java">
+package com.dangdepzaivaio.StudentManagement.service;
+
+import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
+import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest;
+import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
+
+import java.util.List;
+
+public interface UserService {
+    UserResponse createUser(UserCreationRequest request);
+    List<UserResponse> getAllUsers();
+    UserResponse getUserById(String id);
+    UserResponse updateUser(String id, UserUpdateRequest request);
+    UserResponse enableUser(String id);
+    UserResponse resetPassword(String id, String newPassword);
+    void disableUser(String id);
+}
+</file>
+
+<file path="student_management.sql">
+-- MySQL dump 10.13  Distrib 8.0.46, for Win64 (x86_64)
+--
+-- Host: 127.0.0.1    Database: student_management
+-- ------------------------------------------------------
+-- Server version	8.0.46
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Table structure for table `classes`
+--
+
+DROP TABLE IF EXISTS `classes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `classes` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `department_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_classes_name` (`name`),
+  KEY `FK_classes_department` (`department_id`),
+  CONSTRAINT `FK_classes_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `classes`
+--
+
+LOCK TABLES `classes` WRITE;
+/*!40000 ALTER TABLE `classes` DISABLE KEYS */;
+INSERT INTO `classes` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','D21CNPM1',1),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','D22KHMT1',2),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','D21DTVT2',3),(4,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','D22ATTT1',4),(5,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','D21HTTT1',5);
+/*!40000 ALTER TABLE `classes` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `course_classes`
+--
+
+DROP TABLE IF EXISTS `course_classes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `course_classes` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `code` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `semester` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject_id` bigint NOT NULL,
+  `teacher_id` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_course_classes_code` (`code`),
+  KEY `FK_course_classes_subject` (`subject_id`),
+  KEY `FK_course_classes_teacher` (`teacher_id`),
+  CONSTRAINT `FK_course_classes_subject` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`),
+  CONSTRAINT `FK_course_classes_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `course_classes`
+--
+
+LOCK TABLES `course_classes` WRITE;
+/*!40000 ALTER TABLE `course_classes` DISABLE KEYS */;
+INSERT INTO `course_classes` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','CPP_CLASS_01','HK1-2026',1,'GV_01'),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','DSA_CLASS_01','HK1-2026',2,'GV_02'),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','JAVA_CLASS_01','HK1-2026',3,'GV_03'),(4,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','NET_CLASS_01','HK1-2026',4,'GV_04'),(5,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','OS_CLASS_01','HK1-2026',5,'GV_05');
+/*!40000 ALTER TABLE `course_classes` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `departments`
+--
+
+DROP TABLE IF EXISTS `departments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `departments` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_departments_code` (`code`),
+  UNIQUE KEY `UK_departments_name` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `departments`
+--
+
+LOCK TABLES `departments` WRITE;
+/*!40000 ALTER TABLE `departments` DISABLE KEYS */;
+INSERT INTO `departments` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','CNTT','Công nghệ thông tin'),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','KHMT','Khoa học máy tính'),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','DTVT','Điện tử viễn thông'),(4,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','ATTT','An toàn thông tin'),(5,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HTTT','Hệ thống thông tin');
+/*!40000 ALTER TABLE `departments` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `grades`
+--
+
+DROP TABLE IF EXISTS `grades`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `grades` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `student_id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `course_class_id` bigint NOT NULL,
+  `attendance_grade` double DEFAULT NULL,
+  `midterm_grade` double DEFAULT NULL,
+  `final_grade` double DEFAULT NULL,
+  `overall_grade` double DEFAULT NULL,
+  `letter_grade` varchar(5) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `grade_4` double DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_grades_student_course_class` (`student_id`,`course_class_id`),
+  UNIQUE KEY `UKko1u7sub9pfixo5kagdclh8sj` (`student_id`,`course_class_id`),
+  KEY `FK_grades_course_class` (`course_class_id`),
+  CONSTRAINT `FK_grades_course_class` FOREIGN KEY (`course_class_id`) REFERENCES `course_classes` (`id`),
+  CONSTRAINT `FK_grades_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=234 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `grades`
+--
+
+LOCK TABLES `grades` WRITE;
+/*!40000 ALTER TABLE `grades` DISABLE KEYS */;
+INSERT INTO `grades` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HS_01',1,9,8.5,9,8.85,'A',4),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HS_02',2,8,8,8.5,8.3,'B+',3.5),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HS_03',3,10,9,9.5,9.4,'A',4),(4,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HS_04',4,7.5,7,8,7.65,'B',3),(5,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HS_05',5,6,6.5,7,6.75,'C+',2.5);
+/*!40000 ALTER TABLE `grades` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `roles`
+--
+
+DROP TABLE IF EXISTS `roles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `roles` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_roles_name` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `roles`
+--
+
+LOCK TABLES `roles` WRITE;
+/*!40000 ALTER TABLE `roles` DISABLE KEYS */;
+INSERT INTO `roles` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','ADMIN'),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','STUDENT'),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','TEACHER');
+/*!40000 ALTER TABLE `roles` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `students`
+--
+
+DROP TABLE IF EXISTS `students`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `students` (
+  `id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `student_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `first_name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `last_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `date_of_birth` date DEFAULT NULL,
+  `gender` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone_number` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `class_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_students_code` (`student_code`),
+  KEY `FK_students_class` (`class_id`),
+  CONSTRAINT `FK_students_class` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`),
+  CONSTRAINT `FK_students_user` FOREIGN KEY (`id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `students`
+--
+
+LOCK TABLES `students` WRITE;
+/*!40000 ALTER TABLE `students` DISABLE KEYS */;
+INSERT INTO `students` VALUES ('HS_01','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM001','Anh','Nguyễn Đình','2003-04-05','Nam','0987654321',1,1),('HS_02','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM002','Đăng','Trần Minh','2004-05-23','Nam','0987654322',1,2),('HS_03','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM003','Hải','Nguyễn Hoàng','2004-10-15','Nam','0987654323',1,3),('HS_04','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM004','Linh','Phạm Khánh','2004-05-20','Nữ','0987654324',1,4),('HS_05','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM005','Tùng','Vũ Sơn','2004-12-01','Nam','0987654325',1,5),('HS_06','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM006','Bình','Nguyễn Văn','2003-01-12','Nam','0981000006',1,1),('HS_07','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM007','Cường','Trần Mạnh','2003-02-14','Nam','0981000007',1,1),('HS_08','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM008','Dũng','Lê Hoàng','2003-03-16','Nam','0981000008',1,1),('HS_09','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM009','Đạt','Phạm Tiến','2003-04-18','Nam','0981000009',1,1),('HS_10','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM010','Giang','Vũ Trường','2003-05-20','Nam','0981000010',1,1),('HS_11','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM011','Hùng','Hoàng Minh','2003-06-22','Nam','0981000011',1,1),('HS_12','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM012','Huy','Phan Quốc','2003-07-24','Nam','0981000012',1,1),('HS_13','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM013','Khanh','Đỗ Duy','2003-08-26','Nam','0981000013',1,1),('HS_14','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM014','Linh','Đặng Nhật','2003-09-28','Nữ','0981000014',1,1),('HS_15','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM015','Minh','Bùi Quang','2003-10-30','Nam','0981000015',1,1),('HS_16','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM016','Nam','Nguyễn Hoài','2003-11-01','Nam','0981000016',1,1),('HS_17','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM017','Phong','Trần Thanh','2003-12-03','Nam','0981000017',1,1),('HS_18','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM018','Quân','Lê Anh','2003-05-05','Nam','0981000018',1,1),('HS_19','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM019','Sơn','Phạm Ngọc','2003-06-07','Nam','0981000019',1,1),('HS_20','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT001','Tâm','Vũ Đức','2004-01-10','Nam','0982000001',1,2),('HS_21','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT002','Tuấn','Hoàng Minh','2004-02-12','Nam','0982000002',1,2),('HS_22','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT003','Thành','Phan Công','2004-03-14','Nam','0982000003',1,2),('HS_23','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT004','Việt','Đỗ Quốc','2004-04-16','Nam','0982000004',1,2),('HS_24','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT005','Vy','Đặng Thu','2004-05-18','Nữ','0982000005',1,2),('HS_25','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT006','Yến','Bùi Hải','2004-06-20','Nữ','0982000006',1,2),('HS_26','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT007','Ngọc','Nguyễn Bích','2004-07-22','Nữ','0982000007',1,2),('HS_27','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT008','Long','Trần Bảo','2004-08-24','Nam','0982000008',1,2),('HS_28','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT009','Quang','Lê Minh','2004-09-26','Nam','0982000009',1,2),('HS_29','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT010','Tiến','Phạm Hồng','2004-10-28','Nam','0982000010',1,2),('HS_30','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT011','Trung','Vũ Đình','2004-11-30','Nam','0982000011',1,2),('HS_31','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT012','Tú','Hoàng Anh','2004-12-15','Nam','0982000012',1,2),('HS_32','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT013','Phước','Phan Gia','2004-08-11','Nam','0982000013',1,2),('HS_33','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT014','Hoàng','Đỗ Huy','2004-09-19','Nam','0982000014',1,2),('HS_34','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT001','An','Nguyễn Thành','2003-02-22','Nam','0983000001',1,3),('HS_35','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT002','Bách','Trần Xuân','2003-03-24','Nam','0983000002',1,3),('HS_36','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT003','Chi','Lê Linh','2003-04-26','Nữ','0983000003',1,3),('HS_37','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT004','Duy','Phạm Đức','2003-05-28','Nam','0983000004',1,3),('HS_38','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT005','Đông','Vũ Phương','2003-06-30','Nam','0983000005',1,3),('HS_39','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT006','Hà','Hoàng Thu','2003-07-12','Nữ','0983000006',1,3),('HS_40','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT007','Hiếu','Phan Trọng','2003-08-14','Nam','0983000007',1,3),('HS_41','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT008','Hoa','Đỗ Thị','2003-09-16','Nữ','0983000008',1,3),('HS_42','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT009','Hạnh','Đặng Thúy','2003-10-18','Nữ','0983000009',1,3),('HS_43','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT010','Khôi','Bùi Nguyên','2003-11-20','Nam','0983000010',1,3),('HS_44','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT011','Khoa','Nguyễn Đăng','2003-12-22','Nam','0983000011',1,3),('HS_45','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT012','Khánh','Trần Nhật','2003-01-25','Nam','0983000012',1,3),('HS_46','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT013','Kiên','Lê Trung','2003-02-27','Nam','0983000013',1,3),('HS_47','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT014','Lâm','Phạm Tùng','2003-03-29','Nam','0983000014',1,3),('HS_48','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT001','Mai','Vũ Tuyết','2004-03-11','Nữ','0984000001',1,4),('HS_49','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT002','Nghĩa','Hoàng Trọng','2004-04-13','Nam','0984000002',1,4),('HS_50','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT003','Nguyên','Phan Thảo','2004-05-15','Nữ','0984000003',1,4),('HS_51','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT004','Nhân','Đỗ Thành','2004-06-17','Nam','0984000004',1,4),('HS_52','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT005','Nhi','Đặng Thục','2004-07-19','Nữ','0984000005',1,4),('HS_53','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT006','Phát','Bùi Tấn','2004-08-21','Nam','0984000006',1,4),('HS_54','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT007','Phúc','Nguyễn Hồng','2004-09-23','Nam','0984000007',1,4),('HS_55','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT008','Phương','Trần Mai','2004-10-25','Nữ','0984000008',1,4),('HS_56','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT009','Phượng','Lê Thị','2004-11-27','Nữ','0984000009',1,4),('HS_57','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT010','Quốc','Phạm Anh','2004-12-29','Nam','0984000010',1,4),('HS_58','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT011','Quỳnh','Vũ Thúy','2004-01-05','Nữ','0984000011',1,4),('HS_59','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT012','Sang','Hoàng Tấn','2004-02-07','Nam','0984000012',1,4),('HS_60','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT013','Thảo','Phan Thu','2004-03-09','Nữ','0984000013',1,4),('HS_61','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT014','Thắng','Đỗ Đức','2004-04-11','Nam','0984000014',1,4),('HS_62','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT001','Thịnh','Đặng Hùng','2003-04-15','Nam','0985000001',1,5),('HS_63','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT002','Thư','Bùi Minh','2003-05-17','Nữ','0985000002',1,5),('HS_64','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT003','Thương','Nguyễn Hoài','2003-06-19','Nữ','0985000003',1,5),('HS_65','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT004','Trâm','Trần Ngọc','2003-07-21','Nữ','0985000004',1,5),('HS_66','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT005','Trí','Lê Minh','2003-08-23','Nam','0985000005',1,5),('HS_67','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT006','Trọng','Phạm Đức','2003-09-25','Nam','0985000006',1,5),('HS_68','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT007','Trực','Vũ Duy','2003-10-27','Nam','0985000007',1,5),('HS_69','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT008','Trường','Hoàng Xuân','2003-11-29','Nam','0985000008',1,5),('HS_70','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT009','Tường','Phan Cát','2003-12-31','Nam','0985000009',1,5),('HS_71','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT010','Vinh','Đỗ Quang','2003-01-05','Nam','0985000010',1,5),('HS_72','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT011','Vượng','Đặng Công','2003-02-07','Nam','0985000011',1,5),('HS_73','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT012','Xuyên','Bùi Hà','2003-03-09','Nữ','0985000012',1,5),('HS_74','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT013','Huy','Nguyễn Gia','2003-04-11','Nam','0985000013',1,5),('HS_75','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT014','Long','Trần Thượng','2003-05-13','Nam','0985000014',1,5);
+/*!40000 ALTER TABLE `students` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `subjects`
+--
+
+DROP TABLE IF EXISTS `subjects`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `subjects` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `credits` int NOT NULL,
+  `name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_subjects_code` (`code`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `subjects`
+--
+
+LOCK TABLES `subjects` WRITE;
+/*!40000 ALTER TABLE `subjects` DISABLE KEYS */;
+INSERT INTO `subjects` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','C_PLUS_BASE',3,'Lập trình C++ cơ bản'),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','DSA_STRUCTURE',4,'Cấu trúc dữ liệu & Giải thuật'),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','JAVA_WEB_DEV',3,'Lập trình Web nâng cao với Java'),(4,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','NET_COMPUTER',3,'Cơ sở mạng máy tính'),(5,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','OS_OPERATION',3,'Hệ điều hành máy tính');
+/*!40000 ALTER TABLE `subjects` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `teachers`
+--
+
+DROP TABLE IF EXISTS `teachers`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `teachers` (
+  `id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `teacher_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `first_name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `last_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `date_of_birth` date DEFAULT NULL,
+  `gender` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone_number` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `department_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_teachers_code` (`teacher_code`),
+  KEY `FK_teachers_department` (`department_id`),
+  CONSTRAINT `FK_teachers_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
+  CONSTRAINT `FK_teachers_user` FOREIGN KEY (`id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `teachers`
+--
+
+LOCK TABLES `teachers` WRITE;
+/*!40000 ALTER TABLE `teachers` DISABLE KEYS */;
+INSERT INTO `teachers` VALUES ('GV_01','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','GV2026_01','Tuấn','Trần Quốc','1985-04-12','Nam','0912111222',1,1),('GV_02','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','GV2026_02','Minh','Nguyễn Thị','1988-08-24','Nữ','0912333444',1,2),('GV_03','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','GV2026_03','Nam','Lê Hoàng','1982-11-05','Nam','0912555666',1,3),('GV_04','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','GV2026_04','Hải','Phạm Văn','1979-02-18','Nam','0912777888',1,4),('GV_05','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','GV2026_05','Linh','Vũ Khánh','1991-06-30','Nữ','0912999000',1,5);
+/*!40000 ALTER TABLE `teachers` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `user_roles`
+--
+
+DROP TABLE IF EXISTS `user_roles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `user_roles` (
+  `user_id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `role_id` bigint NOT NULL,
+  PRIMARY KEY (`user_id`,`role_id`),
+  KEY `FK_user_roles_role` (`role_id`),
+  CONSTRAINT `FK_user_roles_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`),
+  CONSTRAINT `FK_user_roles_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `user_roles`
+--
+
+LOCK TABLES `user_roles` WRITE;
+/*!40000 ALTER TABLE `user_roles` DISABLE KEYS */;
+INSERT INTO `user_roles` VALUES ('AD',1),('HS_01',2),('HS_02',2),('HS_03',2),('HS_04',2),('HS_05',2),('HS_06',2),('HS_07',2),('HS_08',2),('HS_09',2),('HS_10',2),('HS_11',2),('HS_12',2),('HS_13',2),('HS_14',2),('HS_15',2),('HS_16',2),('HS_17',2),('HS_18',2),('HS_19',2),('HS_20',2),('HS_21',2),('HS_22',2),('HS_23',2),('HS_24',2),('HS_25',2),('HS_26',2),('HS_27',2),('HS_28',2),('HS_29',2),('HS_30',2),('HS_31',2),('HS_32',2),('HS_33',2),('HS_34',2),('HS_35',2),('HS_36',2),('HS_37',2),('HS_38',2),('HS_39',2),('HS_40',2),('HS_41',2),('HS_42',2),('HS_43',2),('HS_44',2),('HS_45',2),('HS_46',2),('HS_47',2),('HS_48',2),('HS_49',2),('HS_50',2),('HS_51',2),('HS_52',2),('HS_53',2),('HS_54',2),('HS_55',2),('HS_56',2),('HS_57',2),('HS_58',2),('HS_59',2),('HS_60',2),('HS_61',2),('HS_62',2),('HS_63',2),('HS_64',2),('HS_65',2),('HS_66',2),('HS_67',2),('HS_68',2),('HS_69',2),('HS_70',2),('HS_71',2),('HS_72',2),('HS_73',2),('HS_74',2),('HS_75',2),('GV_01',3),('GV_02',3),('GV_03',3),('GV_04',3),('GV_05',3);
+/*!40000 ALTER TABLE `user_roles` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `users`
+--
+
+DROP TABLE IF EXISTS `users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `users` (
+  `id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `username` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `is_first_login` tinyint(1) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_users_email` (`email`),
+  UNIQUE KEY `UK_users_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `users`
+--
+
+LOCK TABLES `users` WRITE;
+/*!40000 ALTER TABLE `users` DISABLE KEYS */;
+INSERT INTO `users` VALUES ('AD','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','admin@open.edu.vn','$2a$10$Nuln0JaFYxBJ92H8tcenfOS7il02iWjIQHp4BoNV.lsHJwiTAHqtu','admin',1,0),('GV_01','2026-06-10 06:16:53.000000','2026-06-10 09:03:59.718134','gv2026_01@open.edu.vn','$2a$10$.RGawvRE0Wxz0a.tXXPESOV9OJIVvuOrhBNjpXLzvbKPRo56czjLK','GV2026_01',1,0),('GV_02','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.356486','gv2026_02@open.edu.vn','$2a$10$xVRlLbPl.wnhQ0hXfENDN./uxbLfTwyOSX7.9ADaaHgQrIFh8f14i','GV2026_02',1,1),('GV_03','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.469802','gv2026_03@open.edu.vn','$2a$10$m1oc8MxjQXER0HiuqoY1reKDBRR73dr/k7p6vy/vUji.N2f8enXPC','GV2026_03',1,1),('GV_04','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.569917','gv2026_04@open.edu.vn','$2a$10$cMKoa2WK0FetlKLRidzWX.tfC0U.39iJ0FFtx4xIXFq985hzkV7wW','GV2026_04',1,1),('GV_05','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.665974','gv2026_05@open.edu.vn','$2a$10$F4jnw/VglMPV5keV3WTm0eDHcIBgaZ6pF35zlxMVQ02vXZsZrMEXS','GV2026_05',1,1),('HS_01','2026-06-10 06:16:53.000000','2026-06-10 09:05:31.412679','b21cnpm001@open.edu.vn','$2a$10$7bkFYKJvL.OMBgeUGMw/r.GhddEa1HWNIRsLrVnoF2VE22.oYfDSC','B21CNPM001',1,0),('HS_02','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.764012','b21cnpm002@open.edu.vn','$2a$10$9YPi4NVJPRcHQuPaaGJrZeiMDbb2MSKzgIOl56WwBgrT27zct3OZG','B21CNPM002',1,1),('HS_03','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.863545','b21cnpm003@open.edu.vn','$2a$10$on5UjQGlulZu44qMfo59TORT09PqEw/ZpN9qSzSnjn3PRbZ22qw/O','B21CNPM003',1,1),('HS_04','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.960249','b21cnpm004@open.edu.vn','$2a$10$MugjdSVqlHUOQ2iIUcSkauNC9n7qSwb/HV6PBWpCnFKTaSu0oF37u','B21CNPM004',1,1),('HS_05','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.064485','b21cnpm005@open.edu.vn','$2a$10$Vg7UbDj/esMRqNeUFsm7yOadmGnL/AsyAjtSrlEziYiNG3EbmSFQa','B21CNPM005',1,1),('HS_06','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.160788','b21cnpm006@open.edu.vn','$2a$10$YEzWbW9GYwLRsioLcuBS0uUNDdTjqzU74E/qhSPEYGl32pz2ce8bC','B21CNPM006',1,1),('HS_07','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.271347','b21cnpm007@open.edu.vn','$2a$10$t4ta8IpYML38tgq3E1H9uOKuhapAPJuPSmv8MzMgL5vS.aN2XChOS','B21CNPM007',1,1),('HS_08','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.377376','b21cnpm008@open.edu.vn','$2a$10$FTFlq1mfI/qCAVMTdl70kuv85a9j7v2ReX4r8xuFYTuNEraYEp1Ey','B21CNPM008',1,1),('HS_09','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.479662','b21cnpm009@open.edu.vn','$2a$10$bsx70KVBHD8bH2lPPZ.UPOwg/bCcmUPFJrk7hFxyv.ChlSk5C8RKi','B21CNPM009',1,1),('HS_10','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.577040','b21cnpm010@open.edu.vn','$2a$10$nXtvYBuZZn.B2l2zHFtHne8gTs0j6w5jUEQWHzmMpUyUzFxXY.Q5a','B21CNPM010',1,1),('HS_11','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.673554','b21cnpm011@open.edu.vn','$2a$10$3XfvwdzFsviYrdfq2Y2FWOrsKXCVwselaoPHC09eNq126IdEwmE4O','B21CNPM011',1,1),('HS_12','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.773053','b21cnpm012@open.edu.vn','$2a$10$xKHpqd5.cns0YxYIHTT.CuHyjrJQiosEGMlEgiJeqCRkpPYYgGTgK','B21CNPM012',1,1),('HS_13','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.872714','b21cnpm013@open.edu.vn','$2a$10$pWUVa7LPRGVFYKG3fgyUv.Rd5VFb11.jrNfQEd6AXqdEE.EhCD.CG','B21CNPM013',1,1),('HS_14','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.970166','b21cnpm014@open.edu.vn','$2a$10$V46G1EQ2SyLRh/ALvtVa7u2PILB2bNSiIASbjA2rqW6cJN7zXCUjy','B21CNPM014',1,1),('HS_15','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.069406','b21cnpm015@open.edu.vn','$2a$10$AUDuzCuSr/LvyzrDsXbH/ORjkQVlt4bJLdDa5feaWpghi3I8Sr3wC','B21CNPM015',1,1),('HS_16','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.165639','b21cnpm016@open.edu.vn','$2a$10$n6BJPyCDPAxAFkDJjASY9u5X5NPFiUhPwiJaPNuoVsRFSGwJIYJoa','B21CNPM016',1,1),('HS_17','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.263094','b21cnpm017@open.edu.vn','$2a$10$Al.mDKuM4zZINQuzMBJGquWnDXQDm0ESFahm75mU5IYODIUAoq5OO','B21CNPM017',1,1),('HS_18','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.362424','b21cnpm018@open.edu.vn','$2a$10$LSbiXDRpQ6DAYxtNuV1wdO0apnKeaEmbUDMVAwuapPX/GhvazKEZu','B21CNPM018',1,1),('HS_19','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.466864','b21cnpm019@open.edu.vn','$2a$10$uM7Ao4ts8cxpZIkn5lzZFe7UlJWmXXc3bdMlsuC2Wixbi4xNsV4Pm','B21CNPM019',1,1),('HS_20','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.568504','b22khmt001@open.edu.vn','$2a$10$LHMXLaq8Ibm.zz3njXl6nuqulAi7YVzd2yjq74To0mN9hI9JxbCx6','B22KHMT001',1,1),('HS_21','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.673930','b22khmt002@open.edu.vn','$2a$10$CD0xaw6l6/FSgZHJ0woMTeVjv3Db4RXP5PmHSck8kJwZrPOgelqte','B22KHMT002',1,1),('HS_22','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.782310','b22khmt003@open.edu.vn','$2a$10$.tEMweY46IlMpVWAKFCRbOPTFE/TJ7I7c28Ranm0tGqDIkFAffXlK','B22KHMT003',1,1),('HS_23','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.886469','b22khmt004@open.edu.vn','$2a$10$GeKmCyYkIGH1uCXxfKKqseUPo0HZNbMKUQSZUp7S9Ps1qtDu3mI/6','B22KHMT004',1,1),('HS_24','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.992611','b22khmt005@open.edu.vn','$2a$10$iKbF9RzouVpms9LwzlaZsemr7Xdy8TssD1eIMhihLmx4BzdtWkpRi','B22KHMT005',1,1),('HS_25','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.091567','b22khmt006@open.edu.vn','$2a$10$mi0StUmvBzOQV/uulUuUNOT0qIE91rlWYiMB4tAiH8Uqj7abr0PIa','B22KHMT006',1,1),('HS_26','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.188505','b22khmt007@open.edu.vn','$2a$10$Qz3izIg8Hnjq/00r6nximOkRLgMZ2rnaEjEObIIjIR1LjcxkwRN4W','B22KHMT007',1,1),('HS_27','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.294118','b22khmt008@open.edu.vn','$2a$10$vmi/kjoAqS4Q7S/ehrEqteLoE26XG7xvr0hIVbIWvf9s9u5BEvVX2','B22KHMT008',1,1),('HS_28','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.399726','b22khmt009@open.edu.vn','$2a$10$az5c7ANg7QMuY4/Fg7IQMe15pqGZ5PxeDaCkhQEmoi/snAew.dybG','B22KHMT009',1,1),('HS_29','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.519372','b22khmt010@open.edu.vn','$2a$10$1LtCkPD.ZanhgXPLLeB..uvOU.opz1A0GpIWNgR.j5vHyONCZLCvC','B22KHMT010',1,1),('HS_30','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.627876','b22khmt011@open.edu.vn','$2a$10$f438q6r2Tg82j3pS5SeGTeHhIdyE7ZItvm2svKNhYmoIA8LZtiaBK','B22KHMT011',1,1),('HS_31','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.731051','b22khmt012@open.edu.vn','$2a$10$Og4syPafSgY2kE2vruTJEu2VfcD3lVqVrPYzSSUtigLOnpM3ZdQVy','B22KHMT012',1,1),('HS_32','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.830395','b22khmt013@open.edu.vn','$2a$10$MS2/DUOpIZDxH0dwVh2cX.fcsH9D/KVLBdmE0fY6gogGFUwZO/GoK','B22KHMT013',1,1),('HS_33','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.934205','b22khmt014@open.edu.vn','$2a$10$N5LNoyI9QMExBujaSl4SreOkgrAt5vK26Jj1M3UHhqjzVo/LCmo8O','B22KHMT014',1,1),('HS_34','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.039301','b21dtvt001@open.edu.vn','$2a$10$HjPFwIST.PRzZRC6/cXJoOlpxQUY3wJCMIpUcCSZ/L77NgE9ybTUG','B21DTVT001',1,1),('HS_35','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.147823','b21dtvt002@open.edu.vn','$2a$10$ZFdJ1pex5xVyXLsEGS7AheK5TJZ4oEiXysHhJhTTJUPMZjSgjERq.','B21DTVT002',1,1),('HS_36','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.252309','b21dtvt003@open.edu.vn','$2a$10$c4yMex.OZO7BbXJvCNXfx.kRXPdl.fTVFy5EMNH.y7dKtRXlnbFey','B21DTVT003',1,1),('HS_37','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.352462','b21dtvt004@open.edu.vn','$2a$10$98J3Zo6cy3DU8NUHE10yPOU4WuQT5U4Vcyi7Crogy3ZYum5hik/cm','B21DTVT004',1,1),('HS_38','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.455277','b21dtvt005@open.edu.vn','$2a$10$uPJNy/JZTeIXzWodRPQJwOJV0oe4APLllldnuHxmjkdOfQSIQIn7.','B21DTVT005',1,1),('HS_39','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.552515','b21dtvt006@open.edu.vn','$2a$10$iaUjCY3OHBBPaKfRPPKNQO0EsU4yxrceit2c8wufKZcuCqL.xMy6a','B21DTVT006',1,1),('HS_40','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.661477','b21dtvt007@open.edu.vn','$2a$10$T3/ZkOsSfw6Tr1n.zBjjBOWUMaClDnjwTY5O0lV1.N90U9/LrG0nO','B21DTVT007',1,1),('HS_41','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.759405','b21dtvt008@open.edu.vn','$2a$10$2g4wsLmKcnOHVaHTfnES1uikLj3auDywcGzpOeS41SJ0ee1eAs2jq','B21DTVT008',1,1),('HS_42','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.857100','b21dtvt009@open.edu.vn','$2a$10$Aii0QRsAC8a0s6eQxZNCNezYoAcXwqdak3C5YQYowGbe94YaxpmQC','B21DTVT009',1,1),('HS_43','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.960693','b21dtvt010@open.edu.vn','$2a$10$hwngUEV3A3RJ7tsaNoKGjek9NQqAsHv2FhOZm/XMKn3SxwVVzZKde','B21DTVT010',1,1),('HS_44','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.067755','b21dtvt011@open.edu.vn','$2a$10$/NsJowOSNpWsF8enIISHl.ogccdYIZcA8PYPq3KmQ2ziY5SOh5qem','B21DTVT011',1,1),('HS_45','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.172172','b21dtvt012@open.edu.vn','$2a$10$D2QsVIiuliEQBdLIP8GzwuoqOCVdATuQyrs5g39/hq/KGBDWKbuuC','B21DTVT012',1,1),('HS_46','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.272045','b21dtvt013@open.edu.vn','$2a$10$nxmNZN9pvnNQEIFC9KP4AOAZ1m1aILWUtUnn4Xsk9FjiYs3jaVusK','B21DTVT013',1,1),('HS_47','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.373255','b21dtvt014@open.edu.vn','$2a$10$tbbaXFtZpp1g6q5R1RaxbugMH4KtJ/ujDCVnR3CeCAPsY4JWCromi','B21DTVT014',1,1),('HS_48','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.487328','b22attt001@open.edu.vn','$2a$10$mJ4tXqhS8.8wjnVwcbHp4utmNav4PdspEBbSgkEElDLC6qLUhqGam','B22ATTT001',1,1),('HS_49','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.610425','b22attt002@open.edu.vn','$2a$10$GZMQRzf2d2BWjjVgofBbFO1f91UtrA5ijDRuluOgnMT8oHOs7IkP6','B22ATTT002',1,1),('HS_50','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.729181','b22attt003@open.edu.vn','$2a$10$ane5OIKDlAnSg9CLBi8/r.TcU4G4X1ahI.dNKEg8GKoHGa9ySocv.','B22ATTT003',1,1),('HS_51','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.844046','b22attt004@open.edu.vn','$2a$10$s0/8oztoM9djJ4wmUQ5qq.7DTfyImbXFiVIgsyBNBVt74zjBEVSdq','B22ATTT004',1,1),('HS_52','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.958703','b22attt005@open.edu.vn','$2a$10$jbhJjhyFWPVvka3MvbawbO.T/pEwXkUiXSbq0HHqpO2syrRMsMjSC','B22ATTT005',1,1),('HS_53','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.068866','b22attt006@open.edu.vn','$2a$10$e5hWKwqgfHdniSUc0/rP4.D5VsKgMuk1XgUSyJOIjvkQAJpYUIosi','B22ATTT006',1,1),('HS_54','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.176601','b22attt007@open.edu.vn','$2a$10$1D2Was7/tb4fvtPdMhBeGeAqC7qiYCww/QzkIi7fTeOXyJgEs.MEK','B22ATTT007',1,1),('HS_55','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.285418','b22attt008@open.edu.vn','$2a$10$gJ7RaVhRVe9CgatTdCzH6OqiImqWmXC0HU67N8H4L63RZVpOFWj5O','B22ATTT008',1,1),('HS_56','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.387477','b22attt009@open.edu.vn','$2a$10$dowfK62h.zr3cI.7bglGjub6LdKXPkg3iEs.HPbcAF5KiP7vW5zqq','B22ATTT009',1,1),('HS_57','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.486792','b22attt010@open.edu.vn','$2a$10$4X2Lar8AQf.CsGTT0fUXKOBN4OasdoZeWRidB5DE.aTMHfYQpBjJK','B22ATTT010',1,1),('HS_58','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.584695','b22attt011@open.edu.vn','$2a$10$Wh5zlj9ddY0F/0qNGZwP3OkvFyHdifMiqvgweeuXQLJO/LZ1x/lWm','B22ATTT011',1,1),('HS_59','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.684449','b22attt012@open.edu.vn','$2a$10$slEOhUledQkBeUtbB8YAgeqdF6ww6HDFfMzC4cwJWu0hJ59kNR09C','B22ATTT012',1,1),('HS_60','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.780955','b22attt013@open.edu.vn','$2a$10$.BVaP/GdGt5JfNPxEuZwIePyNe3p4yVV5srAbs.KKkapUQ.NrPcPm','B22ATTT013',1,1),('HS_61','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.877333','b22attt014@open.edu.vn','$2a$10$SI.uD713ltuIzgJ0VgVFVeZIYNjiUtuOKDXkGfa3pDpnPYEO7Vj7u','B22ATTT014',1,1),('HS_62','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.044317','b21httt001@open.edu.vn','$2a$10$dKjJpUS3IklssL47TPqVie34IDu7zbVWg/9sH7moRqFdurI9ufcT.','B21HTTT001',1,1),('HS_63','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.222250','b21httt002@open.edu.vn','$2a$10$mxO8aHRFQzF/3LSWVDHrb.Kp7KGJ0ID1aNgShMJqRyKmUIuGL69uy','B21HTTT002',1,1),('HS_64','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.381542','b21httt003@open.edu.vn','$2a$10$n2APctre735no2cqk4jVX.VxNsj9HVgQERteLPpEL0Mw3rPgBEV2a','B21HTTT003',1,1),('HS_65','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.539373','b21httt004@open.edu.vn','$2a$10$7HAPtw0U70LvhvdhdVSUEuavYQEIlmkTY9uVSyvnTha790uGOE.ZG','B21HTTT004',1,1),('HS_66','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.726112','b21httt005@open.edu.vn','$2a$10$DU5UH/CJisZduSrl51PdFun/nYGPC0bo.sCuux4Cj2JR0zn.rO4yK','B21HTTT005',1,1),('HS_67','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.909696','b21httt006@open.edu.vn','$2a$10$bUFVwHo0dImrsUFaOpowZ.mejsm7l0nM1hXWxzkuNJAq8NxQA1sum','B21HTTT006',1,1),('HS_68','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.080902','b21httt007@open.edu.vn','$2a$10$1l17VsDTCHxvxPMy3PUBF.21PENy3pN1qK.ThR8LTE6zZfZ2UeV0q','B21HTTT007',1,1),('HS_69','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.210738','b21httt008@open.edu.vn','$2a$10$/qww584wr00nxjkgziaIIeK4UMswu63IYOZNImuuCaAKnFIg3Dl06','B21HTTT008',1,1),('HS_70','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.378097','b21httt009@open.edu.vn','$2a$10$chC8zxi0Ws61KInLkJ98Ke/FIiEBA/uFalR9Bq2YnJdHXgSNPShiS','B21HTTT009',1,1),('HS_71','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.551319','b21httt010@open.edu.vn','$2a$10$BuND6CX58Pi3Hhe7j64R4.nSWb.CEvscaRWh4qHZjCVgCYzYcJCzC','B21HTTT010',1,1),('HS_72','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.679195','b21httt011@open.edu.vn','$2a$10$hKZBE6nKkElpKrmyELbiNOqhDVGxAjp9CJUwC876lGRV5tCQVWttq','B21HTTT011',1,1),('HS_73','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.797086','b21httt012@open.edu.vn','$2a$10$pkbLt/xwKOXMDxfA/cx4PebTdVWjzM.J.cnqobO7MKkeUnrPEGc8W','B21HTTT012',1,1),('HS_74','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.946957','b21httt013@open.edu.vn','$2a$10$rt1PV.KBcMaqsfk.DHXJbuaudcdoT.vk.yX/A7WMR/fn9apBALBdW','B21HTTT013',1,1),('HS_75','2026-06-10 06:16:53.000000','2026-06-10 10:39:32.105871','b21httt014@open.edu.vn','$2a$10$eSd.jmV261I6jqrpdELMK.NOrHoHmQI5QLi4IP.8N4DBlR7XhrWea','B21HTTT014',1,1);
+/*!40000 ALTER TABLE `users` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2026-06-10 17:56:00
+</file>
+
 <file path="student-management-ui/src/pages/GradePage.jsx">
 import React, { useState, useEffect } from 'react';
 import axiosClient from '../api/axiosClient';
@@ -6264,6 +7326,11 @@ export default function RegistrationPage() {
     const [selectedPeriod, setSelectedPeriod] = useState(null);
     const [courseClasses, setCourseClasses] = useState([]);
 
+    // State tìm kiếm và hủy môn cho Sinh viên (Admin dùng)
+    const [searchStudentId, setSearchStudentId] = useState('');
+    const [searchedClasses, setSearchedClasses] = useState(null);
+    const [isSearchingStudent, setIsSearchingStudent] = useState(false);
+
     // --- STATE PHÂN HỆ TEACHER ---
     const [teacherClasses, setTeacherClasses] = useState([]);
     const [selectedClassId, setSelectedClassId] = useState(null);
@@ -6334,7 +7401,7 @@ export default function RegistrationPage() {
         } catch (err) { console.error(err); }
     };
 
-    // ==================== 🛠️ NGHIỆP VỤ ADMIN (GIỮ NGUYÊN 100%) ====================
+    // ==================== 🛠️ NGHIỆP VỤ ADMIN ====================
     const loadAdminPeriodsAndClasses = async () => {
         try {
             const periodsData = await axiosClient.get('/registration/periods');
@@ -6382,7 +7449,38 @@ export default function RegistrationPage() {
         } catch (err) { showMessage(err || 'Không thể thay đổi trạng thái tích chọn môn', true); }
     };
 
-    // 🔥 THUẬT TOÁN KIỂM TRA TRÙNG LỊCH CHUẨN KHUNG 3 CA
+    // TÌM KIẾM HỒ SƠ SINH VIÊN (ADMIN)
+    const handleSearchStudent = async (e) => {
+        if(e) e.preventDefault();
+        if (!searchStudentId.trim()) return;
+        setIsSearchingStudent(true);
+        try {
+            // 🔥 THÊM ĐUÔI PHÁ CACHE TRÌNH DUYỆT (?_t=...)
+            const res = await axiosClient.get(`/grades/student/${searchStudentId.trim()}?_t=${Date.now()}`);
+            setSearchedClasses(res);
+        } catch (err) {
+            showMessage('Không tìm thấy dữ liệu sinh viên này. Vui lòng kiểm tra lại Mã SV.', true);
+            setSearchedClasses([]);
+        } finally {
+            setIsSearchingStudent(false);
+        }
+    };
+
+    // ADMIN XÓA (RÚT) TÍN CHỈ CHO SINH VIÊN
+    const handleAdminDeleteRegistration = async (gradeId, subjectName) => {
+        if (!window.confirm(`⚠️ RÚT MÔN HỌC KHẨN CẤP\n\nBạn (Admin) có chắc chắn muốn XÓA môn [${subjectName}] của sinh viên này không?\nHành động này sẽ gỡ bỏ hoàn toàn môn học khỏi hệ thống!`)) return;
+
+        try {
+            await axiosClient.delete(`/grades/${gradeId}`);
+            showMessage(`Đã rút thành công môn ${subjectName} cho sinh viên!`);
+
+            // 🔥 XÓA THẬT NGAY TRÊN GIAO DIỆN ADMIN ĐỂ MÔN HỌC BIẾN MẤT TỨC THÌ
+            setSearchedClasses(prev => prev ? prev.filter(item => item.id !== gradeId) : []);
+        } catch (err) {
+            showMessage('Lỗi khi Admin xóa môn học của sinh viên.', true);
+        }
+    };
+
     const checkScheduleConflicts = (selectedItems, existingItems) => {
         const slotsMap = {};
         const allItemsToCheck = [...existingItems, ...selectedItems];
@@ -6391,7 +7489,6 @@ export default function RegistrationPage() {
             const schedStr = (item.schedule || '').toLowerCase();
             if (!schedStr) continue;
 
-            // 1. Xác định Thứ (Từ Thứ 2 đến Chủ Nhật)
             let dayKey = '';
             if (schedStr.includes('chủ nhật') || schedStr.includes('cn')) dayKey = 'CN';
             else {
@@ -6402,25 +7499,23 @@ export default function RegistrationPage() {
             if (!dayKey) continue;
             if (!slotsMap[dayKey]) slotsMap[dayKey] = {};
 
-            // 2. Xác định Ca học (Sáng / Chiều / Tối)
             let shiftKey = '';
             if (schedStr.includes('sáng') || schedStr.match(/tiết\s*[1-4]/)) shiftKey = 'Sáng';
             else if (schedStr.includes('chiều') || schedStr.match(/tiết\s*[5-8]/)) shiftKey = 'Chiều';
             else if (schedStr.includes('tối') || schedStr.match(/tiết\s*(9|10|11|12)/)) shiftKey = 'Tối';
 
-            if (!shiftKey) continue; // Bỏ qua nếu không xác định được ca
+            if (!shiftKey) continue;
 
-            // 3. Đối chiếu trùng lặp theo Ca
             if (slotsMap[dayKey][shiftKey]) {
                 const dayLabel = dayKey === 'CN' ? 'Chủ Nhật' : `Thứ ${dayKey}`;
                 return `🚨 Xung đột lịch học: Bạn không thể đăng ký môn [${item.subjectName}] vì đã bị trùng vào Buổi ${shiftKey} ${dayLabel} với môn [${slotsMap[dayKey][shiftKey]}]!`;
             }
 
-            // Ghi nhận slot đã chiếm
             slotsMap[dayKey][shiftKey] = item.subjectName;
         }
         return null;
     };
+
     // ==================== 💼 NGHIỆP VỤ TEACHER ====================
     const loadTeacherSchedule = async () => {
         if (!teacherId) return;
@@ -6438,22 +7533,25 @@ export default function RegistrationPage() {
         } catch (err) { showMessage('Không thể tải danh sách sinh viên lớp học phần', true); }
     };
 
-    const handleToggleApproveStudent = (studentId) => {
-        const key = `approved_st_${selectedClassId}_${studentId}`;
-        const isApproved = localStorage.getItem(key) === 'true';
-        localStorage.setItem(key, String(!isApproved));
-        setClassStudents([...classStudents]);
+    const handleToggleApproveStudent = async (studentId, currentStatus) => {
+        try {
+            await axiosClient.put(`/registration/classes/${selectedClassId}/students/${studentId}/toggle-approve`);
+            showMessage('Đã cập nhật trạng thái duyệt đơn thành công!');
+            viewClassStudents(selectedClassId);
+        } catch (err) {
+            showMessage('Lỗi khi duyệt đơn. Vui lòng kiểm tra lại.', true);
+        }
     };
 
     // ==================== 🎓 NGHIỆP VỤ STUDENT ====================
     const fetchOpenClassesForStudent = async (semester) => {
         try {
-            const allSystemClasses = await axiosClient.get('/course-classes');
-            const filteredOpenClasses = allSystemClasses.filter(
-                c => c.openForRegistration === true && c.semester === semester
-            );
+            const openClasses = await axiosClient.get('/registration/open-course-classes');
+            const filteredOpenClasses = openClasses.filter(c => c.semester === semester);
             setAvailableClasses(filteredOpenClasses);
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            console.error("Lỗi khi tải danh sách môn học mở:", err);
+        }
     };
 
     const loadStudentRegistrationFlow = async () => {
@@ -6483,8 +7581,10 @@ export default function RegistrationPage() {
                 setAvailableClasses([]);
             }
 
-            const myClasses = await axiosClient.get('/registration/my-classes');
-            setMyRegisteredClasses(myClasses);
+            // 🔥 THÊM ĐUÔI PHÁ CACHE KHI SINH VIÊN TẢI DANH SÁCH MÔN ĐÃ ĐĂNG KÝ
+            const myClasses = await axiosClient.get(`/registration/my-classes?_t=${Date.now()}`);
+            const validClasses = myClasses.filter(c => c.status !== 'REJECTED');
+            setMyRegisteredClasses(validClasses);
         } catch (err) { console.error(err); }
     };
 
@@ -6493,10 +7593,9 @@ export default function RegistrationPage() {
 
         const itemsToEnroll = availableClasses.filter(c => selectedClassIds.includes(c.id));
 
-        // CHỈ LẤY NHỮNG MÔN ĐÃ ĐƯỢC DUYỆT (Hoặc môn cũ) ĐỂ CHECK TRÙNG, BỎ QUA MÔN PENDING
         const validExistingClasses = myRegisteredClasses.filter(reg => {
             const isCurrentSem = activePeriodInfo && reg.semester === activePeriodInfo.semester;
-            const isApproved = localStorage.getItem(`approved_st_${reg.courseClassId}_${loggedInStudentId}`) === 'true';
+            const isApproved = reg.status === 'APPROVED';
             return !isCurrentSem || isApproved;
         });
 
@@ -6507,12 +7606,27 @@ export default function RegistrationPage() {
         }
 
         try {
-            const promises = selectedClassIds.map(id => axiosClient.post(`/registration/enroll?courseClassId=${id}`));
-            await Promise.all(promises);
+            for (const id of selectedClassIds) {
+                await axiosClient.post(`/registration/enroll?courseClassId=${id}`);
+            }
+
             showMessage('Đăng ký tín chỉ thành công! Đơn đang chờ Giảng viên phê duyệt.');
             setSelectedClassIds([]);
             loadStudentRegistrationFlow();
-        } catch (err) { showMessage(err || 'Không thể đăng ký học phần này!', true); }
+        } catch (err) { showMessage(err?.response?.data || 'Không thể đăng ký học phần này!', true); }
+    };
+
+    const handleUnenroll = async (courseClassId) => {
+        if (!window.confirm("⚠️ Bạn có chắc chắn muốn rút/hủy đơn đăng ký môn học này không?")) return;
+        try {
+            await axiosClient.delete(`/registration/unenroll?courseClassId=${courseClassId}`);
+            showMessage('Đã hủy môn học thành công!');
+
+            // 🔥 XÓA THẬT NGAY TRÊN GIAO DIỆN CỦA SINH VIÊN
+            setMyRegisteredClasses(prev => prev.filter(item => item.courseClassId !== courseClassId));
+        } catch (err) {
+            showMessage(err?.response?.data || 'Không thể hủy môn học này lúc này!', true);
+        }
     };
 
     const formatDate = (dateStr) => {
@@ -6544,7 +7658,7 @@ export default function RegistrationPage() {
                 </div>
             )}
 
-            {/* ==================== VIEW ADMIN (GIỮ NGUYÊN BẢN GỐC) ==================== */}
+            {/* ==================== VIEW ADMIN ==================== */}
             {role.includes('ADMIN') && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div style={{ padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
@@ -6638,10 +7752,6 @@ export default function RegistrationPage() {
 
                         <div style={{ flex: 1, minWidth: '450px', padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
                             <h4>📋 Danh sách môn học phần thuộc học kỳ: {selectedPeriod?.semester || 'Chưa chọn'}</h4>
-                            <p style={{fontSize: '12px', color: 'var(--color-warning)', marginTop: 0, marginBottom: '12px'}}>
-                                💡 <b>Tác vụ Admin:</b> Tích chọn checkbox để cho phép mở hoặc khóa môn học phần tương ứng của học kỳ đang xem.
-                            </p>
-
                             <table style={tableStyle}>
                                 <thead>
                                 <tr style={thStyle}>
@@ -6677,17 +7787,84 @@ export default function RegistrationPage() {
                             </table>
                         </div>
                     </div>
+
+                    {/* QUẢN TRỊ ĐƠN RÚT MÔN CỦA PHÒNG ĐÀO TẠO */}
+                    <div style={{ marginTop: '10px', padding: '20px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-danger)' }}>
+                        <h3 style={{ color: 'var(--color-danger)', marginTop: 0, marginBottom: '15px' }}>
+                            🛠️ GIẢI QUYẾT ĐƠN RÚT MÔN CỦA SINH VIÊN (DÀNH CHO PHÒNG ĐÀO TẠO)
+                        </h3>
+                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '15px' }}>
+                            Nhập Mã Sinh Viên (Ví dụ: HS_01) để xem toàn bộ lịch sử đăng ký của sinh viên đó. Admin có quyền hủy (xóa) trực tiếp tín chỉ nếu sinh viên nộp đơn xin rút môn.
+                        </p>
+
+                        <form onSubmit={handleSearchStudent} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                            <input
+                                type="text"
+                                placeholder="Nhập Mã Sinh Viên..."
+                                value={searchStudentId}
+                                onChange={e => setSearchStudentId(e.target.value)}
+                                style={{ ...inputStyle, width: '300px' }}
+                                required
+                            />
+                            <button type="submit" style={{ padding: '8px 24px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                {isSearchingStudent ? 'Đang tìm...' : '🔍 Tìm Hồ Sơ'}
+                            </button>
+                        </form>
+
+                        {searchedClasses !== null && (
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={tableStyle}>
+                                    <thead>
+                                    <tr style={thStyle}>
+                                        <th style={{ textAlign: 'center', width: '120px' }}>Trạng thái</th>
+                                        <th>Mã Lớp HP</th>
+                                        <th>Tên Môn Học</th>
+                                        <th>Số Tín Chỉ</th>
+                                        <th style={{ textAlign: 'center' }}>Thao Tác Quản Trị</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {searchedClasses.map(reg => (
+                                        <tr key={reg.id} style={trStyle}>
+                                            <td style={{ textAlign: 'center' }}>
+                                                {reg.status === 'APPROVED'
+                                                    ? <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>✅ Đã duyệt</span>
+                                                    : <span style={{ color: 'var(--color-warning)', fontWeight: 'bold' }}>⏳ Chờ duyệt</span>
+                                                }
+                                            </td>
+                                            <td style={{ fontWeight: 'bold', color: 'var(--text-cyan)' }}>{reg.courseClassCode}</td>
+                                            <td>{reg.subjectName}</td>
+                                            <td>{reg.credits} tín</td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <button
+                                                    onClick={() => handleAdminDeleteRegistration(reg.id, reg.subjectName)}
+                                                    style={{ padding: '8px 12px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
+                                                    title="Xóa vĩnh viễn môn học này khỏi hồ sơ sinh viên"
+                                                >
+                                                    🗑️ Hủy tín chỉ này
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {searchedClasses.length === 0 && (
+                                        <tr><td colSpan="5" style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)' }}>Sinh viên này chưa có lịch sử đăng ký môn học nào.</td></tr>
+                                    )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
             {/* ==================== 💼 VIEW TEACHER ==================== */}
             {role.includes('TEACHER') && !role.includes('ADMIN') && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    {isRegistrationTime ? (
+                    {!isRegistrationTime ? (
                         <>
                             <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                                <h3 style={{ color: 'var(--text-cyan)', marginTop: 0 }}>👨‍🏫 PHÊ DUYỆT ĐĂNG KÝ TÍN CHỈ</h3>
-                                <label style={{ display: 'block', fontSize: '13px', marginBottom: '8px', fontWeight: 'bold' }}>Hệ thống đang mở đăng ký. Vui lòng chọn lớp bạn đang dạy để duyệt đơn:</label>
+                                <h3 style={{ color: 'var(--color-success)', marginTop: 0 }}>👨‍🏫 PHÊ DUYỆT ĐĂNG KÝ TÍN CHỈ (ĐÃ CHỐT SỔ)</h3>
+                                <label style={{ display: 'block', fontSize: '13px', marginBottom: '8px', fontWeight: 'bold' }}>Cổng đăng ký đã đóng. Vui lòng chọn lớp để duyệt danh sách sinh viên chính thức:</label>
                                 <select
                                     value={selectedClassId || ''}
                                     onChange={(e) => viewClassStudents(e.target.value)}
@@ -6712,16 +7889,24 @@ export default function RegistrationPage() {
                                         </thead>
                                         <tbody>
                                         {classStudents.map((sv, i) => {
-                                            const isApproved = localStorage.getItem(`approved_st_${selectedClassId}_${sv.id}`) === 'true';
+                                            const isApproved = sv.status === 'APPROVED';
                                             return (
                                                 <tr key={i} style={trStyle}>
                                                     <td><b>{sv.firstName} {sv.lastName}</b> ({sv.studentCode})</td>
                                                     <td style={{ textAlign: 'center' }}>
                                                         <button
-                                                            onClick={() => handleToggleApproveStudent(sv.id)}
-                                                            style={{ padding: '6px 12px', backgroundColor: isApproved ? '#6c757d' : 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                                                            onClick={() => handleToggleApproveStudent(sv.id || sv.enrollmentId, sv.status)}
+                                                            style={{
+                                                                padding: '6px 12px',
+                                                                backgroundColor: isApproved ? 'var(--color-success)' : 'var(--color-primary)',
+                                                                color: 'white',
+                                                                border: 'none',
+                                                                borderRadius: '4px',
+                                                                cursor: 'pointer',
+                                                                fontWeight: 'bold'
+                                                            }}
                                                         >
-                                                            {isApproved ? 'Đã Duyệt (Hủy)' : 'Duyệt Đơn'}
+                                                            {isApproved ? '✅ Đã duyệt' : 'Duyệt Đơn'}
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -6737,9 +7922,9 @@ export default function RegistrationPage() {
                         </>
                     ) : (
                         <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px dashed var(--color-border)' }}>
-                            <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔒</div>
-                            <h3 style={{ color: 'var(--color-warning)', margin: '0 0 5px 0' }}>CHƯA CÓ ĐỢT MỞ ĐĂNG KÝ TÍN CHỈ NÀO</h3>
-                            <p style={{ margin: 0, fontSize: '13px' }}>Tính năng duyệt đơn chỉ hiển thị khi Phòng Đào tạo (Admin) mở cổng đăng ký.</p>
+                            <div style={{ fontSize: '32px', marginBottom: '10px' }}>⏳</div>
+                            <h3 style={{ color: 'var(--color-warning)', margin: '0 0 5px 0' }}>HỆ THỐNG ĐANG TRONG THỜI GIAN ĐĂNG KÝ</h3>
+                            <p style={{ margin: 0, fontSize: '13px' }}>Giảng viên chỉ có quyền duyệt đơn sau khi thời gian đăng ký của sinh viên đã kết thúc (Chốt sổ).</p>
                         </div>
                     )}
                 </div>
@@ -6815,7 +8000,7 @@ export default function RegistrationPage() {
                             <table style={tableStyle}>
                                 <thead>
                                 <tr style={thStyle}>
-                                    <th style={{ textAlign: 'center', width: '90px' }}>Trạng thái</th>
+                                    <th style={{ textAlign: 'center', width: '130px' }}>Trạng thái</th>
                                     <th>Mã Lớp HP</th>
                                     <th>Tên Môn Học</th>
                                     <th>Số Tín Chỉ</th>
@@ -6825,18 +8010,30 @@ export default function RegistrationPage() {
                                 </thead>
                                 <tbody>
                                 {myRegisteredClasses.map(reg => {
-                                    // Kiểm tra xem môn này có nằm trong đợt học kỳ đang mở hay không
-                                    const isCurrentSemester = activePeriodInfo && reg.semester === activePeriodInfo.semester;
-                                    // Kiểm tra giáo viên đã duyệt đơn này chưa
-                                    const isApproved = localStorage.getItem(`approved_st_${reg.courseClassId}_${loggedInStudentId}`) === 'true';
+                                    const isApproved = reg.status === 'APPROVED';
 
                                     return (
                                         <tr key={reg.id} style={trStyle}>
                                             <td style={{ textAlign: 'center' }}>
-                                                {(!isCurrentSemester || isApproved) ? (
-                                                    <input type="checkbox" checked readOnly style={{ width: '18px', height: '18px', accentColor: 'var(--color-success)', cursor: 'default' }} />
+                                                {isApproved ? (
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'var(--color-success)', fontWeight: 'bold', fontSize: '13px' }}>
+                                                        <input type="checkbox" checked readOnly style={{ width: '16px', height: '16px', accentColor: 'var(--color-success)', cursor: 'default' }} />
+                                                        <span>Đã duyệt</span>
+                                                    </div>
                                                 ) : (
-                                                    <span style={{ color: 'var(--color-warning)', fontWeight: 'bold', fontSize: '13px' }}>⏳ Chờ duyệt</span>
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                                                        <span style={{ color: 'var(--color-warning)', fontWeight: 'bold', fontSize: '13px' }}>⏳ Chờ duyệt</span>
+
+                                                        {isRegistrationTime && (
+                                                            <button
+                                                                onClick={() => handleUnenroll(reg.courseClassId)}
+                                                                style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
+                                                                title="Rút đơn đăng ký môn này"
+                                                            >
+                                                                ✖ Hủy
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </td>
                                             <td style={{ fontWeight: 'bold', color: 'var(--text-cyan)' }}>{reg.courseClassCode}</td>
@@ -6864,1175 +8061,6 @@ const inputStyle = { padding: '8px', backgroundColor: 'var(--color-bg)', color: 
 const tableStyle = { width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' };
 const thStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', backgroundColor: 'var(--color-surface-hover)', textAlign: 'left', padding: '10px' };
 const trStyle = { borderBottom: '1px solid var(--color-border)', padding: '10px' };
-</file>
-
-<file path="student-management-ui/src/pages/TeacherPage.jsx">
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
-
-function TeacherPage() {
-    const [teachers, setTeachers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
-    const [modalError, setModalError] = useState('');
-
-    // Khởi tạo chế độ sửa
-    const [isEditMode, setIsEditMode] = useState(false);
-    const [editingTeacherId, setEditingTeacherId] = useState('');
-
-    // Form States
-    const [teacherCode, setTeacherCode] = useState('');
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [dateOfBirth, setDateOfBirth] = useState('');
-    const [gender, setGender] = useState('Nam');
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [departmentId, setDepartmentId] = useState('');
-
-    // List States dữ liệu gợi ý Dropdown
-    const [departmentList, setDepartmentList] = useState([]);
-
-    // STATE TÌM KIẾM MÃ GIẢNG VIÊN
-    const [searchQuery, setSearchQuery] = useState('');
-
-    useEffect(() => {
-        fetchTeachers();
-        fetchDepartmentList();
-    }, []);
-
-    const fetchTeachers = async () => {
-        try {
-            setLoading(true);
-            const data = await axiosClient.get('/teachers');
-            setTeachers(data);
-        } catch (err) {
-            console.error(err);
-        } finally { // 🔥 ĐÃ SỬA: Thay thế từ khóa lỗi 'fill' thành 'finally' chuẩn cú pháp
-            setLoading(false);
-        }
-    };
-
-    const fetchDepartmentList = async () => {
-        try {
-            const data = await axiosClient.get('/departments');
-            setDepartmentList(data);
-        } catch (err) {
-            console.error("Lỗi nạp danh sách khoa dropdown:", err);
-        }
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setModalError('');
-
-        if (isEditMode) {
-            const payload = { firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber };
-            try {
-                await axiosClient.put(`/teachers/${editingTeacherId}`, payload);
-                alert("Cập nhật thông tin hồ sơ giảng viên thành công!");
-                setShowModal(false);
-                resetForm();
-                fetchTeachers();
-            } catch (err) { setModalError(err || 'Lỗi cập nhật hồ sơ giảng viên.'); }
-        } else {
-            if (!departmentId) { setModalError('Vui lòng chọn Khoa/Viện chuyên môn gợi ý!'); return; }
-            const payload = { teacherCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, departmentId: Number(departmentId) };
-            try {
-                await axiosClient.post('/teachers', payload);
-                alert(`Cấp tài khoản Giảng viên thành công!\nTài khoản: ${teacherCode}\nMật khẩu mặc định: password1234`);
-                setShowModal(false);
-                resetForm();
-                fetchTeachers();
-            } catch (err) { setModalError(err || 'Lỗi khởi tạo hồ sơ giảng viên.'); }
-        }
-    };
-
-    const handleOpenEdit = (t) => {
-        setIsEditMode(true);
-        setEditingTeacherId(t.id);
-        setTeacherCode(t.teacherCode);
-        setFirstName(t.firstName);
-        setLastName(t.lastName);
-        setDateOfBirth(t.dateOfBirth || '');
-        setGender(t.gender || 'Nam');
-        setPhoneNumber(t.phoneNumber || '');
-        setDepartmentId(''); // Khóa chỉnh sửa khoa khi đang sửa thông tin cá nhân để bảo vệ toàn vẹn dữ liệu
-        setShowModal(true);
-    };
-
-    const handleLockTeacher = async (id, code, name) => {
-        if (window.confirm(`Bạn có chắc chắn muốn KHÓA tài khoản giảng viên [${code} - ${name}] không?\nTài khoản này sẽ lập tức bị đóng băng quyền truy cập.`)) {
-            try {
-                await axiosClient.delete(`/teachers/${id}`);
-                alert('Đã khóa hồ sơ và đóng băng tài khoản giảng viên thành công!');
-                fetchTeachers();
-            } catch (err) { alert(err || 'Không thể thực hiện khóa giảng viên!'); }
-        }
-    };
-
-    const handleUnlockTeacher = async (id, code, name) => {
-        if (window.confirm(`Bạn có chắc chắn muốn MỞ KHÓA lại cho giảng viên [${code} - ${name}] không?`)) {
-            try {
-                await axiosClient.put(`/teachers/${id}/enable`);
-                alert('Mở khóa tài khoản và tái khôi phục quyền giảng dạy thành công!');
-                fetchTeachers();
-            } catch (err) { alert(err || 'Không thể thực hiện mở khóa giảng viên!'); }
-        }
-    };
-
-    const resetForm = () => {
-        setTeacherCode(''); setFirstName(''); setLastName(''); setDateOfBirth(''); setGender('Nam'); setPhoneNumber(''); setDepartmentId(''); setModalError('');
-        setIsEditMode(false); setEditingTeacherId('');
-    };
-
-    // BỘ LỌC TÌM KIẾM MÃ GIẢNG VIÊN REALTIME
-    const filteredTeachers = teachers.filter(t =>
-        t.teacherCode.toLowerCase().includes(searchQuery.trim().toLowerCase())
-    );
-
-    if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang tải danh sách giảng viên...</div>;
-
-    return (
-        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
-                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>QUẢN LÝ DANH SÁCH GIẢNG VIÊN</h2>
-                <button onClick={() => { resetForm(); setShowModal(true); }} style={{ padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-success)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                    + Cấp Tài Khoản Giảng Viên
-                </button>
-            </div>
-
-            {/* THANH TÌM KIẾM MÃ GIẢNG VIÊN */}
-            <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '13px', marginBottom: '6px', fontWeight: 'bold', color: 'var(--text-cyan)' }}>🔍 Tìm kiếm nhanh theo Mã giảng viên:</label>
-                <input
-                    type="text"
-                    placeholder="Nhập mã số giảng viên cần tìm kiếm..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{ width: '100%', maxWidth: '400px', padding: '8px 12px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'white', outline: 'none' }}
-                />
-            </div>
-
-            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--color-surface)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-                <thead>
-                <tr style={{ backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-cyan)', textAlign: 'left' }}>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Mã Giảng Viên</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Tên</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Khoa Chuyên Môn</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Email Giảng Dạy</th>
-                    <th style={{ padding: 'var(--spacing-md)' }}>Trạng thái hệ thống</th>
-                    <th style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>Hành Động Tác Vụ</th>
-                </tr>
-                </thead>
-                <tbody>
-                {filteredTeachers.map((t) => (
-                    <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)', opacity: t.active ? 1 : 0.55 }}>
-                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{t.teacherCode}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{t.lastName} {t.firstName}</td>
-                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)' }}>{t.departmentName}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>{t.gender}</td>
-                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-muted)' }}>{t.email}</td>
-                        <td style={{ padding: 'var(--spacing-md)' }}>
-                            {t.active ? <span style={{ color: 'var(--color-success)', fontSize: '12px', fontWeight: 'bold' }}>● Đang giảng dạy</span> : <span style={{ color: 'var(--color-danger)', fontSize: '12px', fontWeight: 'bold' }}>🔒 Đã khóa tài khoản</span>}
-                        </td>
-                        <td style={{ padding: 'var(--spacing-md)', textAlign: 'center' }}>
-                            <button onClick={() => handleOpenEdit(t)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', marginRight: '5px', fontWeight: 'bold' }}>Sửa</button>
-                            {t.active ? (
-                                <button onClick={() => handleLockTeacher(t.id, t.teacherCode, t.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Khóa</button>
-                            ) : (
-                                <button onClick={() => handleUnlockTeacher(t.id, t.teacherCode, t.firstName)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }}>Mở Khóa</button>
-                            )}
-                        </td>
-                    </tr>
-                ))}
-                {filteredTeachers.length === 0 && (
-                    <tr>
-                        <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>Không có dữ liệu giảng viên tương thích với từ khóa tìm kiếm.</td>
-                    </tr>
-                )}
-                </tbody>
-            </table>
-
-            {/* MODAL CẤP TÀI KHOẢN / SỬA HỒ SƠ */}
-            {showModal && (
-                <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 }}>
-                    <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--spacing-xl)', borderRadius: '8px', width: '550px' }}>
-                        <h3 style={{ color: 'var(--text-cyan)', marginTop: 0, marginBottom: 'var(--spacing-lg)' }}>{isEditMode ? '📝 CẬP NHẬT HỒ SƠ GIẢNG VIÊN' : '✍️ THÊM MỚI HỒ SƠ GIẢNG VIÊN'}</h3>
-                        {modalError && <div style={{ color: 'var(--color-danger)', backgroundColor: 'rgba(220, 53, 69, 0.1)', padding: 'var(--spacing-sm)', borderRadius: '4px', marginBottom: 'var(--spacing-md)' }}>{modalError}</div>}
-                        <form onSubmit={handleSubmit}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
-                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Mã Giảng Viên:</label><input type="text" placeholder="GV2026_01" value={teacherCode} onChange={(e) => setTeacherCode(e.target.value)} required disabled={isEditMode} style={inputStyle} /></div>
-
-                                {/* Dropdown menu bốc từ khoa chuyên môn thật dưới DB */}
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Khoa Chuyên Môn:</label>
-                                    <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required disabled={isEditMode} style={inputStyle}>
-                                        <option value="">{isEditMode ? '-- Không hoán đổi khoa --' : '-- Chọn khoa chuyên môn --'}</option>
-                                        {departmentList.map(dept => <option key={dept.id} value={dept.id}>{dept.name} ({dept.code})</option>)}
-                                    </select>
-                                </div>
-
-                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Họ Và Tên Đệm:</label><input type="text" placeholder="Trần Quốc" value={lastName} onChange={(e) => setLastName(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Tên Giảng Viên:</label><input type="text" placeholder="Tuấn" value={firstName} onChange={(e) => setFirstName(e.target.value)} required style={inputStyle} /></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Giới Tính:</label><select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}><option value="Nam">Nam</option><option value="Nữ">Nữ</option></select></div>
-                                <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Số Điện Thoại:</label><input type="text" placeholder="0912345678" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} style={inputStyle} /></div>
-                                <div style={{ gridColumn: 'span 2' }}><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Ngày Sinh:</label><input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} /></div>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
-                                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Hủy</button>
-                                <button type="submit" style={{ padding: '8px 16px', backgroundColor: 'var(--color-primary)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>{isEditMode ? 'Lưu Thay Đổi' : 'Khởi Tạo & Cấp TK'}</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
-const inputStyle = { width: '100%', padding: 'var(--spacing-sm)', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-hover)', color: 'var(--text-main)', boxSizing: 'border-box', outline: 'none' };
-export default TeacherPage;
-</file>
-
-<file path="pom.xml">
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<parent>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.0.6</version>
-		<relativePath/> </parent>
-	<groupId>com.dangdepzaivaio</groupId>
-	<artifactId>StudentManagement</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<name>StudentManagement</name>
-	<description>Student Management System API</description>
-
-	<properties>
-		<java.version>26</java.version>
-	</properties>
-
-	<dependencies>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-jpa</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-validation</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-security</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.nimbusds</groupId>
-			<artifactId>nimbus-jose-jwt</artifactId>
-			<version>9.37.3</version>
-		</dependency>
-
-		<dependency>
-			<groupId>com.mysql</groupId>
-			<artifactId>mysql-connector-j</artifactId>
-			<scope>runtime</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
-			<groupId>org.mapstruct</groupId>
-			<artifactId>mapstruct</artifactId>
-			<version>1.6.3</version>
-		</dependency>
-		<dependency>
-			<groupId>org.mapstruct</groupId>
-			<artifactId>mapstruct-processor</artifactId>
-			<version>1.6.3</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-security-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-	</dependencies>
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<excludes>
-						<exclude>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</exclude>
-					</excludes>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>default-compile</id>
-						<phase>compile</phase>
-						<goals>
-							<goal>compile</goal>
-						</goals>
-						<configuration>
-							<annotationProcessorPaths>
-								<path>
-									<groupId>org.projectlombok</groupId>
-									<artifactId>lombok</artifactId>
-									<version>${lombok.version}</version>
-								</path>
-								<path>
-									<groupId>org.projectlombok</groupId>
-									<artifactId>lombok-mapstruct-binding</artifactId>
-									<version>0.2.0</version>
-								</path>
-								<path>
-									<groupId>org.mapstruct</groupId>
-									<artifactId>mapstruct-processor</artifactId>
-									<version>1.6.3</version>
-								</path>
-							</annotationProcessorPaths>
-						</configuration>
-					</execution>
-					<execution>
-						<id>default-testCompile</id>
-						<phase>test-compile</phase>
-						<goals>
-							<goal>testCompile</goal>
-						</goals>
-						<configuration>
-							<annotationProcessorPaths>
-								<path>
-									<groupId>org.projectlombok</groupId>
-									<artifactId>lombok</artifactId>
-									<version>${lombok.version}</version>
-								</path>
-								<path>
-									<groupId>org.projectlombok</groupId>
-									<artifactId>lombok-mapstruct-binding</artifactId>
-									<version>0.2.0</version>
-								</path>
-								<path>
-									<groupId>org.mapstruct</groupId>
-									<artifactId>mapstruct-processor</artifactId>
-									<version>1.6.3</version>
-								</path>
-							</annotationProcessorPaths>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
-</project>
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/configuration/SecurityConfig.java">
-package com.dangdepzaivaio.StudentManagement.configuration;
-
-import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.List;
-
-@Configuration
-@EnableWebSecurity
-@EnableMethodSecurity
-@RequiredArgsConstructor
-public class SecurityConfig {
-
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
-        httpSecurity.cors(cors -> cors.configurationSource(corsConfigurationSource()));
-
-        httpSecurity.authorizeHttpRequests(request -> request
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/auth/login", "/auth/change-password").permitAll()
-
-                .requestMatchers(HttpMethod.POST, "/students/**", "/teachers/**", "/classes/**",
-                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/students/**", "/teachers/**", "/classes/**",
-                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/students/**", "/teachers/**", "/classes/**",
-                        "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
-
-                .requestMatchers(HttpMethod.GET, "/users/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/students/**", "/teachers/**", "/classes/**",
-                        "/departments/**", "/subjects/**", "/course-classes/**").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
-
-                .requestMatchers(HttpMethod.POST, "/grades/**").hasRole("TEACHER")
-                .requestMatchers(HttpMethod.PUT, "/grades/**").hasRole("TEACHER")
-                .requestMatchers(HttpMethod.DELETE, "/grades/**").hasRole("TEACHER")
-                .requestMatchers(HttpMethod.GET, "/grades/**").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
-
-                .requestMatchers(HttpMethod.POST, "/registration/periods").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/registration/periods/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/registration/periods").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
-                .requestMatchers(HttpMethod.GET, "/registration/statistics").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/registration/course-class/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/registration/teacher/**").hasRole("TEACHER")
-                .requestMatchers(HttpMethod.GET, "/registration/classes/**").hasAnyRole("ADMIN", "TEACHER")
-                .requestMatchers(HttpMethod.GET, "/registration/open-course-classes", "/registration/my-classes").hasRole("STUDENT")
-                .requestMatchers(HttpMethod.POST, "/registration/enroll").hasRole("STUDENT")
-                .requestMatchers(HttpMethod.DELETE, "/registration/unenroll").hasRole("STUDENT")
-
-                .anyRequest().authenticated());
-
-        httpSecurity.csrf(AbstractHttpConfigurer::disable);
-        httpSecurity.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-
-        return httpSecurity.build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/controller/UserController.java">
-package com.dangdepzaivaio.StudentManagement.controller;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
-import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
-import com.dangdepzaivaio.StudentManagement.service.UserService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.Map;
-
-@RestController
-@RequestMapping("/users")
-@RequiredArgsConstructor
-public class UserController {
-    private final UserService userService;
-
-    @PostMapping
-    public ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request) {
-        return new ApiResponse<>(1000, "Tao nguoi dung thanh cong", userService.createUser(request));
-    }
-
-    @GetMapping
-    public ApiResponse<List<UserResponse>> getAllUsers() {
-        return new ApiResponse<>(1000, "Lay danh sach tai khoan thanh cong", userService.getAllUsers());
-    }
-
-    @GetMapping("/{userId}")
-    public ApiResponse<UserResponse> getUser(@PathVariable String userId) {
-        return new ApiResponse<>(1000, "Lay chi tiet tai khoan thanh cong", userService.getUserById(userId));
-    }
-
-    @PutMapping("/{userId}")
-    public ApiResponse<UserResponse> updateUser(@PathVariable String userId, @RequestBody @Valid UserUpdateRequest request) {
-        return new ApiResponse<>(1000, "Cap nhat tai khoan thanh cong", userService.updateUser(userId, request));
-    }
-
-    @PutMapping("/{userId}/enable")
-    public ApiResponse<UserResponse> enableUser(@PathVariable String userId) {
-        return new ApiResponse<>(1000, "Mo khoa tai khoan thanh cong", userService.enableUser(userId));
-    }
-
-    @PutMapping("/{userId}/reset-password")
-    public ApiResponse<UserResponse> resetPassword(@PathVariable String userId, @RequestBody(required = false) Map<String, String> request) {
-        String newPassword = request == null ? null : request.get("newPassword");
-        return new ApiResponse<>(1000, "Reset mat khau thanh cong", userService.resetPassword(userId, newPassword));
-    }
-
-    @DeleteMapping("/{userId}")
-    public ApiResponse<String> deleteUser(@PathVariable String userId) {
-        userService.disableUser(userId);
-        return new ApiResponse<>(1000, "Khoa tai khoan thanh cong", "ID " + userId + " da bi khoa");
-    }
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/GradeRepository.java">
-package com.dangdepzaivaio.StudentManagement.repository;
-
-import com.dangdepzaivaio.StudentManagement.entity.Grade;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
-
-import java.util.List;
-import java.util.Optional;
-
-@Repository
-public interface GradeRepository extends JpaRepository<Grade, Long> {
-
-    @Query("SELECT g FROM Grade g " +
-            "JOIN FETCH g.courseClass cc " +
-            "JOIN FETCH cc.subject " +
-            "LEFT JOIN FETCH cc.teacher t " +
-            "LEFT JOIN FETCH t.user " +
-            "JOIN FETCH g.student s " +
-            "JOIN FETCH s.user " +
-            "JOIN FETCH s.studentClass " +
-            "WHERE g.student.id = :studentId")
-    List<Grade> findByStudentId(@Param("studentId") String studentId);
-
-    @Query("SELECT g FROM Grade g " +
-            "JOIN FETCH g.student s " +
-            "JOIN FETCH s.user " +
-            "JOIN FETCH s.studentClass " +
-            "JOIN FETCH g.courseClass cc " +
-            "JOIN FETCH cc.subject " +
-            "LEFT JOIN FETCH cc.teacher t " +
-            "LEFT JOIN FETCH t.user " +
-            "WHERE cc.id = :courseClassId")
-    List<Grade> findByCourseClassId(@Param("courseClassId") Long courseClassId);
-
-    @Query("SELECT g FROM Grade g " +
-            "JOIN FETCH g.student s " +
-            "JOIN FETCH s.user " +
-            "JOIN FETCH s.studentClass " +
-            "JOIN FETCH g.courseClass cc " +
-            "JOIN FETCH cc.subject " +
-            "LEFT JOIN FETCH cc.teacher t " +
-            "LEFT JOIN FETCH t.user " +
-            "WHERE s.id = :studentId AND cc.id = :courseClassId")
-    Optional<Grade> findByStudentIdAndCourseClassId(
-            @Param("studentId") String studentId,
-            @Param("courseClassId") Long courseClassId
-    );
-
-    @Query("SELECT g FROM Grade g " +
-            "JOIN FETCH g.student s " +
-            "JOIN FETCH s.user " +
-            "JOIN FETCH s.studentClass " +
-            "JOIN FETCH g.courseClass cc " +
-            "JOIN FETCH cc.subject " +
-            "LEFT JOIN FETCH cc.teacher t " +
-            "LEFT JOIN FETCH t.user " +
-            "WHERE g.id = :id")
-    Optional<Grade> findByIdWithDetails(@Param("id") Long id);
-
-    boolean existsByStudentIdAndCourseClassId(String studentId, Long courseClassId);
-    boolean existsByCourseClassId(Long courseClassId);
-    long countByCourseClassId(Long courseClassId);
-
-    @Query("SELECT g FROM Grade g " +
-            "JOIN FETCH g.student s " +
-            "JOIN FETCH s.user " +
-            "JOIN FETCH s.studentClass " +
-            "JOIN FETCH g.courseClass cc " +
-            "JOIN FETCH cc.subject " +
-            "LEFT JOIN FETCH cc.teacher t " +
-            "LEFT JOIN FETCH t.user")
-    List<Grade> findAllGradesWithJoinFetch();
-
-    @Query("SELECT g FROM Grade g " +
-            "JOIN FETCH g.student s " +
-            "JOIN FETCH s.user " +
-            "JOIN FETCH s.studentClass " +
-            "JOIN FETCH g.courseClass cc " +
-            "JOIN FETCH cc.subject " +
-            "JOIN FETCH cc.teacher t " +
-            "JOIN FETCH t.user " +
-            "WHERE t.user.email = :email")
-    List<Grade> findByCourseClassTeacherUserEmail(@Param("email") String email);
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/repository/StudentRepository.java">
-package com.dangdepzaivaio.StudentManagement.repository;
-
-import com.dangdepzaivaio.StudentManagement.entity.Student;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
-import java.util.List;
-import java.util.Optional;
-
-@Repository
-public interface StudentRepository extends JpaRepository<Student, String> { // 🔥 Khóa String
-    boolean existsByStudentCode(String studentCode);
-    boolean existsByStudentClassId(Long classId);
-
-    @Query("SELECT s FROM Student s JOIN FETCH s.user u JOIN FETCH s.studentClass c WHERE s.isActive = true")
-    List<Student> findAllActiveStudentsWithJoinFetch();
-
-    @Query("SELECT s FROM Student s JOIN FETCH s.user u JOIN FETCH s.studentClass c")
-    List<Student> findAllStudentsWithJoinFetch();
-
-    @Query("SELECT s FROM Student s JOIN FETCH s.user JOIN FETCH s.studentClass WHERE s.id = :id")
-    Optional<Student> findByIdWithJoinFetch(@Param("id") String id); // 🔥 Đổi sang tham số String id
-}
-</file>
-
-<file path="src/main/java/com/dangdepzaivaio/StudentManagement/service/UserService.java">
-package com.dangdepzaivaio.StudentManagement.service;
-
-import com.dangdepzaivaio.StudentManagement.dto.request.UserCreationRequest;
-import com.dangdepzaivaio.StudentManagement.dto.request.UserUpdateRequest;
-import com.dangdepzaivaio.StudentManagement.dto.response.UserResponse;
-
-import java.util.List;
-
-public interface UserService {
-    UserResponse createUser(UserCreationRequest request);
-    List<UserResponse> getAllUsers();
-    UserResponse getUserById(String id);
-    UserResponse updateUser(String id, UserUpdateRequest request);
-    UserResponse enableUser(String id);
-    UserResponse resetPassword(String id, String newPassword);
-    void disableUser(String id);
-}
-</file>
-
-<file path="student_management.sql">
--- MySQL dump 10.13  Distrib 8.0.46, for Win64 (x86_64)
---
--- Host: 127.0.0.1    Database: student_management
--- ------------------------------------------------------
--- Server version	8.0.46
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8 */;
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-
---
--- Table structure for table `classes`
---
-
-DROP TABLE IF EXISTS `classes`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `classes` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `department_id` bigint NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UK_classes_name` (`name`),
-  KEY `FK_classes_department` (`department_id`),
-  CONSTRAINT `FK_classes_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `classes`
---
-
-LOCK TABLES `classes` WRITE;
-/*!40000 ALTER TABLE `classes` DISABLE KEYS */;
-INSERT INTO `classes` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','D21CNPM1',1),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','D22KHMT1',2),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','D21DTVT2',3),(4,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','D22ATTT1',4),(5,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','D21HTTT1',5);
-/*!40000 ALTER TABLE `classes` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `course_classes`
---
-
-DROP TABLE IF EXISTS `course_classes`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `course_classes` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `code` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `semester` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `subject_id` bigint NOT NULL,
-  `teacher_id` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UK_course_classes_code` (`code`),
-  KEY `FK_course_classes_subject` (`subject_id`),
-  KEY `FK_course_classes_teacher` (`teacher_id`),
-  CONSTRAINT `FK_course_classes_subject` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`),
-  CONSTRAINT `FK_course_classes_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `course_classes`
---
-
-LOCK TABLES `course_classes` WRITE;
-/*!40000 ALTER TABLE `course_classes` DISABLE KEYS */;
-INSERT INTO `course_classes` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','CPP_CLASS_01','HK1-2026',1,'GV_01'),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','DSA_CLASS_01','HK1-2026',2,'GV_02'),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','JAVA_CLASS_01','HK1-2026',3,'GV_03'),(4,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','NET_CLASS_01','HK1-2026',4,'GV_04'),(5,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','OS_CLASS_01','HK1-2026',5,'GV_05');
-/*!40000 ALTER TABLE `course_classes` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `departments`
---
-
-DROP TABLE IF EXISTS `departments`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `departments` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UK_departments_code` (`code`),
-  UNIQUE KEY `UK_departments_name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `departments`
---
-
-LOCK TABLES `departments` WRITE;
-/*!40000 ALTER TABLE `departments` DISABLE KEYS */;
-INSERT INTO `departments` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','CNTT','Công nghệ thông tin'),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','KHMT','Khoa học máy tính'),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','DTVT','Điện tử viễn thông'),(4,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','ATTT','An toàn thông tin'),(5,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HTTT','Hệ thống thông tin');
-/*!40000 ALTER TABLE `departments` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `grades`
---
-
-DROP TABLE IF EXISTS `grades`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `grades` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `student_id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `course_class_id` bigint NOT NULL,
-  `attendance_grade` double DEFAULT NULL,
-  `midterm_grade` double DEFAULT NULL,
-  `final_grade` double DEFAULT NULL,
-  `overall_grade` double DEFAULT NULL,
-  `letter_grade` varchar(5) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `grade_4` double DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UK_grades_student_course_class` (`student_id`,`course_class_id`),
-  UNIQUE KEY `UKko1u7sub9pfixo5kagdclh8sj` (`student_id`,`course_class_id`),
-  KEY `FK_grades_course_class` (`course_class_id`),
-  CONSTRAINT `FK_grades_course_class` FOREIGN KEY (`course_class_id`) REFERENCES `course_classes` (`id`),
-  CONSTRAINT `FK_grades_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=234 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `grades`
---
-
-LOCK TABLES `grades` WRITE;
-/*!40000 ALTER TABLE `grades` DISABLE KEYS */;
-INSERT INTO `grades` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HS_01',1,9,8.5,9,8.85,'A',4),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HS_02',2,8,8,8.5,8.3,'B+',3.5),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HS_03',3,10,9,9.5,9.4,'A',4),(4,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HS_04',4,7.5,7,8,7.65,'B',3),(5,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','HS_05',5,6,6.5,7,6.75,'C+',2.5);
-/*!40000 ALTER TABLE `grades` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `roles`
---
-
-DROP TABLE IF EXISTS `roles`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `roles` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UK_roles_name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `roles`
---
-
-LOCK TABLES `roles` WRITE;
-/*!40000 ALTER TABLE `roles` DISABLE KEYS */;
-INSERT INTO `roles` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','ADMIN'),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','STUDENT'),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','TEACHER');
-/*!40000 ALTER TABLE `roles` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `students`
---
-
-DROP TABLE IF EXISTS `students`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `students` (
-  `id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `student_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `first_name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `last_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `date_of_birth` date DEFAULT NULL,
-  `gender` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `phone_number` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `is_active` tinyint(1) NOT NULL DEFAULT '1',
-  `class_id` bigint NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UK_students_code` (`student_code`),
-  KEY `FK_students_class` (`class_id`),
-  CONSTRAINT `FK_students_class` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`),
-  CONSTRAINT `FK_students_user` FOREIGN KEY (`id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `students`
---
-
-LOCK TABLES `students` WRITE;
-/*!40000 ALTER TABLE `students` DISABLE KEYS */;
-INSERT INTO `students` VALUES ('HS_01','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM001','Anh','Nguyễn Đình','2003-04-05','Nam','0987654321',1,1),('HS_02','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM002','Đăng','Trần Minh','2004-05-23','Nam','0987654322',1,2),('HS_03','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM003','Hải','Nguyễn Hoàng','2004-10-15','Nam','0987654323',1,3),('HS_04','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM004','Linh','Phạm Khánh','2004-05-20','Nữ','0987654324',1,4),('HS_05','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM005','Tùng','Vũ Sơn','2004-12-01','Nam','0987654325',1,5),('HS_06','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM006','Bình','Nguyễn Văn','2003-01-12','Nam','0981000006',1,1),('HS_07','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM007','Cường','Trần Mạnh','2003-02-14','Nam','0981000007',1,1),('HS_08','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM008','Dũng','Lê Hoàng','2003-03-16','Nam','0981000008',1,1),('HS_09','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM009','Đạt','Phạm Tiến','2003-04-18','Nam','0981000009',1,1),('HS_10','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM010','Giang','Vũ Trường','2003-05-20','Nam','0981000010',1,1),('HS_11','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM011','Hùng','Hoàng Minh','2003-06-22','Nam','0981000011',1,1),('HS_12','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM012','Huy','Phan Quốc','2003-07-24','Nam','0981000012',1,1),('HS_13','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM013','Khanh','Đỗ Duy','2003-08-26','Nam','0981000013',1,1),('HS_14','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM014','Linh','Đặng Nhật','2003-09-28','Nữ','0981000014',1,1),('HS_15','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM015','Minh','Bùi Quang','2003-10-30','Nam','0981000015',1,1),('HS_16','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM016','Nam','Nguyễn Hoài','2003-11-01','Nam','0981000016',1,1),('HS_17','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM017','Phong','Trần Thanh','2003-12-03','Nam','0981000017',1,1),('HS_18','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM018','Quân','Lê Anh','2003-05-05','Nam','0981000018',1,1),('HS_19','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21CNPM019','Sơn','Phạm Ngọc','2003-06-07','Nam','0981000019',1,1),('HS_20','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT001','Tâm','Vũ Đức','2004-01-10','Nam','0982000001',1,2),('HS_21','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT002','Tuấn','Hoàng Minh','2004-02-12','Nam','0982000002',1,2),('HS_22','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT003','Thành','Phan Công','2004-03-14','Nam','0982000003',1,2),('HS_23','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT004','Việt','Đỗ Quốc','2004-04-16','Nam','0982000004',1,2),('HS_24','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT005','Vy','Đặng Thu','2004-05-18','Nữ','0982000005',1,2),('HS_25','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT006','Yến','Bùi Hải','2004-06-20','Nữ','0982000006',1,2),('HS_26','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT007','Ngọc','Nguyễn Bích','2004-07-22','Nữ','0982000007',1,2),('HS_27','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT008','Long','Trần Bảo','2004-08-24','Nam','0982000008',1,2),('HS_28','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT009','Quang','Lê Minh','2004-09-26','Nam','0982000009',1,2),('HS_29','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT010','Tiến','Phạm Hồng','2004-10-28','Nam','0982000010',1,2),('HS_30','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT011','Trung','Vũ Đình','2004-11-30','Nam','0982000011',1,2),('HS_31','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT012','Tú','Hoàng Anh','2004-12-15','Nam','0982000012',1,2),('HS_32','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT013','Phước','Phan Gia','2004-08-11','Nam','0982000013',1,2),('HS_33','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22KHMT014','Hoàng','Đỗ Huy','2004-09-19','Nam','0982000014',1,2),('HS_34','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT001','An','Nguyễn Thành','2003-02-22','Nam','0983000001',1,3),('HS_35','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT002','Bách','Trần Xuân','2003-03-24','Nam','0983000002',1,3),('HS_36','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT003','Chi','Lê Linh','2003-04-26','Nữ','0983000003',1,3),('HS_37','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT004','Duy','Phạm Đức','2003-05-28','Nam','0983000004',1,3),('HS_38','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT005','Đông','Vũ Phương','2003-06-30','Nam','0983000005',1,3),('HS_39','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT006','Hà','Hoàng Thu','2003-07-12','Nữ','0983000006',1,3),('HS_40','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT007','Hiếu','Phan Trọng','2003-08-14','Nam','0983000007',1,3),('HS_41','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT008','Hoa','Đỗ Thị','2003-09-16','Nữ','0983000008',1,3),('HS_42','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT009','Hạnh','Đặng Thúy','2003-10-18','Nữ','0983000009',1,3),('HS_43','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT010','Khôi','Bùi Nguyên','2003-11-20','Nam','0983000010',1,3),('HS_44','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT011','Khoa','Nguyễn Đăng','2003-12-22','Nam','0983000011',1,3),('HS_45','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT012','Khánh','Trần Nhật','2003-01-25','Nam','0983000012',1,3),('HS_46','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT013','Kiên','Lê Trung','2003-02-27','Nam','0983000013',1,3),('HS_47','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21DTVT014','Lâm','Phạm Tùng','2003-03-29','Nam','0983000014',1,3),('HS_48','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT001','Mai','Vũ Tuyết','2004-03-11','Nữ','0984000001',1,4),('HS_49','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT002','Nghĩa','Hoàng Trọng','2004-04-13','Nam','0984000002',1,4),('HS_50','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT003','Nguyên','Phan Thảo','2004-05-15','Nữ','0984000003',1,4),('HS_51','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT004','Nhân','Đỗ Thành','2004-06-17','Nam','0984000004',1,4),('HS_52','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT005','Nhi','Đặng Thục','2004-07-19','Nữ','0984000005',1,4),('HS_53','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT006','Phát','Bùi Tấn','2004-08-21','Nam','0984000006',1,4),('HS_54','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT007','Phúc','Nguyễn Hồng','2004-09-23','Nam','0984000007',1,4),('HS_55','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT008','Phương','Trần Mai','2004-10-25','Nữ','0984000008',1,4),('HS_56','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT009','Phượng','Lê Thị','2004-11-27','Nữ','0984000009',1,4),('HS_57','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT010','Quốc','Phạm Anh','2004-12-29','Nam','0984000010',1,4),('HS_58','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT011','Quỳnh','Vũ Thúy','2004-01-05','Nữ','0984000011',1,4),('HS_59','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT012','Sang','Hoàng Tấn','2004-02-07','Nam','0984000012',1,4),('HS_60','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT013','Thảo','Phan Thu','2004-03-09','Nữ','0984000013',1,4),('HS_61','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B22ATTT014','Thắng','Đỗ Đức','2004-04-11','Nam','0984000014',1,4),('HS_62','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT001','Thịnh','Đặng Hùng','2003-04-15','Nam','0985000001',1,5),('HS_63','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT002','Thư','Bùi Minh','2003-05-17','Nữ','0985000002',1,5),('HS_64','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT003','Thương','Nguyễn Hoài','2003-06-19','Nữ','0985000003',1,5),('HS_65','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT004','Trâm','Trần Ngọc','2003-07-21','Nữ','0985000004',1,5),('HS_66','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT005','Trí','Lê Minh','2003-08-23','Nam','0985000005',1,5),('HS_67','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT006','Trọng','Phạm Đức','2003-09-25','Nam','0985000006',1,5),('HS_68','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT007','Trực','Vũ Duy','2003-10-27','Nam','0985000007',1,5),('HS_69','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT008','Trường','Hoàng Xuân','2003-11-29','Nam','0985000008',1,5),('HS_70','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT009','Tường','Phan Cát','2003-12-31','Nam','0985000009',1,5),('HS_71','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT010','Vinh','Đỗ Quang','2003-01-05','Nam','0985000010',1,5),('HS_72','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT011','Vượng','Đặng Công','2003-02-07','Nam','0985000011',1,5),('HS_73','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT012','Xuyên','Bùi Hà','2003-03-09','Nữ','0985000012',1,5),('HS_74','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT013','Huy','Nguyễn Gia','2003-04-11','Nam','0985000013',1,5),('HS_75','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','B21HTTT014','Long','Trần Thượng','2003-05-13','Nam','0985000014',1,5);
-/*!40000 ALTER TABLE `students` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `subjects`
---
-
-DROP TABLE IF EXISTS `subjects`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `subjects` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `credits` int NOT NULL,
-  `name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UK_subjects_code` (`code`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `subjects`
---
-
-LOCK TABLES `subjects` WRITE;
-/*!40000 ALTER TABLE `subjects` DISABLE KEYS */;
-INSERT INTO `subjects` VALUES (1,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','C_PLUS_BASE',3,'Lập trình C++ cơ bản'),(2,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','DSA_STRUCTURE',4,'Cấu trúc dữ liệu & Giải thuật'),(3,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','JAVA_WEB_DEV',3,'Lập trình Web nâng cao với Java'),(4,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','NET_COMPUTER',3,'Cơ sở mạng máy tính'),(5,'2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','OS_OPERATION',3,'Hệ điều hành máy tính');
-/*!40000 ALTER TABLE `subjects` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `teachers`
---
-
-DROP TABLE IF EXISTS `teachers`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `teachers` (
-  `id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `teacher_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `first_name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `last_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `date_of_birth` date DEFAULT NULL,
-  `gender` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `phone_number` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `is_active` tinyint(1) NOT NULL DEFAULT '1',
-  `department_id` bigint NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UK_teachers_code` (`teacher_code`),
-  KEY `FK_teachers_department` (`department_id`),
-  CONSTRAINT `FK_teachers_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`),
-  CONSTRAINT `FK_teachers_user` FOREIGN KEY (`id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `teachers`
---
-
-LOCK TABLES `teachers` WRITE;
-/*!40000 ALTER TABLE `teachers` DISABLE KEYS */;
-INSERT INTO `teachers` VALUES ('GV_01','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','GV2026_01','Tuấn','Trần Quốc','1985-04-12','Nam','0912111222',1,1),('GV_02','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','GV2026_02','Minh','Nguyễn Thị','1988-08-24','Nữ','0912333444',1,2),('GV_03','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','GV2026_03','Nam','Lê Hoàng','1982-11-05','Nam','0912555666',1,3),('GV_04','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','GV2026_04','Hải','Phạm Văn','1979-02-18','Nam','0912777888',1,4),('GV_05','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','GV2026_05','Linh','Vũ Khánh','1991-06-30','Nữ','0912999000',1,5);
-/*!40000 ALTER TABLE `teachers` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `user_roles`
---
-
-DROP TABLE IF EXISTS `user_roles`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `user_roles` (
-  `user_id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `role_id` bigint NOT NULL,
-  PRIMARY KEY (`user_id`,`role_id`),
-  KEY `FK_user_roles_role` (`role_id`),
-  CONSTRAINT `FK_user_roles_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`),
-  CONSTRAINT `FK_user_roles_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `user_roles`
---
-
-LOCK TABLES `user_roles` WRITE;
-/*!40000 ALTER TABLE `user_roles` DISABLE KEYS */;
-INSERT INTO `user_roles` VALUES ('AD',1),('HS_01',2),('HS_02',2),('HS_03',2),('HS_04',2),('HS_05',2),('HS_06',2),('HS_07',2),('HS_08',2),('HS_09',2),('HS_10',2),('HS_11',2),('HS_12',2),('HS_13',2),('HS_14',2),('HS_15',2),('HS_16',2),('HS_17',2),('HS_18',2),('HS_19',2),('HS_20',2),('HS_21',2),('HS_22',2),('HS_23',2),('HS_24',2),('HS_25',2),('HS_26',2),('HS_27',2),('HS_28',2),('HS_29',2),('HS_30',2),('HS_31',2),('HS_32',2),('HS_33',2),('HS_34',2),('HS_35',2),('HS_36',2),('HS_37',2),('HS_38',2),('HS_39',2),('HS_40',2),('HS_41',2),('HS_42',2),('HS_43',2),('HS_44',2),('HS_45',2),('HS_46',2),('HS_47',2),('HS_48',2),('HS_49',2),('HS_50',2),('HS_51',2),('HS_52',2),('HS_53',2),('HS_54',2),('HS_55',2),('HS_56',2),('HS_57',2),('HS_58',2),('HS_59',2),('HS_60',2),('HS_61',2),('HS_62',2),('HS_63',2),('HS_64',2),('HS_65',2),('HS_66',2),('HS_67',2),('HS_68',2),('HS_69',2),('HS_70',2),('HS_71',2),('HS_72',2),('HS_73',2),('HS_74',2),('HS_75',2),('GV_01',3),('GV_02',3),('GV_03',3),('GV_04',3),('GV_05',3);
-/*!40000 ALTER TABLE `user_roles` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `users`
---
-
-DROP TABLE IF EXISTS `users`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `users` (
-  `id` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `created_at` datetime(6) DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `username` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `is_active` tinyint(1) NOT NULL DEFAULT '1',
-  `is_first_login` tinyint(1) NOT NULL DEFAULT '1',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UK_users_email` (`email`),
-  UNIQUE KEY `UK_users_username` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `users`
---
-
-LOCK TABLES `users` WRITE;
-/*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES ('AD','2026-06-10 06:16:53.000000','2026-06-10 06:16:53.000000','admin@open.edu.vn','$2a$10$Nuln0JaFYxBJ92H8tcenfOS7il02iWjIQHp4BoNV.lsHJwiTAHqtu','admin',1,0),('GV_01','2026-06-10 06:16:53.000000','2026-06-10 09:03:59.718134','gv2026_01@open.edu.vn','$2a$10$.RGawvRE0Wxz0a.tXXPESOV9OJIVvuOrhBNjpXLzvbKPRo56czjLK','GV2026_01',1,0),('GV_02','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.356486','gv2026_02@open.edu.vn','$2a$10$xVRlLbPl.wnhQ0hXfENDN./uxbLfTwyOSX7.9ADaaHgQrIFh8f14i','GV2026_02',1,1),('GV_03','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.469802','gv2026_03@open.edu.vn','$2a$10$m1oc8MxjQXER0HiuqoY1reKDBRR73dr/k7p6vy/vUji.N2f8enXPC','GV2026_03',1,1),('GV_04','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.569917','gv2026_04@open.edu.vn','$2a$10$cMKoa2WK0FetlKLRidzWX.tfC0U.39iJ0FFtx4xIXFq985hzkV7wW','GV2026_04',1,1),('GV_05','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.665974','gv2026_05@open.edu.vn','$2a$10$F4jnw/VglMPV5keV3WTm0eDHcIBgaZ6pF35zlxMVQ02vXZsZrMEXS','GV2026_05',1,1),('HS_01','2026-06-10 06:16:53.000000','2026-06-10 09:05:31.412679','b21cnpm001@open.edu.vn','$2a$10$7bkFYKJvL.OMBgeUGMw/r.GhddEa1HWNIRsLrVnoF2VE22.oYfDSC','B21CNPM001',1,0),('HS_02','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.764012','b21cnpm002@open.edu.vn','$2a$10$9YPi4NVJPRcHQuPaaGJrZeiMDbb2MSKzgIOl56WwBgrT27zct3OZG','B21CNPM002',1,1),('HS_03','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.863545','b21cnpm003@open.edu.vn','$2a$10$on5UjQGlulZu44qMfo59TORT09PqEw/ZpN9qSzSnjn3PRbZ22qw/O','B21CNPM003',1,1),('HS_04','2026-06-10 06:16:53.000000','2026-06-10 10:39:23.960249','b21cnpm004@open.edu.vn','$2a$10$MugjdSVqlHUOQ2iIUcSkauNC9n7qSwb/HV6PBWpCnFKTaSu0oF37u','B21CNPM004',1,1),('HS_05','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.064485','b21cnpm005@open.edu.vn','$2a$10$Vg7UbDj/esMRqNeUFsm7yOadmGnL/AsyAjtSrlEziYiNG3EbmSFQa','B21CNPM005',1,1),('HS_06','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.160788','b21cnpm006@open.edu.vn','$2a$10$YEzWbW9GYwLRsioLcuBS0uUNDdTjqzU74E/qhSPEYGl32pz2ce8bC','B21CNPM006',1,1),('HS_07','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.271347','b21cnpm007@open.edu.vn','$2a$10$t4ta8IpYML38tgq3E1H9uOKuhapAPJuPSmv8MzMgL5vS.aN2XChOS','B21CNPM007',1,1),('HS_08','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.377376','b21cnpm008@open.edu.vn','$2a$10$FTFlq1mfI/qCAVMTdl70kuv85a9j7v2ReX4r8xuFYTuNEraYEp1Ey','B21CNPM008',1,1),('HS_09','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.479662','b21cnpm009@open.edu.vn','$2a$10$bsx70KVBHD8bH2lPPZ.UPOwg/bCcmUPFJrk7hFxyv.ChlSk5C8RKi','B21CNPM009',1,1),('HS_10','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.577040','b21cnpm010@open.edu.vn','$2a$10$nXtvYBuZZn.B2l2zHFtHne8gTs0j6w5jUEQWHzmMpUyUzFxXY.Q5a','B21CNPM010',1,1),('HS_11','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.673554','b21cnpm011@open.edu.vn','$2a$10$3XfvwdzFsviYrdfq2Y2FWOrsKXCVwselaoPHC09eNq126IdEwmE4O','B21CNPM011',1,1),('HS_12','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.773053','b21cnpm012@open.edu.vn','$2a$10$xKHpqd5.cns0YxYIHTT.CuHyjrJQiosEGMlEgiJeqCRkpPYYgGTgK','B21CNPM012',1,1),('HS_13','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.872714','b21cnpm013@open.edu.vn','$2a$10$pWUVa7LPRGVFYKG3fgyUv.Rd5VFb11.jrNfQEd6AXqdEE.EhCD.CG','B21CNPM013',1,1),('HS_14','2026-06-10 06:16:53.000000','2026-06-10 10:39:24.970166','b21cnpm014@open.edu.vn','$2a$10$V46G1EQ2SyLRh/ALvtVa7u2PILB2bNSiIASbjA2rqW6cJN7zXCUjy','B21CNPM014',1,1),('HS_15','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.069406','b21cnpm015@open.edu.vn','$2a$10$AUDuzCuSr/LvyzrDsXbH/ORjkQVlt4bJLdDa5feaWpghi3I8Sr3wC','B21CNPM015',1,1),('HS_16','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.165639','b21cnpm016@open.edu.vn','$2a$10$n6BJPyCDPAxAFkDJjASY9u5X5NPFiUhPwiJaPNuoVsRFSGwJIYJoa','B21CNPM016',1,1),('HS_17','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.263094','b21cnpm017@open.edu.vn','$2a$10$Al.mDKuM4zZINQuzMBJGquWnDXQDm0ESFahm75mU5IYODIUAoq5OO','B21CNPM017',1,1),('HS_18','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.362424','b21cnpm018@open.edu.vn','$2a$10$LSbiXDRpQ6DAYxtNuV1wdO0apnKeaEmbUDMVAwuapPX/GhvazKEZu','B21CNPM018',1,1),('HS_19','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.466864','b21cnpm019@open.edu.vn','$2a$10$uM7Ao4ts8cxpZIkn5lzZFe7UlJWmXXc3bdMlsuC2Wixbi4xNsV4Pm','B21CNPM019',1,1),('HS_20','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.568504','b22khmt001@open.edu.vn','$2a$10$LHMXLaq8Ibm.zz3njXl6nuqulAi7YVzd2yjq74To0mN9hI9JxbCx6','B22KHMT001',1,1),('HS_21','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.673930','b22khmt002@open.edu.vn','$2a$10$CD0xaw6l6/FSgZHJ0woMTeVjv3Db4RXP5PmHSck8kJwZrPOgelqte','B22KHMT002',1,1),('HS_22','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.782310','b22khmt003@open.edu.vn','$2a$10$.tEMweY46IlMpVWAKFCRbOPTFE/TJ7I7c28Ranm0tGqDIkFAffXlK','B22KHMT003',1,1),('HS_23','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.886469','b22khmt004@open.edu.vn','$2a$10$GeKmCyYkIGH1uCXxfKKqseUPo0HZNbMKUQSZUp7S9Ps1qtDu3mI/6','B22KHMT004',1,1),('HS_24','2026-06-10 06:16:53.000000','2026-06-10 10:39:25.992611','b22khmt005@open.edu.vn','$2a$10$iKbF9RzouVpms9LwzlaZsemr7Xdy8TssD1eIMhihLmx4BzdtWkpRi','B22KHMT005',1,1),('HS_25','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.091567','b22khmt006@open.edu.vn','$2a$10$mi0StUmvBzOQV/uulUuUNOT0qIE91rlWYiMB4tAiH8Uqj7abr0PIa','B22KHMT006',1,1),('HS_26','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.188505','b22khmt007@open.edu.vn','$2a$10$Qz3izIg8Hnjq/00r6nximOkRLgMZ2rnaEjEObIIjIR1LjcxkwRN4W','B22KHMT007',1,1),('HS_27','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.294118','b22khmt008@open.edu.vn','$2a$10$vmi/kjoAqS4Q7S/ehrEqteLoE26XG7xvr0hIVbIWvf9s9u5BEvVX2','B22KHMT008',1,1),('HS_28','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.399726','b22khmt009@open.edu.vn','$2a$10$az5c7ANg7QMuY4/Fg7IQMe15pqGZ5PxeDaCkhQEmoi/snAew.dybG','B22KHMT009',1,1),('HS_29','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.519372','b22khmt010@open.edu.vn','$2a$10$1LtCkPD.ZanhgXPLLeB..uvOU.opz1A0GpIWNgR.j5vHyONCZLCvC','B22KHMT010',1,1),('HS_30','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.627876','b22khmt011@open.edu.vn','$2a$10$f438q6r2Tg82j3pS5SeGTeHhIdyE7ZItvm2svKNhYmoIA8LZtiaBK','B22KHMT011',1,1),('HS_31','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.731051','b22khmt012@open.edu.vn','$2a$10$Og4syPafSgY2kE2vruTJEu2VfcD3lVqVrPYzSSUtigLOnpM3ZdQVy','B22KHMT012',1,1),('HS_32','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.830395','b22khmt013@open.edu.vn','$2a$10$MS2/DUOpIZDxH0dwVh2cX.fcsH9D/KVLBdmE0fY6gogGFUwZO/GoK','B22KHMT013',1,1),('HS_33','2026-06-10 06:16:53.000000','2026-06-10 10:39:26.934205','b22khmt014@open.edu.vn','$2a$10$N5LNoyI9QMExBujaSl4SreOkgrAt5vK26Jj1M3UHhqjzVo/LCmo8O','B22KHMT014',1,1),('HS_34','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.039301','b21dtvt001@open.edu.vn','$2a$10$HjPFwIST.PRzZRC6/cXJoOlpxQUY3wJCMIpUcCSZ/L77NgE9ybTUG','B21DTVT001',1,1),('HS_35','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.147823','b21dtvt002@open.edu.vn','$2a$10$ZFdJ1pex5xVyXLsEGS7AheK5TJZ4oEiXysHhJhTTJUPMZjSgjERq.','B21DTVT002',1,1),('HS_36','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.252309','b21dtvt003@open.edu.vn','$2a$10$c4yMex.OZO7BbXJvCNXfx.kRXPdl.fTVFy5EMNH.y7dKtRXlnbFey','B21DTVT003',1,1),('HS_37','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.352462','b21dtvt004@open.edu.vn','$2a$10$98J3Zo6cy3DU8NUHE10yPOU4WuQT5U4Vcyi7Crogy3ZYum5hik/cm','B21DTVT004',1,1),('HS_38','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.455277','b21dtvt005@open.edu.vn','$2a$10$uPJNy/JZTeIXzWodRPQJwOJV0oe4APLllldnuHxmjkdOfQSIQIn7.','B21DTVT005',1,1),('HS_39','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.552515','b21dtvt006@open.edu.vn','$2a$10$iaUjCY3OHBBPaKfRPPKNQO0EsU4yxrceit2c8wufKZcuCqL.xMy6a','B21DTVT006',1,1),('HS_40','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.661477','b21dtvt007@open.edu.vn','$2a$10$T3/ZkOsSfw6Tr1n.zBjjBOWUMaClDnjwTY5O0lV1.N90U9/LrG0nO','B21DTVT007',1,1),('HS_41','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.759405','b21dtvt008@open.edu.vn','$2a$10$2g4wsLmKcnOHVaHTfnES1uikLj3auDywcGzpOeS41SJ0ee1eAs2jq','B21DTVT008',1,1),('HS_42','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.857100','b21dtvt009@open.edu.vn','$2a$10$Aii0QRsAC8a0s6eQxZNCNezYoAcXwqdak3C5YQYowGbe94YaxpmQC','B21DTVT009',1,1),('HS_43','2026-06-10 06:16:53.000000','2026-06-10 10:39:27.960693','b21dtvt010@open.edu.vn','$2a$10$hwngUEV3A3RJ7tsaNoKGjek9NQqAsHv2FhOZm/XMKn3SxwVVzZKde','B21DTVT010',1,1),('HS_44','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.067755','b21dtvt011@open.edu.vn','$2a$10$/NsJowOSNpWsF8enIISHl.ogccdYIZcA8PYPq3KmQ2ziY5SOh5qem','B21DTVT011',1,1),('HS_45','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.172172','b21dtvt012@open.edu.vn','$2a$10$D2QsVIiuliEQBdLIP8GzwuoqOCVdATuQyrs5g39/hq/KGBDWKbuuC','B21DTVT012',1,1),('HS_46','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.272045','b21dtvt013@open.edu.vn','$2a$10$nxmNZN9pvnNQEIFC9KP4AOAZ1m1aILWUtUnn4Xsk9FjiYs3jaVusK','B21DTVT013',1,1),('HS_47','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.373255','b21dtvt014@open.edu.vn','$2a$10$tbbaXFtZpp1g6q5R1RaxbugMH4KtJ/ujDCVnR3CeCAPsY4JWCromi','B21DTVT014',1,1),('HS_48','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.487328','b22attt001@open.edu.vn','$2a$10$mJ4tXqhS8.8wjnVwcbHp4utmNav4PdspEBbSgkEElDLC6qLUhqGam','B22ATTT001',1,1),('HS_49','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.610425','b22attt002@open.edu.vn','$2a$10$GZMQRzf2d2BWjjVgofBbFO1f91UtrA5ijDRuluOgnMT8oHOs7IkP6','B22ATTT002',1,1),('HS_50','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.729181','b22attt003@open.edu.vn','$2a$10$ane5OIKDlAnSg9CLBi8/r.TcU4G4X1ahI.dNKEg8GKoHGa9ySocv.','B22ATTT003',1,1),('HS_51','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.844046','b22attt004@open.edu.vn','$2a$10$s0/8oztoM9djJ4wmUQ5qq.7DTfyImbXFiVIgsyBNBVt74zjBEVSdq','B22ATTT004',1,1),('HS_52','2026-06-10 06:16:53.000000','2026-06-10 10:39:28.958703','b22attt005@open.edu.vn','$2a$10$jbhJjhyFWPVvka3MvbawbO.T/pEwXkUiXSbq0HHqpO2syrRMsMjSC','B22ATTT005',1,1),('HS_53','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.068866','b22attt006@open.edu.vn','$2a$10$e5hWKwqgfHdniSUc0/rP4.D5VsKgMuk1XgUSyJOIjvkQAJpYUIosi','B22ATTT006',1,1),('HS_54','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.176601','b22attt007@open.edu.vn','$2a$10$1D2Was7/tb4fvtPdMhBeGeAqC7qiYCww/QzkIi7fTeOXyJgEs.MEK','B22ATTT007',1,1),('HS_55','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.285418','b22attt008@open.edu.vn','$2a$10$gJ7RaVhRVe9CgatTdCzH6OqiImqWmXC0HU67N8H4L63RZVpOFWj5O','B22ATTT008',1,1),('HS_56','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.387477','b22attt009@open.edu.vn','$2a$10$dowfK62h.zr3cI.7bglGjub6LdKXPkg3iEs.HPbcAF5KiP7vW5zqq','B22ATTT009',1,1),('HS_57','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.486792','b22attt010@open.edu.vn','$2a$10$4X2Lar8AQf.CsGTT0fUXKOBN4OasdoZeWRidB5DE.aTMHfYQpBjJK','B22ATTT010',1,1),('HS_58','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.584695','b22attt011@open.edu.vn','$2a$10$Wh5zlj9ddY0F/0qNGZwP3OkvFyHdifMiqvgweeuXQLJO/LZ1x/lWm','B22ATTT011',1,1),('HS_59','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.684449','b22attt012@open.edu.vn','$2a$10$slEOhUledQkBeUtbB8YAgeqdF6ww6HDFfMzC4cwJWu0hJ59kNR09C','B22ATTT012',1,1),('HS_60','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.780955','b22attt013@open.edu.vn','$2a$10$.BVaP/GdGt5JfNPxEuZwIePyNe3p4yVV5srAbs.KKkapUQ.NrPcPm','B22ATTT013',1,1),('HS_61','2026-06-10 06:16:53.000000','2026-06-10 10:39:29.877333','b22attt014@open.edu.vn','$2a$10$SI.uD713ltuIzgJ0VgVFVeZIYNjiUtuOKDXkGfa3pDpnPYEO7Vj7u','B22ATTT014',1,1),('HS_62','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.044317','b21httt001@open.edu.vn','$2a$10$dKjJpUS3IklssL47TPqVie34IDu7zbVWg/9sH7moRqFdurI9ufcT.','B21HTTT001',1,1),('HS_63','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.222250','b21httt002@open.edu.vn','$2a$10$mxO8aHRFQzF/3LSWVDHrb.Kp7KGJ0ID1aNgShMJqRyKmUIuGL69uy','B21HTTT002',1,1),('HS_64','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.381542','b21httt003@open.edu.vn','$2a$10$n2APctre735no2cqk4jVX.VxNsj9HVgQERteLPpEL0Mw3rPgBEV2a','B21HTTT003',1,1),('HS_65','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.539373','b21httt004@open.edu.vn','$2a$10$7HAPtw0U70LvhvdhdVSUEuavYQEIlmkTY9uVSyvnTha790uGOE.ZG','B21HTTT004',1,1),('HS_66','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.726112','b21httt005@open.edu.vn','$2a$10$DU5UH/CJisZduSrl51PdFun/nYGPC0bo.sCuux4Cj2JR0zn.rO4yK','B21HTTT005',1,1),('HS_67','2026-06-10 06:16:53.000000','2026-06-10 10:39:30.909696','b21httt006@open.edu.vn','$2a$10$bUFVwHo0dImrsUFaOpowZ.mejsm7l0nM1hXWxzkuNJAq8NxQA1sum','B21HTTT006',1,1),('HS_68','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.080902','b21httt007@open.edu.vn','$2a$10$1l17VsDTCHxvxPMy3PUBF.21PENy3pN1qK.ThR8LTE6zZfZ2UeV0q','B21HTTT007',1,1),('HS_69','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.210738','b21httt008@open.edu.vn','$2a$10$/qww584wr00nxjkgziaIIeK4UMswu63IYOZNImuuCaAKnFIg3Dl06','B21HTTT008',1,1),('HS_70','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.378097','b21httt009@open.edu.vn','$2a$10$chC8zxi0Ws61KInLkJ98Ke/FIiEBA/uFalR9Bq2YnJdHXgSNPShiS','B21HTTT009',1,1),('HS_71','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.551319','b21httt010@open.edu.vn','$2a$10$BuND6CX58Pi3Hhe7j64R4.nSWb.CEvscaRWh4qHZjCVgCYzYcJCzC','B21HTTT010',1,1),('HS_72','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.679195','b21httt011@open.edu.vn','$2a$10$hKZBE6nKkElpKrmyELbiNOqhDVGxAjp9CJUwC876lGRV5tCQVWttq','B21HTTT011',1,1),('HS_73','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.797086','b21httt012@open.edu.vn','$2a$10$pkbLt/xwKOXMDxfA/cx4PebTdVWjzM.J.cnqobO7MKkeUnrPEGc8W','B21HTTT012',1,1),('HS_74','2026-06-10 06:16:53.000000','2026-06-10 10:39:31.946957','b21httt013@open.edu.vn','$2a$10$rt1PV.KBcMaqsfk.DHXJbuaudcdoT.vk.yX/A7WMR/fn9apBALBdW','B21HTTT013',1,1),('HS_75','2026-06-10 06:16:53.000000','2026-06-10 10:39:32.105871','b21httt014@open.edu.vn','$2a$10$eSd.jmV261I6jqrpdELMK.NOrHoHmQI5QLi4IP.8N4DBlR7XhrWea','B21HTTT014',1,1);
-/*!40000 ALTER TABLE `users` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
--- Dump completed on 2026-06-10 17:56:00
-</file>
-
-<file path="student-management-ui/src/App.jsx">
-import React, { useState, useEffect } from 'react';
-import LoginPage from './pages/LoginPage';
-import StudentPage from './pages/StudentPage';
-import TeacherPage from './pages/TeacherPage';
-import GradePage from './pages/GradePage';
-import RegistrationPage from './pages/RegistrationPage';
-import TrainingPage from './pages/TrainingPage';
-import DashboardPage from './pages/DashboardPage';
-import SchedulePage from './pages/SchedulePage';
-
-function App() {
-    const [token, setToken] = useState(localStorage.getItem('token'));
-    const [username, setUsername] = useState(localStorage.getItem('username'));
-    const [role, setRole] = useState(localStorage.getItem('roles') || '');
-    const [activeTab, setActiveTab] = useState('dashboard');
-
-    const executeLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('username');
-        localStorage.removeItem('roles');
-        localStorage.removeItem('userId');
-        localStorage.removeItem('studentId');
-        localStorage.removeItem('teacherId');
-        localStorage.removeItem('lastExitTime');
-
-        setToken(null);
-        setUsername(null);
-        setRole('');
-    };
-
-    useEffect(() => {
-        const checkSession = () => {
-            const lastExitTime = localStorage.getItem('lastExitTime');
-            const currentToken = localStorage.getItem('token');
-
-            if (currentToken && lastExitTime) {
-                const timeAway = Date.now() - parseInt(lastExitTime, 10);
-                const FIFTEEN_MINUTES = 15 * 60 * 1000;
-
-                if (timeAway > FIFTEEN_MINUTES) {
-                    executeLogout();
-                    alert("Phiên làm việc của bạn đã hết hạn do không hoạt động trong 15 phút. Vui lòng đăng nhập lại!");
-                } else {
-                    localStorage.removeItem('lastExitTime');
-                }
-            }
-        };
-
-        checkSession();
-
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'hidden') {
-                localStorage.setItem('lastExitTime', Date.now().toString());
-            } else if (document.visibilityState === 'visible') {
-                checkSession();
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        const handleBeforeUnload = () => {
-            localStorage.setItem('lastExitTime', Date.now().toString());
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-        };
-    }, []);
-
-    const handleLogout = () => {
-        executeLogout();
-    };
-
-    if (!token) {
-        return <LoginPage />;
-    }
-
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)' }}>
-
-            {/* HEADER SYSTEM */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-sm) var(--spacing-xl)', backgroundColor: 'var(--color-surface)', color: 'var(--text-main)', borderBottom: '2px solid var(--text-cyan)' }}>
-                <h3>CMS - STUDENT MANAGEMENT</h3>
-                <div>
-                    <span style={{ marginRight: 'var(--spacing-xl)', color: 'var(--text-muted)' }}>Xin chào: <b>{username}</b> ({role})</span>
-                    <button onClick={handleLogout} style={{ padding: '6px 12px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Đăng xuất</button>
-                </div>
-            </div>
-
-            {/* BODY SYSTEM */}
-            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-
-                {/* SIDEBAR NAVIGATION */}
-                <div style={{ width: '240px', backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl) var(--spacing-sm)', borderRight: '1px solid var(--color-border)' }}>
-                    <button onClick={() => setActiveTab('dashboard')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'dashboard' ? 'var(--color-primary)' : 'transparent' }}>📊 Tổng Quan System</button>
-
-                    {(role.includes('ADMIN') || role.includes('TEACHER')) && (
-                        <button onClick={() => setActiveTab('students')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'students' ? 'var(--color-primary)' : 'transparent' }}>👥 Quản Lý Sinh Viên</button>
-                    )}
-
-                    {role.includes('ADMIN') && (
-                        <button onClick={() => setActiveTab('teachers')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'teachers' ? 'var(--color-primary)' : 'transparent' }}>💼 Quản Lý Giảng Viên</button>
-                    )}
-
-                    <button onClick={() => setActiveTab('grades')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'grades' ? 'var(--color-primary)' : 'transparent' }}>🎯 Quản Lý Điểm Số</button>
-
-                    {/* 🔥 ĐÃ FIX: Cho phép cả ADMIN, STUDENT và TEACHER nhìn thấy phân hệ này */}
-                    {(role.includes('ADMIN') || role.includes('STUDENT') || role.includes('TEACHER')) && (
-                        <button onClick={() => setActiveTab('registration')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'registration' ? 'var(--color-primary)' : 'transparent' }}>⏰ Đăng Ký Tín Chỉ</button>
-                    )}
-
-                    {(role.includes('TEACHER') || role.includes('STUDENT')) && (
-                        <button onClick={() => setActiveTab('schedule')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'schedule' ? 'var(--color-primary)' : 'transparent' }}>
-                            📅 {role.includes('TEACHER') ? 'Lịch Dạy' : 'Lịch Học'}
-                        </button>
-                    )}
-
-                    {role.includes('ADMIN') && (
-                        <button onClick={() => setActiveTab('training')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'training' ? 'var(--color-primary)' : 'transparent' }}>🏛️ Quản Lý Đào Tạo</button>
-                    )}
-                </div>
-
-                {/* MAIN CONTENT AREA */}
-                <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)', padding: 'var(--spacing-xl)' }}>
-                    {activeTab === 'dashboard' && <DashboardPage />}
-                    {activeTab === 'students' && <StudentPage />}
-                    {activeTab === 'teachers' && <TeacherPage />}
-                    {activeTab === 'grades' && <GradePage />}
-                    {activeTab === 'registration' && <RegistrationPage />}
-                    {activeTab === 'schedule' && <SchedulePage />}
-                    {activeTab === 'training' && <TrainingPage />}
-                </div>
-
-            </div>
-        </div>
-    );
-}
-
-const sidebarBtnStyle = { width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' };
-
-export default App;
 </file>
 
 <file path="student-management-ui/src/pages/StudentPage.jsx">
@@ -8788,6 +8816,152 @@ logging:
         orm:
           jdbc:
             bind: OFF
+</file>
+
+<file path="student-management-ui/src/App.jsx">
+import React, { useState, useEffect } from 'react';
+import LoginPage from './pages/LoginPage';
+import StudentPage from './pages/StudentPage';
+import TeacherPage from './pages/TeacherPage';
+import GradePage from './pages/GradePage';
+import RegistrationPage from './pages/RegistrationPage';
+import TrainingPage from './pages/TrainingPage';
+import DashboardPage from './pages/DashboardPage';
+import SchedulePage from './pages/SchedulePage';
+
+function App() {
+    const [token, setToken] = useState(localStorage.getItem('token'));
+    const [username, setUsername] = useState(localStorage.getItem('username'));
+    const [role, setRole] = useState(localStorage.getItem('roles') || '');
+    const [activeTab, setActiveTab] = useState('dashboard');
+
+    const executeLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        localStorage.removeItem('roles');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('studentId');
+        localStorage.removeItem('teacherId');
+        localStorage.removeItem('lastExitTime');
+
+        setToken(null);
+        setUsername(null);
+        setRole('');
+    };
+
+    useEffect(() => {
+        const checkSession = () => {
+            const lastExitTime = localStorage.getItem('lastExitTime');
+            const currentToken = localStorage.getItem('token');
+
+            if (currentToken && lastExitTime) {
+                const timeAway = Date.now() - parseInt(lastExitTime, 10);
+                const FIFTEEN_MINUTES = 15 * 60 * 1000;
+
+                if (timeAway > FIFTEEN_MINUTES) {
+                    executeLogout();
+                    alert("Phiên làm việc của bạn đã hết hạn do không hoạt động trong 15 phút. Vui lòng đăng nhập lại!");
+                } else {
+                    localStorage.removeItem('lastExitTime');
+                }
+            }
+        };
+
+        checkSession();
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                localStorage.setItem('lastExitTime', Date.now().toString());
+            } else if (document.visibilityState === 'visible') {
+                checkSession();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        const handleBeforeUnload = () => {
+            localStorage.setItem('lastExitTime', Date.now().toString());
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, []);
+
+    const handleLogout = () => {
+        executeLogout();
+    };
+
+    if (!token) {
+        return <LoginPage />;
+    }
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)' }}>
+
+            {/* HEADER SYSTEM */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-sm) var(--spacing-xl)', backgroundColor: 'var(--color-surface)', color: 'var(--text-main)', borderBottom: '2px solid var(--text-cyan)' }}>
+                <h3>CMS - STUDENT MANAGEMENT</h3>
+                <div>
+                    <span style={{ marginRight: 'var(--spacing-xl)', color: 'var(--text-muted)' }}>Xin chào: <b>{username}</b> ({role})</span>
+                    <button onClick={handleLogout} style={{ padding: '6px 12px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Đăng xuất</button>
+                </div>
+            </div>
+
+            {/* BODY SYSTEM */}
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+                {/* SIDEBAR NAVIGATION */}
+                <div style={{ width: '240px', backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl) var(--spacing-sm)', borderRight: '1px solid var(--color-border)' }}>
+                    <button onClick={() => setActiveTab('dashboard')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'dashboard' ? 'var(--color-primary)' : 'transparent' }}>📊 Tổng Quan System</button>
+
+                    {(role.includes('ADMIN') || role.includes('TEACHER')) && (
+                        <button onClick={() => setActiveTab('students')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'students' ? 'var(--color-primary)' : 'transparent' }}>👥 Quản Lý Sinh Viên</button>
+                    )}
+
+                    {role.includes('ADMIN') && (
+                        <button onClick={() => setActiveTab('teachers')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'teachers' ? 'var(--color-primary)' : 'transparent' }}>💼 Quản Lý Giảng Viên</button>
+                    )}
+
+                    <button onClick={() => setActiveTab('grades')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'grades' ? 'var(--color-primary)' : 'transparent' }}>🎯 Quản Lý Điểm Số</button>
+
+                    {/* 🔥 ĐÃ FIX: Cho phép cả ADMIN, STUDENT và TEACHER nhìn thấy phân hệ này */}
+                    {(role.includes('ADMIN') || role.includes('STUDENT') || role.includes('TEACHER')) && (
+                        <button onClick={() => setActiveTab('registration')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'registration' ? 'var(--color-primary)' : 'transparent' }}>⏰ Đăng Ký Tín Chỉ</button>
+                    )}
+
+                    {(role.includes('TEACHER') || role.includes('STUDENT')) && (
+                        <button onClick={() => setActiveTab('schedule')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'schedule' ? 'var(--color-primary)' : 'transparent' }}>
+                            📅 {role.includes('TEACHER') ? 'Lịch Dạy' : 'Lịch Học'}
+                        </button>
+                    )}
+
+                    {role.includes('ADMIN') && (
+                        <button onClick={() => setActiveTab('training')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'training' ? 'var(--color-primary)' : 'transparent' }}>🏛️ Quản Lý Đào Tạo</button>
+                    )}
+                </div>
+
+                {/* MAIN CONTENT AREA */}
+                <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)', padding: 'var(--spacing-xl)' }}>
+                    {activeTab === 'dashboard' && <DashboardPage />}
+                    {activeTab === 'students' && <StudentPage />}
+                    {activeTab === 'teachers' && <TeacherPage />}
+                    {activeTab === 'grades' && <GradePage />}
+                    {activeTab === 'registration' && <RegistrationPage />}
+                    {activeTab === 'schedule' && <SchedulePage />}
+                    {activeTab === 'training' && <TrainingPage />}
+                </div>
+
+            </div>
+        </div>
+    );
+}
+
+const sidebarBtnStyle = { width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' };
+
+export default App;
 </file>
 
 <file path="src/main/java/com/dangdepzaivaio/StudentManagement/exception/ErrorCode.java">

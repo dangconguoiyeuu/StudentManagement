@@ -52,4 +52,15 @@ public class GradeController {
     public ApiResponse<GradeResponse> getGradeById(@PathVariable Long id) {
         return new ApiResponse<>(1000, "Lấy chi tiết thông tin điểm số thành công!", gradeService.getGradeById(id));
     }
+
+    // Thêm vào GradeController.java
+    @DeleteMapping("/student/{studentId}/course-class/{courseClassId}")
+    // @PreAuthorize("hasRole('ADMIN')") // Mở comment nếu bạn có dùng bảo mật phân quyền
+    public ApiResponse<String> adminCancelCredit(
+            @PathVariable String studentId,
+            @PathVariable Long courseClassId) {
+
+        gradeService.adminCancelCredit(studentId, courseClassId);
+        return new ApiResponse<>(1000, "Rút tín chỉ thành công!", "Đã xóa hoàn toàn tín chỉ khỏi hồ sơ sinh viên.");
+    }
 }

@@ -143,7 +143,7 @@ export default function RegistrationPage() {
         if (!searchStudentId.trim()) return;
         setIsSearchingStudent(true);
         try {
-            // 🔥 THÊM ĐUÔI _t ĐỂ ÉP TRÌNH DUYỆT LẤY DỮ LIỆU MỚI
+            // 🔥 THÊM ĐUÔI PHÁ CACHE TRÌNH DUYỆT (?_t=...)
             const res = await axiosClient.get(`/grades/student/${searchStudentId.trim()}?_t=${Date.now()}`);
             setSearchedClasses(res);
         } catch (err) {
@@ -155,21 +155,23 @@ export default function RegistrationPage() {
     };
 
     // ADMIN XÓA (RÚT) TÍN CHỈ CHO SINH VIÊN
-    const handleAdminDeleteRegistration = async (gradeId, subjectName) => {
-        if (!window.confirm(`⚠️ RÚT MÔN HỌC KHẨN CẤP\n\nBạn (Admin) có chắc chắn muốn XÓA môn [${subjectName}] của sinh viên này không?\nHành động này sẽ gỡ bỏ hoàn toàn môn học khỏi hệ thống!`)) return;
+    // ADMIN XÓA (RÚT) TÍN CHỈ CHO SINH VIÊN
+    // ADMIN XÓA (RÚT) TÍN CHỈ CHO SINH VIÊN
+    const handleAdminDeleteRegistration = async (courseClassId, subjectName) => {
+        if (!window.confirm(`⚠️ RÚT MÔN HỌC KHẨN CẤP\n\nBạn (Admin) có chắc chắn muốn XÓA môn [${subjectName}] của sinh viên này không?`)) return;
 
         try {
-            await axiosClient.delete(`/grades/${gradeId}`);
+            await axiosClient.delete(`/grades/student/${searchStudentId.trim()}/course-class/${courseClassId}`);
             showMessage(`Đã rút thành công môn ${subjectName} cho sinh viên!`);
-
-            // 🔥 XÓA MÔN ĐÓ KHỎI GIAO DIỆN NGAY LẬP TỨC MÀ KHÔNG CẦN CHỜ LOAD LẠI
-            setSearchedClasses(prev => prev.filter(item => item.id !== gradeId));
-
+            setSearchedClasses(prev => prev.filter(item => item.courseClassId !== courseClassId));
         } catch (err) {
-            showMessage('Lỗi khi Admin xóa môn học của sinh viên.', true);
+            // Bắt đúng message từ backend
+            const msg = err?.response?.data?.message
+                || err?.message
+                || 'Lỗi khi Admin rút môn học của sinh viên.';
+            showMessage(msg, true);
         }
     };
-
     const checkScheduleConflicts = (selectedItems, existingItems) => {
         const slotsMap = {};
         const allItemsToCheck = [...existingItems, ...selectedItems];
@@ -270,7 +272,7 @@ export default function RegistrationPage() {
                 setAvailableClasses([]);
             }
 
-            // 🔥 ÉP TRÌNH DUYỆT LẤY HỒ SƠ MỚI NHẤT
+            // 🔥 THÊM ĐUÔI PHÁ CACHE KHI SINH VIÊN TẢI DANH SÁCH MÔN ĐÃ ĐĂNG KÝ
             const myClasses = await axiosClient.get(`/registration/my-classes?_t=${Date.now()}`);
             const validClasses = myClasses.filter(c => c.status !== 'REJECTED');
             setMyRegisteredClasses(validClasses);
@@ -311,9 +313,8 @@ export default function RegistrationPage() {
             await axiosClient.delete(`/registration/unenroll?courseClassId=${courseClassId}`);
             showMessage('Đã hủy môn học thành công!');
 
-            // 🔥 XÓA NGAY MÔN ĐÓ KHỎI GIAO DIỆN SINH VIÊN
+            // 🔥 XÓA THẬT NGAY TRÊN GIAO DIỆN CỦA SINH VIÊN
             setMyRegisteredClasses(prev => prev.filter(item => item.courseClassId !== courseClassId));
-
         } catch (err) {
             showMessage(err?.response?.data || 'Không thể hủy môn học này lúc này!', true);
         }
@@ -478,7 +479,7 @@ export default function RegistrationPage() {
                         </div>
                     </div>
 
-                    {/* 🔥 TÍNH NĂNG MỚI: ADMIN RÚT MÔN CHO SINH VIÊN */}
+                    {/* QUẢN TRỊ ĐƠN RÚT MÔN CỦA PHÒNG ĐÀO TẠO */}
                     <div style={{ marginTop: '10px', padding: '20px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-danger)' }}>
                         <h3 style={{ color: 'var(--color-danger)', marginTop: 0, marginBottom: '15px' }}>
                             🛠️ GIẢI QUYẾT ĐƠN RÚT MÔN CỦA SINH VIÊN (DÀNH CHO PHÒNG ĐÀO TẠO)
@@ -527,7 +528,7 @@ export default function RegistrationPage() {
                                             <td>{reg.credits} tín</td>
                                             <td style={{ textAlign: 'center' }}>
                                                 <button
-                                                    onClick={() => handleAdminDeleteRegistration(reg.id, reg.subjectName)}
+                                                    onClick={() => handleAdminDeleteRegistration(reg.courseClassId, reg.subjectName)}
                                                     style={{ padding: '8px 12px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
                                                     title="Xóa vĩnh viễn môn học này khỏi hồ sơ sinh viên"
                                                 >

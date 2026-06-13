@@ -78,6 +78,17 @@ public class GradeServiceImpl implements GradeService {
         return gradeMapper.toResponse(gradeRepository.save(grade));
     }
 
+    // Thêm vào GradeServiceImpl.java
+    @Override
+    @Transactional
+    public void adminCancelCredit(String studentId, Long courseClassId) {
+        // Kiểm tra bản ghi tồn tại
+        Grade grade = gradeRepository.findByStudentIdAndCourseClassId(studentId, courseClassId)
+                .orElseThrow(() -> new AppException(ErrorCode.GRADE_NOT_FOUND));
+
+        gradeRepository.hardDeleteByStudentAndCourseClass(studentId, courseClassId);
+    }
+
     @Override
     public StudentAcademicSummaryResponse getAcademicSummary(String studentId) {
         Authentication authentication = currentAuthentication();
@@ -124,6 +135,7 @@ public class GradeServiceImpl implements GradeService {
         );
     }
 
+
     @Override
     public List<GradeResponse> getAllGrades() {
         Authentication authentication = currentAuthentication();
@@ -161,6 +173,8 @@ public class GradeServiceImpl implements GradeService {
 
         return gradeMapper.toResponse(grade);
     }
+
+
 
     @Override
     @Transactional
