@@ -7,6 +7,7 @@ import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryR
 import com.dangdepzaivaio.StudentManagement.service.GradeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -53,9 +54,8 @@ public class GradeController {
         return new ApiResponse<>(1000, "Lấy chi tiết thông tin điểm số thành công!", gradeService.getGradeById(id));
     }
 
-    // Thêm vào GradeController.java
     @DeleteMapping("/student/{studentId}/course-class/{courseClassId}")
-    // @PreAuthorize("hasRole('ADMIN')") // Mở comment nếu bạn có dùng bảo mật phân quyền
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<String> adminCancelCredit(
             @PathVariable String studentId,
             @PathVariable Long courseClassId) {

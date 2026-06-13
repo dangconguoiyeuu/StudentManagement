@@ -7,8 +7,20 @@ import RegistrationPage from './pages/RegistrationPage';
 import TrainingPage from './pages/TrainingPage';
 import DashboardPage from './pages/DashboardPage';
 import SchedulePage from './pages/SchedulePage';
+import { useNotification } from './context/NotificationContext';
 
-function App() {
+const NAV_ITEMS = [
+    { id: 'dashboard', icon: '📊', label: 'Tổng quan', roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+    { id: 'students', icon: '👥', label: 'Quản lý sinh viên', roles: ['ADMIN', 'TEACHER'] },
+    { id: 'teachers', icon: '💼', label: 'Quản lý giảng viên', roles: ['ADMIN'] },
+    { id: 'grades', icon: '🎯', label: 'Quản lý điểm số', roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+    { id: 'registration', icon: '⏰', label: 'Đăng ký tín chỉ', roles: ['ADMIN', 'STUDENT', 'TEACHER'] },
+    { id: 'schedule', icon: '📅', label: 'Lịch học / dạy', roles: ['TEACHER', 'STUDENT'], labelFn: (r) => r.includes('TEACHER') ? 'Lịch dạy' : 'Lịch học' },
+    { id: 'training', icon: '🏛️', label: 'Quản lý đào tạo', roles: ['ADMIN'] },
+];
+
+function AppContent() {
+    const { notify, confirm } = useNotification();
     const [token, setToken] = useState(localStorage.getItem('token'));
     const [username, setUsername] = useState(localStorage.getItem('username'));
     const [role, setRole] = useState(localStorage.getItem('roles') || '');
@@ -22,7 +34,6 @@ function App() {
         localStorage.removeItem('studentId');
         localStorage.removeItem('teacherId');
         localStorage.removeItem('lastExitTime');
-
         setToken(null);
         setUsername(null);
         setRole('');
@@ -39,7 +50,7 @@ function App() {
 
                 if (timeAway > FIFTEEN_MINUTES) {
                     executeLogout();
-                    alert("Phiên làm việc của bạn đã hết hạn do không hoạt động trong 15 phút. Vui lòng đăng nhập lại!");
+                    notify.warning('Phiên làm việc đã hết hạn do không hoạt động trong 15 phút. Vui lòng đăng nhập lại.');
                 } else {
                     localStorage.removeItem('lastExitTime');
                 }
@@ -57,73 +68,82 @@ function App() {
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        const handleBeforeUnload = () => {
-            localStorage.setItem('lastExitTime', Date.now().toString());
-        };
+        const handleBeforeUnload = () => localStorage.setItem('lastExitTime', Date.now().toString());
         window.addEventListener('beforeunload', handleBeforeUnload);
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('beforeunload', handleBeforeUnload);
         };
-    }, []);
+    }, [notify]);
 
-    const handleLogout = () => {
-        executeLogout();
+    const handleLogout = async () => {
+        const ok = await confirm({
+            title: 'Đăng xuất',
+            message: 'Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?',
+            confirmText: 'Đăng xuất',
+            cancelText: 'Ở lại',
+            variant: 'danger',
+        });
+        if (ok) {
+            executeLogout();
+            notify.info('Đã đăng xuất thành công.');
+        }
     };
 
     if (!token) {
         return <LoginPage />;
     }
 
+    const visibleNav = NAV_ITEMS.filter(item =>
+        item.roles.some(r => role.includes(r))
+    );
+
+    const roleLabel = role.includes('ADMIN') ? 'Quản trị viên'
+        : role.includes('TEACHER') ? 'Giảng viên'
+        : role.includes('STUDENT') ? 'Sinh viên' : role;
+
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--color-bg)', color: 'var(--text-main)' }}>
-
-            {/* HEADER SYSTEM */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-sm) var(--spacing-xl)', backgroundColor: 'var(--color-surface)', color: 'var(--text-main)', borderBottom: '2px solid var(--text-cyan)' }}>
-                <h3>CMS - STUDENT MANAGEMENT</h3>
-                <div>
-                    <span style={{ marginRight: 'var(--spacing-xl)', color: 'var(--text-muted)' }}>Xin chào: <b>{username}</b> ({role})</span>
-                    <button onClick={handleLogout} style={{ padding: '6px 12px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Đăng xuất</button>
+        <div className="app-shell">
+            <header className="app-header">
+                <div className="app-header__brand">
+                    <div className="app-header__logo">S</div>
+                    <div>
+                        <h1 className="app-header__title">Student Management</h1>
+                        <div className="app-header__subtitle">Hệ thống quản lý sinh viên</div>
+                    </div>
                 </div>
-            </div>
-
-            {/* BODY SYSTEM */}
-            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-
-                {/* SIDEBAR NAVIGATION */}
-                <div style={{ width: '240px', backgroundColor: 'var(--color-surface)', padding: 'var(--spacing-xl) var(--spacing-sm)', borderRight: '1px solid var(--color-border)' }}>
-                    <button onClick={() => setActiveTab('dashboard')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'dashboard' ? 'var(--color-primary)' : 'transparent' }}>📊 Tổng Quan System</button>
-
-                    {(role.includes('ADMIN') || role.includes('TEACHER')) && (
-                        <button onClick={() => setActiveTab('students')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'students' ? 'var(--color-primary)' : 'transparent' }}>👥 Quản Lý Sinh Viên</button>
-                    )}
-
-                    {role.includes('ADMIN') && (
-                        <button onClick={() => setActiveTab('teachers')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'teachers' ? 'var(--color-primary)' : 'transparent' }}>💼 Quản Lý Giảng Viên</button>
-                    )}
-
-                    <button onClick={() => setActiveTab('grades')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'grades' ? 'var(--color-primary)' : 'transparent' }}>🎯 Quản Lý Điểm Số</button>
-
-                    {/* 🔥 ĐÃ FIX: Cho phép cả ADMIN, STUDENT và TEACHER nhìn thấy phân hệ này */}
-                    {(role.includes('ADMIN') || role.includes('STUDENT') || role.includes('TEACHER')) && (
-                        <button onClick={() => setActiveTab('registration')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'registration' ? 'var(--color-primary)' : 'transparent' }}>⏰ Đăng Ký Tín Chỉ</button>
-                    )}
-
-                    {(role.includes('TEACHER') || role.includes('STUDENT')) && (
-                        <button onClick={() => setActiveTab('schedule')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'schedule' ? 'var(--color-primary)' : 'transparent' }}>
-                            📅 {role.includes('TEACHER') ? 'Lịch Dạy' : 'Lịch Học'}
-                        </button>
-                    )}
-
-                    {role.includes('ADMIN') && (
-                        <button onClick={() => setActiveTab('training')} style={{ ...sidebarBtnStyle, backgroundColor: activeTab === 'training' ? 'var(--color-primary)' : 'transparent' }}>🏛️ Quản Lý Đào Tạo</button>
-                    )}
+                <div className="app-header__user">
+                    <span className="app-header__username">
+                        Xin chào, <b>{username}</b>
+                    </span>
+                    <span className="app-header__role">{roleLabel}</span>
+                    <button type="button" className="btn btn--danger btn--sm" onClick={handleLogout}>
+                        Đăng xuất
+                    </button>
                 </div>
+            </header>
 
-                {/* MAIN CONTENT AREA */}
-                <div style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)', padding: 'var(--spacing-xl)' }}>
+            <div className="app-body">
+                <nav className="app-sidebar" aria-label="Menu chính">
+                    <div className="app-sidebar__section">Menu</div>
+                    {visibleNav.map(item => {
+                        const label = item.labelFn ? item.labelFn(role) : item.label;
+                        return (
+                            <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => setActiveTab(item.id)}
+                                className={`sidebar-nav-btn${activeTab === item.id ? ' sidebar-nav-btn--active' : ''}`}
+                            >
+                                <span>{item.icon}</span>
+                                <span>{label}</span>
+                            </button>
+                        );
+                    })}
+                </nav>
+
+                <main className="app-main">
                     {activeTab === 'dashboard' && <DashboardPage />}
                     {activeTab === 'students' && <StudentPage />}
                     {activeTab === 'teachers' && <TeacherPage />}
@@ -131,13 +151,12 @@ function App() {
                     {activeTab === 'registration' && <RegistrationPage />}
                     {activeTab === 'schedule' && <SchedulePage />}
                     {activeTab === 'training' && <TrainingPage />}
-                </div>
-
+                </main>
             </div>
         </div>
     );
 }
 
-const sidebarBtnStyle = { width: '100%', padding: 'var(--spacing-md)', textAlign: 'left', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' };
-
-export default App;
+export default function App() {
+    return <AppContent />;
+}

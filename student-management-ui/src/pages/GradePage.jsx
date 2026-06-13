@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axiosClient from '../api/axiosClient';
+import { useNotification } from '../context/NotificationContext';
+import { getErrorMessage } from '../utils/messages';
 
 export default function GradePage() {
+    const { notify } = useNotification();
     const userRole = localStorage.getItem('roles') || '';
     const username = localStorage.getItem('username') || '';
     const loggedInStudentId = localStorage.getItem('studentId') || '';
@@ -27,7 +30,6 @@ export default function GradePage() {
     const [editGradesMap, setEditGradesMap] = useState({});
     const [isBulkEdit, setIsBulkEdit] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState({ text: '', isError: false });
 
     useEffect(() => {
         if (isAdmin || isTeacher || isStudent) {
@@ -59,11 +61,6 @@ export default function GradePage() {
         recalculateFiltersAndData();
     }, [selectedCohort, selectedDept, selectedClass, allGrades, allStudents, departments, classList]);
 
-    const showMessage = (text, isError = false) => {
-        setMessage({ text, isError });
-        setTimeout(() => setMessage({ text: '', isError: false }), 4000);
-    };
-
     const loadSystemInitialData = async () => {
         try {
             setLoading(true);
@@ -84,7 +81,7 @@ export default function GradePage() {
                 setAllGrades(gradesData || []);
             }
         } catch (err) {
-            showMessage('Lỗi tải dữ liệu hệ thống!', true);
+            notify.error('Lỗi tải dữ liệu hệ thống!');
         } finally {
             setLoading(false);
         }
@@ -152,13 +149,13 @@ export default function GradePage() {
             });
 
             await Promise.all(savePromises);
-            showMessage('Đã cập nhật điểm thành công!');
+            notify.success('Đã cập nhật điểm thành công!');
             setIsBulkEdit(false);
 
             const gradesData = await axiosClient.get('/grades').catch(() => []);
             setAllGrades(gradesData);
         } catch (err) {
-            showMessage(err || 'Có lỗi xảy ra khi lưu bảng điểm!', true);
+            notify.error(getErrorMessage(err, 'Có lỗi xảy ra khi lưu bảng điểm!'));
         } finally {
             setLoading(false);
         }
@@ -389,36 +386,29 @@ export default function GradePage() {
 
     // ==================== 👨‍🏫 GIÁO VIÊN & QUẢN TRỊ VIÊN (ADMIN & TEACHER) ====================
     return (
-        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)', textAlign: 'left' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
-                <div>
-                    <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>
-                        {isTeacher ? '👨‍🏫 BẢNG NHẬP ĐIỂM THÀNH PHẦN' : '🏛️ BẢNG ĐIỂM TỔNG HỢP TOÀN TRƯỜNG'}
-                    </h2>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
-                        {isTeacher ? 'Quyền hạn Giảng viên: Sửa để gõ điểm và chọn Lưu để cập nhật.' : 'Quyền hạn Quản trị viên: Theo dõi điểm số tổng kết tích lũy của từng học viên.'}
-                    </p>
-                </div>
-
+        <div style={{ textAlign: 'left' }}>
+            <div className="page-header">
+                <h2 className="page-header__title">
+                    {isTeacher ? 'Bảng nhập điểm thành phần' : 'Bảng điểm tổng hợp'}
+                </h2>
+                <p className="page-header__desc">
+                    {isTeacher ? 'Nhập và cập nhật điểm cho các lớp đang giảng dạy.' : 'Theo dõi điểm số tích lũy của sinh viên toàn trường.'}
+                </p>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
                 {displayGrades.length > 0 && isTeacher && (
                     <div style={{ display: 'flex', gap: '10px' }}>
                         {!isBulkEdit ? (
-                            <button onClick={() => setIsBulkEdit(true)} style={primaryBtnStyle}>Sửa</button>
+                            <button type="button" onClick={() => setIsBulkEdit(true)} className="btn btn--primary">Sửa điểm</button>
                         ) : (
                             <>
-                                <button onClick={() => { setIsBulkEdit(false); recalculateFiltersAndData(); }} style={{ ...primaryBtnStyle, backgroundColor: '#6c757d' }}>Hủy</button>
-                                <button onClick={handleBulkSave} style={{ ...primaryBtnStyle, backgroundColor: 'var(--color-success)' }}>Lưu</button>
+                                <button type="button" onClick={() => { setIsBulkEdit(false); recalculateFiltersAndData(); }} className="btn btn--secondary">Hủy</button>
+                                <button type="button" onClick={handleBulkSave} className="btn btn--success">Lưu điểm</button>
                             </>
                         )}
                     </div>
                 )}
             </div>
-
-            {message.text && (
-                <div style={{ padding: '12px', marginBottom: '20px', backgroundColor: message.isError ? 'var(--color-danger)' : 'var(--color-primary)', color: 'white', borderRadius: '4px', fontWeight: 'bold' }}>
-                    {message.text}
-                </div>
-            )}
 
             <div style={{ display: 'flex', gap: '15px', marginBottom: '25px', backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', flexWrap: 'wrap' }}>
                 <div style={{ flex: '1', minWidth: '140px' }}>

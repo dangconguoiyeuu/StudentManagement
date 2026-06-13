@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import axiosClient from '../api/axiosClient';
+import { useNotification } from '../context/NotificationContext';
+import { getErrorMessage } from '../utils/messages';
 
 export default function RegistrationPage() {
+    const { notify, confirm } = useNotification();
     const role = localStorage.getItem('roles') || '';
     const teacherId = localStorage.getItem('teacherId') || '';
     const loggedInStudentId = localStorage.getItem('studentId') || '';
 
-    const [message, setMessage] = useState({ text: '', isError: false });
+    const [selectedClassIds, setSelectedClassIds] = useState([]);
 
-    // --- STATE PHÂN HỆ ADMIN ---
+    const [tick, setTick] = useState(Date.now());
     const [periodForm, setPeriodForm] = useState({ semester: 'HK1-2026', startTime: '', endTime: '' });
     const [allPeriods, setAllPeriods] = useState([]);
     const [selectedPeriod, setSelectedPeriod] = useState(null);
@@ -29,10 +32,6 @@ export default function RegistrationPage() {
     const [myRegisteredClasses, setMyRegisteredClasses] = useState([]);
     const [isRegistrationTime, setIsRegistrationTime] = useState(false);
     const [activePeriodInfo, setActivePeriodInfo] = useState(null);
-
-    const [selectedClassIds, setSelectedClassIds] = useState([]);
-
-    const [tick, setTick] = useState(Date.now());
 
     useEffect(() => {
         refreshData();
@@ -74,11 +73,6 @@ export default function RegistrationPage() {
         if (role.includes('STUDENT')) loadStudentRegistrationFlow();
     };
 
-    const showMessage = (text, isError = false) => {
-        setMessage({ text, isError });
-        setTimeout(() => setMessage({ text: '', isError: false }), 4000);
-    };
-
     const fetchActivePeriodStatus = async () => {
         try {
             const periods = await axiosClient.get('/registration/periods');
@@ -106,35 +100,41 @@ export default function RegistrationPage() {
             }
             const classesData = await axiosClient.get('/course-classes');
             setCourseClasses(classesData);
-        } catch (err) { showMessage('Không thể tải dữ liệu quản trị hệ thống', true); }
+        } catch (err) { notify.error('Không thể tải dữ liệu quản trị hệ thống'); }
     };
 
     const handleCreatePeriod = async (e) => {
         e.preventDefault();
         try {
             await axiosClient.post('/registration/periods', periodForm);
-            showMessage('Kích hoạt cấu hình khung giờ và lưu đợt mở đăng ký học kỳ mới thành công!');
+            notify.success('Kích hoạt khung giờ đăng ký học kỳ mới thành công!');
             setPeriodForm({ semester: 'HK1-2026', startTime: '', endTime: '' });
             refreshData();
-        } catch (err) { showMessage(err || 'Lỗi kích hoạt khung giờ', true); }
+        } catch (err) { notify.error(getErrorMessage(err, 'Lỗi kích hoạt khung giờ')); }
     };
 
     const handleClosePeriod = async (id) => {
-        if (!window.confirm("⚠️ Bạn có chắc chắn muốn HỦY KÍCH HOẠT khung giờ đăng ký tín chỉ này không?")) return;
+        const ok = await confirm({
+            title: 'Hủy kích hoạt đợt đăng ký',
+            message: 'Bạn có chắc chắn muốn hủy kích hoạt khung giờ đăng ký tín chỉ này?\nCổng đăng ký sẽ bị đóng ngay lập tức.',
+            confirmText: 'Hủy kích hoạt',
+            variant: 'danger',
+        });
+        if (!ok) return;
         try {
             await axiosClient.put(`/registration/periods/${id}/close`);
-            showMessage('Đã đóng cổng và hủy kích hoạt khung giờ thành công!');
+            notify.success('Đã đóng cổng và hủy kích hoạt khung giờ thành công!');
             refreshData();
-        } catch (err) { showMessage(err || 'Không thể thực hiện hủy kích hoạt!', true); }
+        } catch (err) { notify.error(getErrorMessage(err, 'Không thể thực hiện hủy kích hoạt!')); }
     };
 
     const handleToggleClassRegistration = async (id) => {
         try {
             await axiosClient.put(`/registration/course-class/${id}/toggle`);
-            showMessage(`Cập nhật trạng thái tích chọn mở lớp học phần thành công!`);
+            notify.success('Cập nhật trạng thái mở lớp học phần thành công!');
             const classesData = await axiosClient.get('/course-classes');
             setCourseClasses(classesData);
-        } catch (err) { showMessage(err || 'Không thể thay đổi trạng thái tích chọn môn', true); }
+        } catch (err) { notify.error(getErrorMessage(err, 'Không thể thay đổi trạng thái mở lớp')); }
     };
 
     // TÌM KIẾM HỒ SƠ SINH VIÊN (ADMIN)
@@ -147,29 +147,28 @@ export default function RegistrationPage() {
             const res = await axiosClient.get(`/grades/student/${searchStudentId.trim()}?_t=${Date.now()}`);
             setSearchedClasses(res);
         } catch (err) {
-            showMessage('Không tìm thấy dữ liệu sinh viên này. Vui lòng kiểm tra lại Mã SV.', true);
+            notify.error('Không tìm thấy dữ liệu sinh viên. Vui lòng kiểm tra lại mã SV.');
             setSearchedClasses([]);
         } finally {
             setIsSearchingStudent(false);
         }
     };
 
-    // ADMIN XÓA (RÚT) TÍN CHỈ CHO SINH VIÊN
-    // ADMIN XÓA (RÚT) TÍN CHỈ CHO SINH VIÊN
-    // ADMIN XÓA (RÚT) TÍN CHỈ CHO SINH VIÊN
     const handleAdminDeleteRegistration = async (courseClassId, subjectName) => {
-        if (!window.confirm(`⚠️ RÚT MÔN HỌC KHẨN CẤP\n\nBạn (Admin) có chắc chắn muốn XÓA môn [${subjectName}] của sinh viên này không?`)) return;
+        const ok = await confirm({
+            title: 'Rút môn học khẩn cấp',
+            message: `Bạn (Admin) có chắc chắn muốn xóa môn [${subjectName}] khỏi hồ sơ sinh viên này?\nThao tác này không thể hoàn tác.`,
+            confirmText: 'Xóa tín chỉ',
+            variant: 'danger',
+        });
+        if (!ok) return;
 
         try {
             await axiosClient.delete(`/grades/student/${searchStudentId.trim()}/course-class/${courseClassId}`);
-            showMessage(`Đã rút thành công môn ${subjectName} cho sinh viên!`);
+            notify.success(`Đã rút thành công môn ${subjectName}!`);
             setSearchedClasses(prev => prev.filter(item => item.courseClassId !== courseClassId));
         } catch (err) {
-            // Bắt đúng message từ backend
-            const msg = err?.response?.data?.message
-                || err?.message
-                || 'Lỗi khi Admin rút môn học của sinh viên.';
-            showMessage(msg, true);
+            notify.error(getErrorMessage(err, 'Lỗi khi Admin rút môn học của sinh viên.'));
         }
     };
     const checkScheduleConflicts = (selectedItems, existingItems) => {
@@ -213,7 +212,7 @@ export default function RegistrationPage() {
         try {
             const data = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
             setTeacherClasses(data);
-        } catch (err) { showMessage('Không thể tải lịch giảng dạy cá nhân', true); }
+        } catch (err) { notify.error('Không thể tải lịch giảng dạy'); }
     };
 
     const viewClassStudents = async (classId) => {
@@ -221,16 +220,26 @@ export default function RegistrationPage() {
         try {
             const data = await axiosClient.get(`/registration/classes/${classId}/students`);
             setClassStudents(data);
-        } catch (err) { showMessage('Không thể tải danh sách sinh viên lớp học phần', true); }
+        } catch (err) { notify.error('Không thể tải danh sách sinh viên lớp học phần'); }
     };
 
     const handleToggleApproveStudent = async (studentId, currentStatus) => {
+        const isApproved = currentStatus === 'APPROVED';
+        if (isApproved) {
+            const ok = await confirm({
+                title: 'Hủy duyệt đơn',
+                message: 'Bạn có chắc chắn muốn hủy duyệt đơn đăng ký này?\nĐơn sẽ bị xóa khỏi danh sách lớp.',
+                confirmText: 'Hủy duyệt',
+                variant: 'danger',
+            });
+            if (!ok) return;
+        }
         try {
             await axiosClient.put(`/registration/classes/${selectedClassId}/students/${studentId}/toggle-approve`);
-            showMessage('Đã cập nhật trạng thái duyệt đơn thành công!');
+            notify.success(isApproved ? 'Đã hủy duyệt đơn thành công!' : 'Đã phê duyệt đơn đăng ký thành công!');
             viewClassStudents(selectedClassId);
         } catch (err) {
-            showMessage('Lỗi khi duyệt đơn. Vui lòng kiểm tra lại.', true);
+            notify.error(getErrorMessage(err, 'Lỗi khi duyệt đơn. Vui lòng kiểm tra lại.'));
         }
     };
 
@@ -280,7 +289,10 @@ export default function RegistrationPage() {
     };
 
     const handleBulkEnroll = async () => {
-        if (selectedClassIds.length === 0) return alert('Vui lòng chọn ít nhất 1 môn để đăng ký!');
+        if (selectedClassIds.length === 0) {
+            notify.warning('Vui lòng chọn ít nhất 1 môn để đăng ký!');
+            return;
+        }
 
         const itemsToEnroll = availableClasses.filter(c => selectedClassIds.includes(c.id));
 
@@ -292,7 +304,7 @@ export default function RegistrationPage() {
 
         const conflictError = checkScheduleConflicts(itemsToEnroll, validExistingClasses);
         if (conflictError) {
-            alert(conflictError);
+            notify.error(conflictError);
             return;
         }
 
@@ -301,22 +313,26 @@ export default function RegistrationPage() {
                 await axiosClient.post(`/registration/enroll?courseClassId=${id}`);
             }
 
-            showMessage('Đăng ký tín chỉ thành công! Đơn đang chờ Giảng viên phê duyệt.');
+            notify.success('Đăng ký tín chỉ thành công! Đơn đang chờ giảng viên phê duyệt.');
             setSelectedClassIds([]);
             loadStudentRegistrationFlow();
-        } catch (err) { showMessage(err?.response?.data || 'Không thể đăng ký học phần này!', true); }
+        } catch (err) { notify.error(getErrorMessage(err, 'Không thể đăng ký học phần này!')); }
     };
 
     const handleUnenroll = async (courseClassId) => {
-        if (!window.confirm("⚠️ Bạn có chắc chắn muốn rút/hủy đơn đăng ký môn học này không?")) return;
+        const ok = await confirm({
+            title: 'Hủy đăng ký môn học',
+            message: 'Bạn có chắc chắn muốn rút/hủy đơn đăng ký môn học này?',
+            confirmText: 'Hủy đăng ký',
+            variant: 'danger',
+        });
+        if (!ok) return;
         try {
             await axiosClient.delete(`/registration/unenroll?courseClassId=${courseClassId}`);
-            showMessage('Đã hủy môn học thành công!');
-
-            // 🔥 XÓA THẬT NGAY TRÊN GIAO DIỆN CỦA SINH VIÊN
+            notify.success('Đã hủy môn học thành công!');
             setMyRegisteredClasses(prev => prev.filter(item => item.courseClassId !== courseClassId));
         } catch (err) {
-            showMessage(err?.response?.data || 'Không thể hủy môn học này lúc này!', true);
+            notify.error(getErrorMessage(err, 'Không thể hủy môn học này lúc này!'));
         }
     };
 
@@ -340,14 +356,11 @@ export default function RegistrationPage() {
     };
 
     return (
-        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
-            <h2 style={{ color: 'var(--text-cyan)', marginBottom: 'var(--spacing-xl)' }}>⏰ TRUNG TÂM ĐIỀU PHỐI ĐĂNG KÝ TÍN CHỈ REALTIME</h2>
-
-            {message.text && (
-                <div style={{ padding: '12px', marginBottom: '20px', backgroundColor: message.isError ? 'var(--color-danger)' : 'var(--color-primary)', color: 'white', borderRadius: '4px', fontWeight: 'bold' }}>
-                    {message.text}
-                </div>
-            )}
+        <div>
+            <div className="page-header">
+                <h2 className="page-header__title">Đăng ký tín chỉ</h2>
+                <p className="page-header__desc">Quản lý đợt đăng ký, phê duyệt và rút môn học</p>
+            </div>
 
             {/* ==================== VIEW ADMIN ==================== */}
             {role.includes('ADMIN') && (

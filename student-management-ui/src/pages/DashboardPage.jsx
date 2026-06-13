@@ -104,11 +104,9 @@ export default function DashboardPage() {
     if (role.includes('ADMIN')) {
         return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'left' }}>
-
-                {/* Thanh trạng thái đỉnh điều khiển */}
-                <div style={panelStyle}>
-                    <h2 style={{ margin: '0 0 5px 0', color: 'var(--text-cyan)' }}>🏛️ TRUNG TÂM GIÁM SÁT ĐÀO TẠO ĐA NHIỆM (ADMIN CONSOLE)</h2>
-                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>Chào mừng Quản trị viên tối cao. Dưới đây là bảng phân tích chi tiết dữ liệu vận hành lõi.</p>
+                <div className="page-header">
+                    <h2 className="page-header__title">Tổng quan hệ thống</h2>
+                    <p className="page-header__desc">Giám sát dữ liệu vận hành và trạng thái đào tạo.</p>
                 </div>
 
                 {/* Khối Card số liệu chi tiết sâu (Deep Metrics Grid) */}

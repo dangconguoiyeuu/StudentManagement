@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axiosClient from '../api/axiosClient';
+import { useNotification } from '../context/NotificationContext';
+import { getErrorMessage } from '../utils/messages';
 
 function TeacherPage() {
+    const { notify, confirm } = useNotification();
     const [teachers, setTeachers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -60,17 +63,17 @@ function TeacherPage() {
             const payload = { firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber };
             try {
                 await axiosClient.put(`/teachers/${editingTeacherId}`, payload);
-                alert("Cập nhật thông tin hồ sơ giảng viên thành công!");
+                notify.success('Cập nhật hồ sơ giảng viên thành công!');
                 setShowModal(false);
                 resetForm();
                 fetchTeachers();
-            } catch (err) { setModalError(err || 'Lỗi cập nhật hồ sơ giảng viên.'); }
+            } catch (err) { setModalError(getErrorMessage(err, 'Lỗi cập nhật hồ sơ giảng viên.')); }
         } else {
-            if (!departmentId) { setModalError('Vui lòng chọn Khoa/Viện chuyên môn gợi ý!'); return; }
+            if (!departmentId) { setModalError('Vui lòng chọn Khoa/Viện chuyên môn!'); return; }
             const payload = { teacherCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, departmentId: Number(departmentId) };
             try {
                 await axiosClient.post('/teachers', payload);
-                alert(`Cấp tài khoản Giảng viên thành công!\nTài khoản: ${teacherCode}\nMật khẩu mặc định: password1234`);
+                notify.success(`Cấp tài khoản giảng viên thành công!\nTài khoản: ${teacherCode}\nMật khẩu mặc định: password1234`);
                 setShowModal(false);
                 resetForm();
                 fetchTeachers();
@@ -92,23 +95,33 @@ function TeacherPage() {
     };
 
     const handleLockTeacher = async (id, code, name) => {
-        if (window.confirm(`Bạn có chắc chắn muốn KHÓA tài khoản giảng viên [${code} - ${name}] không?\nTài khoản này sẽ lập tức bị đóng băng quyền truy cập.`)) {
-            try {
-                await axiosClient.delete(`/teachers/${id}`);
-                alert('Đã khóa hồ sơ và đóng băng tài khoản giảng viên thành công!');
-                fetchTeachers();
-            } catch (err) { alert(err || 'Không thể thực hiện khóa giảng viên!'); }
-        }
+        const ok = await confirm({
+            title: 'Khóa tài khoản giảng viên',
+            message: `Bạn có chắc chắn muốn khóa giảng viên [${code} — ${name}]?\nTài khoản sẽ bị đóng băng quyền truy cập.`,
+            confirmText: 'Khóa tài khoản',
+            variant: 'danger',
+        });
+        if (!ok) return;
+        try {
+            await axiosClient.delete(`/teachers/${id}`);
+            notify.success('Đã khóa tài khoản giảng viên thành công!');
+            fetchTeachers();
+        } catch (err) { notify.error(getErrorMessage(err, 'Không thể khóa giảng viên!')); }
     };
 
     const handleUnlockTeacher = async (id, code, name) => {
-        if (window.confirm(`Bạn có chắc chắn muốn MỞ KHÓA lại cho giảng viên [${code} - ${name}] không?`)) {
-            try {
-                await axiosClient.put(`/teachers/${id}/enable`);
-                alert('Mở khóa tài khoản và tái khôi phục quyền giảng dạy thành công!');
-                fetchTeachers();
-            } catch (err) { alert(err || 'Không thể thực hiện mở khóa giảng viên!'); }
-        }
+        const ok = await confirm({
+            title: 'Mở khóa giảng viên',
+            message: `Bạn có chắc chắn muốn mở khóa cho giảng viên [${code} — ${name}]?`,
+            confirmText: 'Mở khóa',
+            variant: 'success',
+        });
+        if (!ok) return;
+        try {
+            await axiosClient.put(`/teachers/${id}/enable`);
+            notify.success('Mở khóa tài khoản giảng viên thành công!');
+            fetchTeachers();
+        } catch (err) { notify.error(getErrorMessage(err, 'Không thể mở khóa giảng viên!')); }
     };
 
     const resetForm = () => {
@@ -124,11 +137,14 @@ function TeacherPage() {
     if (loading) return <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>Đang tải danh sách giảng viên...</div>;
 
     return (
-        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
-                <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>QUẢN LÝ DANH SÁCH GIẢNG VIÊN</h2>
-                <button onClick={() => { resetForm(); setShowModal(true); }} style={{ padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-success)', color: 'var(--text-main)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                    + Cấp Tài Khoản Giảng Viên
+        <div>
+            <div className="page-header flex-between">
+                <div>
+                    <h2 className="page-header__title">Quản lý giảng viên</h2>
+                    <p className="page-header__desc">Thêm, sửa, khóa/mở khóa hồ sơ giảng viên.</p>
+                </div>
+                <button type="button" onClick={() => { resetForm(); setShowModal(true); }} className="btn btn--success btn--sm">
+                    + Thêm giảng viên
                 </button>
             </div>
 

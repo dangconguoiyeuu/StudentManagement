@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axiosClient from '../api/axiosClient';
+import { useNotification } from '../context/NotificationContext';
+import { getErrorMessage } from '../utils/messages';
 
 function StudentPage() {
+    const { notify, confirm } = useNotification();
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -86,31 +89,31 @@ function StudentPage() {
         const updatedCohorts = [...cohorts, newCohortName];
         setCohorts(updatedCohorts);
         localStorage.setItem('system_cohorts', JSON.stringify(updatedCohorts));
-        alert(`Khởi tạo đợt niên khóa đào tạo mới thành công: ${newCohortName}!`);
+        notify.success(`Khởi tạo niên khóa mới thành công: ${newCohortName}`);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!classId) { alert("Vui lòng lựa chọn một Lớp hành chính!"); return; }
+        if (!classId) { notify.warning('Vui lòng lựa chọn một lớp hành chính!'); return; }
 
         if (isEditMode) {
             const payload = { firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId), cohort: studentCohort };
             try {
                 await axiosClient.put(`/students/${editingStudentId}`, payload);
-                alert("Cập nhật hồ sơ sinh viên thành công!");
+                notify.success('Cập nhật hồ sơ sinh viên thành công!');
                 setShowModal(false);
                 resetForm();
                 fetchStudents();
-            } catch (err) { alert(err || 'Lỗi cập nhật hồ sơ!'); }
+            } catch (err) { notify.error(getErrorMessage(err, 'Lỗi cập nhật hồ sơ!')); }
         } else {
             const payload = { studentCode, firstName, lastName, dateOfBirth: dateOfBirth || null, gender, phoneNumber, classId: Number(classId), cohort: studentCohort };
             try {
                 await axiosClient.post('/students', payload);
-                alert(`Cấp tài khoản sinh viên thành công mượt mà!`);
+                notify.success('Cấp tài khoản sinh viên thành công!');
                 setShowModal(false);
                 resetForm();
                 fetchStudents();
-            } catch (err) { alert(err || 'Có lỗi xảy ra khi tạo sinh viên!'); }
+            } catch (err) { notify.error(getErrorMessage(err, 'Có lỗi xảy ra khi tạo sinh viên!')); }
         }
     };
 
@@ -129,23 +132,33 @@ function StudentPage() {
     };
 
     const handleDeleteStudent = async (id, code, name) => {
-        if (window.confirm(`Bạn có chắc chắn muốn KHÓA tài khoản sinh viên [${code} - ${name}] không?`)) {
-            try {
-                await axiosClient.delete(`/students/${id}`);
-                alert('Đã khóa hồ sơ sinh viên và đóng băng tài khoản thành công!');
-                fetchStudents();
-            } catch (err) { alert(err || 'Không thể khóa sinh viên này!'); }
-        }
+        const ok = await confirm({
+            title: 'Khóa tài khoản sinh viên',
+            message: `Bạn có chắc chắn muốn khóa sinh viên [${code} — ${name}]?\nTài khoản sẽ bị đóng băng quyền truy cập.`,
+            confirmText: 'Khóa tài khoản',
+            variant: 'danger',
+        });
+        if (!ok) return;
+        try {
+            await axiosClient.delete(`/students/${id}`);
+            notify.success('Đã khóa hồ sơ sinh viên thành công!');
+            fetchStudents();
+        } catch (err) { notify.error(getErrorMessage(err, 'Không thể khóa sinh viên này!')); }
     };
 
     const handleEnableStudent = async (id, code, name) => {
-        if (window.confirm(`Bạn có chắc chắn muốn MỞ KHÓA cho sinh viên [${code} - ${name}] không?`)) {
-            try {
-                await axiosClient.put(`/students/${id}/enable`);
-                alert('Tái kích hoạt hệ thống và mở khóa tài khoản thành công!');
-                fetchStudents();
-            } catch (err) { alert(err || 'Không thể mở khóa sinh viên này!'); }
-        }
+        const ok = await confirm({
+            title: 'Mở khóa sinh viên',
+            message: `Bạn có chắc chắn muốn mở khóa cho sinh viên [${code} — ${name}]?`,
+            confirmText: 'Mở khóa',
+            variant: 'success',
+        });
+        if (!ok) return;
+        try {
+            await axiosClient.put(`/students/${id}/enable`);
+            notify.success('Mở khóa tài khoản sinh viên thành công!');
+            fetchStudents();
+        } catch (err) { notify.error(getErrorMessage(err, 'Không thể mở khóa sinh viên này!')); }
     };
 
     const resetForm = () => {
@@ -237,26 +250,23 @@ function StudentPage() {
     if (error) return <div style={{ color: 'var(--color-danger)', textAlign: 'center', padding: 'var(--spacing-xl)' }}>{error}</div>;
 
     return (
-        <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)', textAlign: 'left' }}>
-
-            {/* THANH ĐIỀU HƯỚNG TIÊU ĐỀ */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)', flexWrap: 'wrap', gap: '15px' }}>
+        <div style={{ textAlign: 'left' }}>
+            <div className="page-header flex-between">
                 <div>
-                    <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>
-                        {isAdmin ? '🏛️ HỆ THỐNG QUẢN TRỊ SINH VIÊN' : '👨‍🏫 DANH SÁCH SINH VIÊN ĐANG GIẢNG DẠY'}
+                    <h2 className="page-header__title">
+                        {isAdmin ? 'Quản lý sinh viên' : 'Danh sách sinh viên'}
                     </h2>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
-                        {isAdmin ? 'Quyền hạn Quản trị viên: Toàn quyền khởi tạo, chỉnh sửa và cấu hình hồ sơ.' : 'Quyền hạn Giảng viên: Theo dõi danh sách học viên đăng ký lớp học phần phụ trách.'}
+                    <p className="page-header__desc">
+                        {isAdmin ? 'Thêm, sửa, khóa/mở khóa hồ sơ sinh viên.' : 'Xem danh sách sinh viên các lớp đang giảng dạy.'}
                     </p>
                 </div>
-
                 {isAdmin && (
                     <div style={{ display: 'flex', gap: '10px' }}>
-                        <button onClick={handleAddNewCohort} style={{ padding: '8px 14px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-                            ⏳ + Thêm Khóa Mới (Tăng theo năm)
+                        <button type="button" onClick={handleAddNewCohort} className="btn btn--primary btn--sm">
+                            + Thêm khóa mới
                         </button>
-                        <button onClick={() => { resetForm(); setShowModal(true); }} style={{ padding: '8px 14px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-                            + Cấp Tài Khoản Sinh Viên
+                        <button type="button" onClick={() => { resetForm(); setShowModal(true); }} className="btn btn--success btn--sm">
+                            + Thêm sinh viên
                         </button>
                     </div>
                 )}

@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axiosClient from '../api/axiosClient';
+import { useNotification } from '../context/NotificationContext';
+import { getErrorMessage } from '../utils/messages';
 
 function TrainingPage() {
+    const { notify, confirm } = useNotification();
     const [subTab, setSubTab] = useState('departments');
     const [departments, setDepartments] = useState([]);
     const [subjects, setSubjects] = useState([]);
@@ -91,14 +94,14 @@ function TrainingPage() {
         try {
             if (isEditMode) {
                 await axiosClient.put(`/departments/${editingId}`, deptForm);
-                alert('Cập nhật thông tin khoa thành công!');
+                notify.success('Cập nhật thông tin khoa thành công!');
             } else {
                 await axiosClient.post('/departments', deptForm);
-                alert('Thêm khoa chuyên môn mới thành công!');
+                notify.success('Thêm khoa chuyên môn mới thành công!');
             }
             resetAllForms();
             loadDepartments();
-        } catch (err) { alert(err || 'Có lỗi xảy ra!'); }
+        } catch (err) { notify.error(getErrorMessage(err)); }
     };
 
     const handleOpenEditDept = (dept) => {
@@ -108,13 +111,18 @@ function TrainingPage() {
     };
 
     const handleDeleteDept = async (id, name) => {
-        if (window.confirm(`⚠️ Bạn có chắc chắn muốn XÓA HOÀN TOÀN khoa [${name}] không?\nHành động này có thể ảnh hưởng đến giảng viên thuộc khoa.`)) {
-            try {
-                await axiosClient.delete(`/departments/${id}`);
-                alert('Đã xóa khoa ra khỏi hệ thống thành công!');
-                loadDepartments();
-            } catch (err) { alert(err || 'Không thể xóa khoa này do có ràng buộc dữ liệu!'); }
-        }
+        const ok = await confirm({
+            title: 'Xóa khoa',
+            message: `Bạn có chắc chắn muốn xóa khoa [${name}]?\nHành động này có thể ảnh hưởng đến giảng viên thuộc khoa.`,
+            confirmText: 'Xóa khoa',
+            variant: 'danger',
+        });
+        if (!ok) return;
+        try {
+            await axiosClient.delete(`/departments/${id}`);
+            notify.success('Đã xóa khoa khỏi hệ thống!');
+            loadDepartments();
+        } catch (err) { notify.error(getErrorMessage(err, 'Không thể xóa khoa do có ràng buộc dữ liệu!')); }
     };
 
     // ==================== 📘 XỬ LÝ KHỐI MÔN HỌC (SUBJECTS) ====================
@@ -123,14 +131,14 @@ function TrainingPage() {
         try {
             if (isEditMode) {
                 await axiosClient.put(`/subjects/${editingId}`, subjectForm);
-                alert('Cập nhật thông tin môn học thành công!');
+                notify.success('Cập nhật thông tin môn học thành công!');
             } else {
                 await axiosClient.post('/subjects', subjectForm);
-                alert('Thêm môn học hệ thống mới thành công!');
+                notify.success('Thêm môn học mới thành công!');
             }
             resetAllForms();
             loadSubjects();
-        } catch (err) { alert(err || 'Có lỗi xảy ra!'); }
+        } catch (err) { notify.error(getErrorMessage(err)); }
     };
 
     const handleOpenEditSubject = (sub) => {
@@ -140,20 +148,25 @@ function TrainingPage() {
     };
 
     const handleDeleteSubject = async (id, name) => {
-        if (window.confirm(`⚠️ Bạn có chắc chắn muốn XÓA HOÀN TOÀN môn học [${name}] không?`)) {
-            try {
-                await axiosClient.delete(`/subjects/${id}`);
-                alert('Đã loại bỏ môn học thành công!');
-                loadSubjects();
-            } catch (err) { alert(err || 'Không thể xóa môn học này!'); }
-        }
+        const ok = await confirm({
+            title: 'Xóa môn học',
+            message: `Bạn có chắc chắn muốn xóa môn học [${name}]?`,
+            confirmText: 'Xóa môn học',
+            variant: 'danger',
+        });
+        if (!ok) return;
+        try {
+            await axiosClient.delete(`/subjects/${id}`);
+            notify.success('Đã xóa môn học thành công!');
+            loadSubjects();
+        } catch (err) { notify.error(getErrorMessage(err, 'Không thể xóa môn học này!')); }
     };
 
     // ==================== 📅 XỬ LÝ KHỐI LỚP HỌC PHẦN (COURSE CLASSES) ====================
     const handleSaveClass = async (e) => {
         e.preventDefault();
         for (let slot of scheduleSlots) {
-            if (!slot.room.trim()) { alert('Vui lòng điền phòng học cho tất cả các buổi!'); return; }
+            if (!slot.room.trim()) { notify.warning('Vui lòng điền phòng học cho tất cả các buổi!'); return; }
         }
 
         const compiledSchedule = scheduleSlots
@@ -170,14 +183,14 @@ function TrainingPage() {
         try {
             if (isEditMode) {
                 await axiosClient.put(`/course-classes/${editingId}`, payload);
-                alert('Cập nhật lớp học phần và điều chỉnh thời khóa biểu đồng bộ thành công!');
+                notify.success('Cập nhật lớp học phần và thời khóa biểu thành công!');
             } else {
                 await axiosClient.post('/course-classes', payload);
-                alert('Mở lớp học phần mới và xếp lịch biểu thành công!');
+                notify.success('Mở lớp học phần mới thành công!');
             }
             resetAllForms();
             loadCourseClasses();
-        } catch (err) { alert(err || 'Có lỗi xảy ra!'); }
+        } catch (err) { notify.error(getErrorMessage(err)); }
     };
 
     const handleOpenEditClass = (cls) => {
@@ -195,18 +208,26 @@ function TrainingPage() {
     };
 
     const handleDeleteClass = async (id, code) => {
-        if (window.confirm(`⚠️ Bạn có chắc chắn muốn HỦY LỚP và XÓA lớp học phần [${code}] không?\nTất cả lịch học và danh sách sinh viên đăng ký lớp này sẽ bị hủy bỏ.`)) {
-            try {
-                await axiosClient.delete(`/course-classes/${id}`);
-                alert('Đã xóa bỏ hoàn toàn lớp học phần khỏi hệ thống!');
-                loadCourseClasses();
-            } catch (err) { alert(err || 'Không thể xóa lớp học phần này!'); }
-        }
+        const ok = await confirm({
+            title: 'Xóa lớp học phần',
+            message: `Bạn có chắc chắn muốn hủy và xóa lớp học phần [${code}]?\nTất cả lịch học và danh sách sinh viên đăng ký sẽ bị hủy.`,
+            confirmText: 'Xóa lớp',
+            variant: 'danger',
+        });
+        if (!ok) return;
+        try {
+            await axiosClient.delete(`/course-classes/${id}`);
+            notify.success('Đã xóa lớp học phần khỏi hệ thống!');
+            loadCourseClasses();
+        } catch (err) { notify.error(getErrorMessage(err, 'Không thể xóa lớp học phần này!')); }
     };
 
     return (
-        <div style={{ color: 'var(--text-main)' }}>
-            <h2 style={{ color: 'var(--text-cyan)', marginBottom: 'var(--spacing-xl)' }}>🏛️ TRUNG TÂM ĐIỀU PHỐI ĐÀO TẠO & LỊCH TRÌNH ĐỒNG BỘ</h2>
+        <div>
+            <div className="page-header">
+                <h2 className="page-header__title">Quản lý đào tạo</h2>
+                <p className="page-header__desc">Quản lý khoa, môn học, lớp học phần và thời khóa biểu</p>
+            </div>
 
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                 <button onClick={() => setSubTab('departments')} style={{ ...subTabBtn, backgroundColor: subTab === 'departments' ? 'var(--color-primary)' : 'var(--color-surface)' }}>Quản Lý Khoa</button>
