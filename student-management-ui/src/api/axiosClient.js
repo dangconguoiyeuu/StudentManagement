@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const axiosClient = axios.create({
-    baseURL: 'https://student-backend-production.up.railway.app',
+    baseURL: 'https://studentmanagement-backend-zihh.onrender.com',
     headers: {
         'Content-Type': 'application/json',
     },
