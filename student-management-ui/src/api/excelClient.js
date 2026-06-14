@@ -1,4 +1,5 @@
-const API_BASE = 'http://localhost:8081';
+import { API_BASE } from './config';
+import { getErrorMessage } from '../utils/messages';
 
 function authHeaders(contentType) {
     const headers = {};
@@ -15,7 +16,7 @@ function authHeaders(contentType) {
 async function parseError(response) {
     try {
         const data = await response.json();
-        return data?.message || 'Lỗi kết nối hệ thống!';
+        return getErrorMessage({ code: data?.code, message: data?.message }, 'Lỗi kết nối hệ thống!');
     } catch {
         return 'Lỗi kết nối hệ thống!';
     }
@@ -53,7 +54,7 @@ export async function uploadExcel(path, file) {
 
     const data = await response.json();
     if (!response.ok || data.code !== 1000) {
-        throw new Error(data?.message || 'Nhập Excel thất bại!');
+        throw new Error(getErrorMessage({ code: data?.code, message: data?.message }, 'Nhập Excel thất bại!'));
     }
     return data.result;
 }

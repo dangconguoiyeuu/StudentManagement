@@ -77,7 +77,7 @@ function TeacherPage() {
                 setShowModal(false);
                 resetForm();
                 fetchTeachers();
-            } catch (err) { setModalError(err || 'Lỗi khởi tạo hồ sơ giảng viên.'); }
+            } catch (err) { setModalError(getErrorMessage(err, 'Lỗi khởi tạo hồ sơ giảng viên.')); }
         }
     };
 

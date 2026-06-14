@@ -71,6 +71,6 @@ public class StudentController {
     @PostMapping("/import/excel")
     public ApiResponse<ExcelImportResult> importStudentsExcel(@RequestParam("file") MultipartFile file) {
         ExcelImportResult result = studentExcelService.importStudents(file);
-        return new ApiResponse<>(1000, "Nhap Excel sinh vien hoan tat!", result);
+        return new ApiResponse<>(1000, "Nhập Excel sinh viên hoàn tất!", result);
     }
 }

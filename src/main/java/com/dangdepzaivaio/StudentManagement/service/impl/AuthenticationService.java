@@ -35,16 +35,18 @@ public class AuthenticationService {
     private String SIGNER_KEY;
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
-        // 🔥 THAY ĐỔI: Tìm kiếm bằng Email thay vì Username (Mã số) cũ
-        User user = userRepository.findByEmail(request.username())
-                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+        String email = request.username().trim().toLowerCase();
+
+        User user = userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_FOUND));
 
         if (!user.isActive()) {
             throw new AppException(ErrorCode.ACCOUNT_LOCKED);
         }
 
-        boolean authenticated = passwordEncoder.matches(request.password(), user.getPassword());
-        if (!authenticated) throw new AppException(ErrorCode.UNAUTHENTICATED);
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            throw new AppException(ErrorCode.WRONG_PASSWORD);
+        }
 
         String token = generateToken(user);
         Set<String> roles = user.getRoles().stream()
@@ -101,11 +103,12 @@ public class AuthenticationService {
 
     // 🔥 SỬA CHỮA: Cập nhật dùng findByEmail để khớp với luồng giao diện React
     public void changePasswordFirstLogin(String username, String newPassword) {
-        User user = userRepository.findByEmail(username)
+        String email = username.trim().toLowerCase();
+        User user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         if (!user.isFirstLogin()) {
-            throw new AppException(ErrorCode.VALIDATION_ERROR);
+            throw new AppException(ErrorCode.NOT_FIRST_LOGIN);
         }
 
         user.setPassword(passwordEncoder.encode(newPassword));

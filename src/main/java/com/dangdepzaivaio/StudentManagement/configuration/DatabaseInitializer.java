@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
+import java.util.Set;
 
 @Configuration
 @RequiredArgsConstructor
@@ -25,11 +26,8 @@ public class DatabaseInitializer {
     @Bean
     ApplicationRunner initRolesAndResetPasswords() {
         return args -> {
-            // 1. Khởi tạo các Role mặc định nếu chưa có
-            if (roleRepository.findByName("ADMIN").isEmpty()) {
-                roleRepository.save(Role.builder().name("ADMIN").build());
-                log.info("Đã khởi tạo Role: ADMIN");
-            }
+            Role adminRole = roleRepository.findByName("ADMIN")
+                    .orElseGet(() -> roleRepository.save(Role.builder().name("ADMIN").build()));
             if (roleRepository.findByName("TEACHER").isEmpty()) {
                 roleRepository.save(Role.builder().name("TEACHER").build());
                 log.info("Đã khởi tạo Role: TEACHER");
@@ -39,12 +37,20 @@ public class DatabaseInitializer {
                 log.info("Đã khởi tạo Role: STUDENT");
             }
 
-            // 2. ✅ FIX: Chỉ reset mật khẩu về mặc định cho những tài khoản CHƯA TỪNG đăng nhập
-            // (isFirstLogin = true). Điều này vẫn có thể reset pass của user chưa đổi khi restart,
-            // nhưng đây là hành vi cố ý để đảm bảo pass mặc định luôn đúng khi deploy mới.
-            //
-            // ⚠️  LƯU Ý PRODUCTION: Nếu không muốn reset pass mỗi lần restart,
-            //     hãy comment toàn bộ block bên dưới sau lần deploy đầu tiên.
+            if (userRepository.count() == 0) {
+                User admin = User.builder()
+                        .id("AD")
+                        .username("admin")
+                        .email("admin@open.edu.vn")
+                        .password(passwordEncoder.encode("password1234"))
+                        .roles(Set.of(adminRole))
+                        .isActive(true)
+                        .isFirstLogin(true)
+                        .build();
+                userRepository.save(admin);
+                log.info("Đã tạo tài khoản quản trị mặc định: admin@open.edu.vn / password1234");
+            }
+
             List<User> users = userRepository.findAll();
             int resetCount = 0;
             for (User user : users) {

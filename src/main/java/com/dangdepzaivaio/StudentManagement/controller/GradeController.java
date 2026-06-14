@@ -85,6 +85,6 @@ public class GradeController {
     @PostMapping("/import/excel")
     public ApiResponse<ExcelImportResult> importGradesExcel(@RequestParam("file") MultipartFile file) {
         ExcelImportResult result = gradeExcelService.importGrades(file);
-        return new ApiResponse<>(1000, "Nhap Excel diem so hoan tat!", result);
+        return new ApiResponse<>(1000, "Nhập Excel điểm số hoàn tất!", result);
     }
 }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axiosClient from '../api/axiosClient';
 import { useNotification } from '../context/NotificationContext';
+import { getErrorMessage } from '../utils/messages';
 
 function LoginPage() {
     const { notify } = useNotification();
@@ -35,7 +36,10 @@ function LoginPage() {
         setLoading(true);
 
         try {
-            const data = await axiosClient.post('/auth/login', { username, password });
+            const data = await axiosClient.post('/auth/login', {
+                username: username.trim().toLowerCase(),
+                password,
+            });
 
             if (data.firstLogin === true || data.isFirstLogin === true) {
                 setIsFirstLoginMode(true);
@@ -45,7 +49,7 @@ function LoginPage() {
                 processSuccessfulLogin(data);
             }
         } catch (err) {
-            setError(typeof err === 'string' ? err : 'Email hoặc mật khẩu không chính xác!');
+            setError(getErrorMessage(err, 'Không thể đăng nhập. Vui lòng thử lại.'));
         } finally {
             setLoading(false);
         }
@@ -64,7 +68,7 @@ function LoginPage() {
 
         localStorage.setItem('token', data.token);
         localStorage.setItem('username', data.username);
-        localStorage.setItem('roles', data.roles);
+        localStorage.setItem('roles', Array.isArray(data.roles) ? data.roles.join(',') : (data.roles || ''));
         localStorage.setItem('userId', data.userId);
         if (data.studentId) localStorage.setItem('studentId', data.studentId);
         if (data.teacherId) localStorage.setItem('teacherId', data.teacherId);
@@ -88,11 +92,14 @@ function LoginPage() {
 
         try {
             setLoading(true);
-            await axiosClient.post('/auth/change-password', { username, newPassword });
+            await axiosClient.post('/auth/change-password', {
+                username: username.trim().toLowerCase(),
+                newPassword,
+            });
             notify.success('Đổi mật khẩu thành công! Hệ thống sẽ tự động đăng nhập.');
             if (tempAuthData) processSuccessfulLogin(tempAuthData);
         } catch (err) {
-            setError(typeof err === 'string' ? err : 'Có lỗi phát sinh khi đổi mật khẩu. Vui lòng thử lại!');
+            setError(getErrorMessage(err, 'Có lỗi phát sinh khi đổi mật khẩu. Vui lòng thử lại!'));
         } finally {
             setLoading(false);
         }
@@ -167,7 +174,7 @@ function LoginPage() {
                         <div className="form-group" style={{ position: 'relative' }}>
                             <label className="form-label">Email đăng nhập</label>
                             <input
-                                type="text"
+                                type="email"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 onFocus={() => setShowDropdown(true)}
@@ -176,7 +183,7 @@ function LoginPage() {
                                 autoComplete="off"
                                 required
                                 className="form-control"
-                                placeholder="ten@open.edu.vn"
+                                placeholder="msv@open.edu.vn"
                             />
                             {showDropdown && (
                                 <div className="dropdown-panel">

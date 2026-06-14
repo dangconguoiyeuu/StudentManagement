@@ -66,7 +66,7 @@ function StudentPage() {
             const data = await axiosClient.get('/students?includeInactive=true');
             setStudents(data || []);
         } catch (err) {
-            setError(err || 'Không thể tải danh sách sinh viên!');
+            setError(getErrorMessage(err, 'Không thể tải danh sách sinh viên!'));
         } finally {
             setLoading(false);
         }

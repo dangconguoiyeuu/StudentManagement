@@ -32,10 +32,10 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserResponse createUser(UserCreationRequest request) {
         if (userRepository.existsByUsername(request.username())) {
-            throw new AppException(ErrorCode.USER_EXISTED);
+            throw new AppException(ErrorCode.USERNAME_EXISTED);
         }
         if (userRepository.existsByEmail(request.email())) {
-            throw new AppException(ErrorCode.USER_EXISTED);
+            throw new AppException(ErrorCode.EMAIL_EXISTED);
         }
 
         Role adminRole = roleRepository.findByName("ADMIN")

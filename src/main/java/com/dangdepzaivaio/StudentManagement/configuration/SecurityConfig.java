@@ -25,6 +25,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final SecurityJsonHandlers securityJsonHandlers;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
@@ -70,6 +71,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/registration/unenroll").hasRole("STUDENT")
 
                 .anyRequest().authenticated());
+
+        httpSecurity.exceptionHandling(ex -> ex
+                .authenticationEntryPoint(securityJsonHandlers)
+                .accessDeniedHandler(securityJsonHandlers));
 
         httpSecurity.csrf(AbstractHttpConfigurer::disable);
         httpSecurity.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

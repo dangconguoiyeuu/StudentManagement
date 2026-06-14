@@ -31,12 +31,12 @@ import java.util.List;
 public class GradeExcelServiceImpl implements GradeExcelService {
 
     private static final String[] EXPORT_HEADERS = {
-            "Ma SV", "Ten SV", "Ma lop HP", "Mon hoc", "Tin chi",
-            "Diem CC", "Diem GK", "Diem CK", "Diem TB", "Diem chu", "Diem he 4", "Trang thai"
+            "Mã SV", "Tên SV", "Mã lớp HP", "Môn học", "Tín chỉ",
+            "Điểm CC", "Điểm GK", "Điểm CK", "Điểm TB", "Điểm chữ", "Điểm hệ 4", "Trạng thái"
     };
 
     private static final String[] IMPORT_HEADERS = {
-            "Ma SV", "Ma lop HP", "Diem CC", "Diem GK", "Diem CK"
+            "Mã SV", "Mã lớp HP", "Điểm CC", "Điểm GK", "Điểm CK"
     };
 
     private final GradeService gradeService;
@@ -49,7 +49,7 @@ public class GradeExcelServiceImpl implements GradeExcelService {
         List<GradeResponse> grades = gradeService.getAllGrades();
 
         try (Workbook workbook = ExcelWorkbookUtil.createWorkbook()) {
-            Sheet sheet = workbook.createSheet("Bang diem");
+            Sheet sheet = workbook.createSheet("Bảng điểm");
             CellStyle headerStyle = ExcelWorkbookUtil.headerStyle(workbook);
             ExcelWorkbookUtil.writeHeaderRow(sheet, headerStyle, EXPORT_HEADERS);
 
@@ -86,7 +86,7 @@ public class GradeExcelServiceImpl implements GradeExcelService {
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet.getLastRowNum() < 1) {
-                throw new AppException(ErrorCode.VALIDATION_ERROR);
+                throw new AppException(ErrorCode.EXCEL_NO_DATA);
             }
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -103,31 +103,31 @@ public class GradeExcelServiceImpl implements GradeExcelService {
                 Double finalGrade = ExcelWorkbookUtil.getCellDouble(row.getCell(4));
 
                 if (studentCode.isBlank() || courseClassCode.isBlank()) {
-                    errors.add("Dong " + excelRow + ": Ma SV va Ma lop HP khong duoc de trong.");
+                    errors.add("Dòng " + excelRow + ": Mã SV và Mã lớp HP không được để trống.");
                     continue;
                 }
 
                 Student student = studentRepository.findByStudentCode(studentCode).orElse(null);
                 if (student == null) {
-                    errors.add("Dong " + excelRow + ": Khong tim thay sinh vien [" + studentCode + "].");
+                    errors.add("Dòng " + excelRow + ": Không tìm thấy sinh viên [" + studentCode + "].");
                     continue;
                 }
 
                 CourseClass courseClass = courseClassRepository.findByCode(courseClassCode).orElse(null);
                 if (courseClass == null) {
-                    errors.add("Dong " + excelRow + ": Khong tim thay lop hoc phan [" + courseClassCode + "].");
+                    errors.add("Dòng " + excelRow + ": Không tìm thấy lớp học phần [" + courseClassCode + "].");
                     continue;
                 }
 
                 Grade grade = gradeRepository.findByStudentIdAndCourseClassId(student.getId(), courseClass.getId())
                         .orElse(null);
                 if (grade == null) {
-                    errors.add("Dong " + excelRow + ": Sinh vien chua dang ky lop [" + courseClassCode + "].");
+                    errors.add("Dòng " + excelRow + ": Sinh viên chưa đăng ký lớp [" + courseClassCode + "].");
                     continue;
                 }
 
                 if (hasRole("ROLE_TEACHER") && !isAssignedTeacher(courseClass)) {
-                    errors.add("Dong " + excelRow + ": Ban khong duoc nhap diem lop [" + courseClassCode + "].");
+                    errors.add("Dòng " + excelRow + ": Bạn không được nhập điểm lớp [" + courseClassCode + "].");
                     continue;
                 }
 
@@ -142,13 +142,13 @@ public class GradeExcelServiceImpl implements GradeExcelService {
                     gradeService.updateGrade(grade.getId(), request);
                     successCount++;
                 } catch (AppException ex) {
-                    errors.add("Dong " + excelRow + ": " + ex.getErrorCode().getMessage());
+                    errors.add("Dòng " + excelRow + ": " + ex.getErrorCode().getMessage());
                 } catch (Exception ex) {
-                    errors.add("Dong " + excelRow + ": " + ex.getMessage());
+                    errors.add("Dòng " + excelRow + ": " + ex.getMessage());
                 }
             }
         } catch (IOException ex) {
-            throw new AppException(ErrorCode.VALIDATION_ERROR);
+            throw new AppException(ErrorCode.EXCEL_FILE_INVALID);
         }
 
         return new ExcelImportResult(successCount, errors.size(), errors);
@@ -156,7 +156,7 @@ public class GradeExcelServiceImpl implements GradeExcelService {
 
     public byte[] exportImportTemplate() {
         try (Workbook workbook = ExcelWorkbookUtil.createWorkbook()) {
-            Sheet sheet = workbook.createSheet("Mau nhap diem");
+            Sheet sheet = workbook.createSheet("Mẫu nhập điểm");
             CellStyle headerStyle = ExcelWorkbookUtil.headerStyle(workbook);
             ExcelWorkbookUtil.writeHeaderRow(sheet, headerStyle, IMPORT_HEADERS);
 
@@ -167,10 +167,10 @@ public class GradeExcelServiceImpl implements GradeExcelService {
             sample.createCell(3).setCellValue(7.5);
             sample.createCell(4).setCellValue(8.5);
 
-            Sheet guide = workbook.createSheet("Huong dan");
-            guide.createRow(0).createCell(0).setCellValue("Cot bat buoc: Ma SV, Ma lop HP");
-            guide.createRow(1).createCell(0).setCellValue("Diem CC, GK, CK thang 0-10");
-            guide.createRow(2).createCell(0).setCellValue("Sinh vien phai da dang ky lop hoc phan tuong ung");
+            Sheet guide = workbook.createSheet("Hướng dẫn");
+            guide.createRow(0).createCell(0).setCellValue("Cột bắt buộc: Mã SV, Mã lớp HP");
+            guide.createRow(1).createCell(0).setCellValue("Điểm CC, GK, CK thang 0-10");
+            guide.createRow(2).createCell(0).setCellValue("Sinh viên phải đã đăng ký lớp học phần tương ứng");
 
             return ExcelWorkbookUtil.toBytes(workbook);
         } catch (IOException ex) {
@@ -193,11 +193,11 @@ public class GradeExcelServiceImpl implements GradeExcelService {
 
     private void validateExcelFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new AppException(ErrorCode.VALIDATION_ERROR);
+            throw new AppException(ErrorCode.EXCEL_FILE_EMPTY);
         }
         String name = file.getOriginalFilename();
         if (name == null || (!name.endsWith(".xlsx") && !name.endsWith(".xls"))) {
-            throw new AppException(ErrorCode.VALIDATION_ERROR);
+            throw new AppException(ErrorCode.EXCEL_FILE_INVALID);
         }
     }
 

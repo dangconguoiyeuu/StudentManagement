@@ -27,12 +27,12 @@ import java.util.List;
 public class StudentExcelServiceImpl implements StudentExcelService {
 
     private static final String[] EXPORT_HEADERS = {
-            "STT", "Ma SV", "Ho", "Ten", "Ngay sinh", "Gioi tinh", "SDT",
-            "Lop hanh chinh", "Khoa", "Nien khoa", "Trang thai", "Email"
+            "STT", "Mã SV", "Họ", "Tên", "Ngày sinh", "Giới tính", "SDT",
+            "Lớp hành chính", "Khoa", "Niên khóa", "Trạng thái", "Email"
     };
 
     private static final String[] IMPORT_HEADERS = {
-            "Ma SV", "Ho", "Ten", "Ngay sinh", "Gioi tinh", "SDT", "Ten lop hanh chinh", "Nien khoa"
+            "Mã SV", "Họ", "Tên", "Ngày sinh", "Giới tính", "SDT", "Tên lớp hành chính", "Niên khóa"
     };
 
     private final StudentRepository studentRepository;
@@ -46,7 +46,7 @@ public class StudentExcelServiceImpl implements StudentExcelService {
                 : studentRepository.findAllActiveStudentsWithJoinFetch();
 
         try (Workbook workbook = ExcelWorkbookUtil.createWorkbook()) {
-            Sheet sheet = workbook.createSheet("Danh sach sinh vien");
+            Sheet sheet = workbook.createSheet("Danh sách sinh viên");
             CellStyle headerStyle = ExcelWorkbookUtil.headerStyle(workbook);
             ExcelWorkbookUtil.writeHeaderRow(sheet, headerStyle, EXPORT_HEADERS);
 
@@ -67,7 +67,7 @@ public class StudentExcelServiceImpl implements StudentExcelService {
                         student.getStudentClass() != null && student.getStudentClass().getDepartment() != null
                                 ? student.getStudentClass().getDepartment().getName() : "");
                 row.createCell(9).setCellValue(student.getCohort() != null ? student.getCohort() : "");
-                row.createCell(10).setCellValue(student.isActive() ? "Dang hoc" : "Da khoa");
+                row.createCell(10).setCellValue(student.isActive() ? "Đang học" : "Đã khóa");
                 row.createCell(11).setCellValue(
                         student.getUser() != null ? student.getUser().getEmail() : "");
                 rowIdx++;
@@ -89,7 +89,7 @@ public class StudentExcelServiceImpl implements StudentExcelService {
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet.getLastRowNum() < 1) {
-                throw new AppException(ErrorCode.VALIDATION_ERROR);
+                throw new AppException(ErrorCode.EXCEL_NO_DATA);
             }
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -109,11 +109,11 @@ public class StudentExcelServiceImpl implements StudentExcelService {
                 String cohort = ExcelWorkbookUtil.getCellString(row.getCell(7));
 
                 if (studentCode.isBlank() || firstName.isBlank() || lastName.isBlank()) {
-                    errors.add("Dong " + excelRow + ": Ma SV, Ho, Ten khong duoc de trong.");
+                    errors.add("Dòng " + excelRow + ": Mã SV, Họ, Tên không được để trống.");
                     continue;
                 }
                 if (className.isBlank()) {
-                    errors.add("Dong " + excelRow + ": Ten lop hanh chinh khong duoc de trong.");
+                    errors.add("Dòng " + excelRow + ": Tên lớp hành chính không được để trống.");
                     continue;
                 }
                 if (cohort.isBlank()) {
@@ -123,7 +123,7 @@ public class StudentExcelServiceImpl implements StudentExcelService {
                 Class studentClass = classRepository.findByName(className)
                         .orElse(null);
                 if (studentClass == null) {
-                    errors.add("Dong " + excelRow + ": Khong tim thay lop hanh chinh [" + className + "].");
+                    errors.add("Dòng " + excelRow + ": Không tìm thấy lớp hành chính [" + className + "].");
                     continue;
                 }
 
@@ -135,13 +135,13 @@ public class StudentExcelServiceImpl implements StudentExcelService {
                     studentService.createStudent(request);
                     successCount++;
                 } catch (AppException ex) {
-                    errors.add("Dong " + excelRow + " (" + studentCode + "): " + ex.getErrorCode().getMessage());
+                    errors.add("Dòng " + excelRow + " (" + studentCode + "): " + ex.getErrorCode().getMessage());
                 } catch (Exception ex) {
-                    errors.add("Dong " + excelRow + " (" + studentCode + "): " + ex.getMessage());
+                    errors.add("Dòng " + excelRow + " (" + studentCode + "): " + ex.getMessage());
                 }
             }
         } catch (IOException ex) {
-            throw new AppException(ErrorCode.VALIDATION_ERROR);
+            throw new AppException(ErrorCode.EXCEL_FILE_INVALID);
         }
 
         return new ExcelImportResult(successCount, errors.size(), errors);
@@ -149,7 +149,7 @@ public class StudentExcelServiceImpl implements StudentExcelService {
 
     public byte[] exportImportTemplate() {
         try (Workbook workbook = ExcelWorkbookUtil.createWorkbook()) {
-            Sheet sheet = workbook.createSheet("Mau nhap sinh vien");
+            Sheet sheet = workbook.createSheet("Mẫu nhập sinh viên");
             CellStyle headerStyle = ExcelWorkbookUtil.headerStyle(workbook);
             ExcelWorkbookUtil.writeHeaderRow(sheet, headerStyle, IMPORT_HEADERS);
 
@@ -163,10 +163,10 @@ public class StudentExcelServiceImpl implements StudentExcelService {
             sample.createCell(6).setCellValue("D21CNPM1");
             sample.createCell(7).setCellValue("Khoa 1");
 
-            Sheet guide = workbook.createSheet("Huong dan");
-            guide.createRow(0).createCell(0).setCellValue("Cot bat buoc: Ma SV, Ho, Ten, Ten lop hanh chinh");
-            guide.createRow(1).createCell(0).setCellValue("Ngay sinh dinh dang yyyy-MM-dd");
-            guide.createRow(2).createCell(0).setCellValue("Ten lop hanh chinh phai trung khop voi he thong");
+            Sheet guide = workbook.createSheet("Hướng dẫn");
+            guide.createRow(0).createCell(0).setCellValue("Cột bắt buộc: Mã SV, Họ, Tên, Tên lớp hành chính");
+            guide.createRow(1).createCell(0).setCellValue("Ngày sinh định dạng yyyy-MM-dd");
+            guide.createRow(2).createCell(0).setCellValue("Tên lớp hành chính phải trùng khớp với hệ thống");
 
             return ExcelWorkbookUtil.toBytes(workbook);
         } catch (IOException ex) {
@@ -176,11 +176,11 @@ public class StudentExcelServiceImpl implements StudentExcelService {
 
     private void validateExcelFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new AppException(ErrorCode.VALIDATION_ERROR);
+            throw new AppException(ErrorCode.EXCEL_FILE_EMPTY);
         }
         String name = file.getOriginalFilename();
         if (name == null || (!name.endsWith(".xlsx") && !name.endsWith(".xls"))) {
-            throw new AppException(ErrorCode.VALIDATION_ERROR);
+            throw new AppException(ErrorCode.EXCEL_FILE_INVALID);
         }
     }
 

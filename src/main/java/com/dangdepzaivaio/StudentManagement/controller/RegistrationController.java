@@ -42,38 +42,38 @@ public class RegistrationController {
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<RegistrationPeriod> createPeriod(@RequestBody RegistrationPeriod period) {
         period.setIsActive(true);
-        return new ApiResponse<>(1000, "Mo cong dang ky tin chi thanh cong", periodRepository.save(period));
+        return new ApiResponse<>(1000, "Mở cổng đăng ký tín chỉ thành công", periodRepository.save(period));
     }
 
     @GetMapping("/periods")
     // 🔥 ĐÃ SỬA: Cho phép cả Học sinh và Giáo viên gọi API này để xem lịch đóng/mở cổng công khai
     @PreAuthorize("hasAnyRole('ADMIN', 'STUDENT', 'TEACHER')")
     public ApiResponse<List<RegistrationPeriod>> getPeriods() {
-        return new ApiResponse<>(1000, "Lay danh sach cong dang ky thanh cong", periodRepository.findAll());
+        return new ApiResponse<>(1000, "Lấy danh sách cổng đăng ký thành công", periodRepository.findAll());
     }
 
     @PutMapping("/periods/{id}/open")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<RegistrationPeriod> openPeriod(@PathVariable Long id) {
         RegistrationPeriod period = periodRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
+                .orElseThrow(() -> new AppException(ErrorCode.REGISTRATION_PERIOD_NOT_FOUND));
         period.setIsActive(true);
-        return new ApiResponse<>(1000, "Da mo cong dang ky", periodRepository.save(period));
+        return new ApiResponse<>(1000, "Đã mở cổng đăng ký", periodRepository.save(period));
     }
 
     @PutMapping("/periods/{id}/close")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<RegistrationPeriod> closePeriod(@PathVariable Long id) {
         RegistrationPeriod period = periodRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR));
+                .orElseThrow(() -> new AppException(ErrorCode.REGISTRATION_PERIOD_NOT_FOUND));
         period.setIsActive(false);
-        return new ApiResponse<>(1000, "Da dong cong dang ky", periodRepository.save(period));
+        return new ApiResponse<>(1000, "Đã đóng cổng đăng ký", periodRepository.save(period));
     }
 
     @GetMapping("/statistics")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<List<CourseClassStatResponse>> getStats() {
-        return new ApiResponse<>(1000, "Tai thong ke dang ky thanh cong", courseClassRepository.getRegistrationStatistics());
+        return new ApiResponse<>(1000, "Tải thống kê đăng ký thành công", courseClassRepository.getRegistrationStatistics());
     }
 
     @PutMapping("/course-class/{id}/toggle")
@@ -81,7 +81,7 @@ public class RegistrationController {
     public ApiResponse<CourseClassResponse> toggleCourseClass(@PathVariable Long id) {
         CourseClass courseClass = getCourseClass(id);
         courseClass.setOpenForRegistration(!courseClass.isOpenForRegistration());
-        return new ApiResponse<>(1000, "Cap nhat trang thai lop hoc phan thanh cong",
+        return new ApiResponse<>(1000, "Cập nhật trạng thái lớp học phần thành công",
                 toResponseWithCount(courseClassRepository.save(courseClass)));
     }
 
@@ -90,7 +90,7 @@ public class RegistrationController {
     public ApiResponse<CourseClassResponse> openCourseClass(@PathVariable Long id) {
         CourseClass courseClass = getCourseClass(id);
         courseClass.setOpenForRegistration(true);
-        return new ApiResponse<>(1000, "Da mo lop hoc phan cho dang ky",
+        return new ApiResponse<>(1000, "Đã mở lớp học phần cho đăng ký",
                 toResponseWithCount(courseClassRepository.save(courseClass)));
     }
 
@@ -99,7 +99,7 @@ public class RegistrationController {
     public ApiResponse<CourseClassResponse> closeCourseClass(@PathVariable Long id) {
         CourseClass courseClass = getCourseClass(id);
         courseClass.setOpenForRegistration(false);
-        return new ApiResponse<>(1000, "Da dong lop hoc phan",
+        return new ApiResponse<>(1000, "Đã đóng lớp học phần",
                 toResponseWithCount(courseClassRepository.save(courseClass)));
     }
 
@@ -110,7 +110,7 @@ public class RegistrationController {
         List<CourseClassResponse> list = courseClassRepository.findByTeacherId(teacherId).stream()
                 .map(this::toResponseWithCount)
                 .toList();
-        return new ApiResponse<>(1000, "Tai lich giang day thanh cong", list);
+        return new ApiResponse<>(1000, "Tải lịch giảng dạy thành công", list);
     }
 
     @GetMapping("/classes/{classId}/students")
@@ -120,20 +120,20 @@ public class RegistrationController {
         List<StudentResponse> list = gradeRepository.findByCourseClassId(classId).stream()
                 .map(g -> studentMapper.toResponse(g.getStudent()))
                 .toList();
-        return new ApiResponse<>(1000, "Tai danh sach sinh vien lop hoc phan thanh cong", list);
+        return new ApiResponse<>(1000, "Tải danh sách sinh viên lớp học phần thành công", list);
     }
 
     @GetMapping("/open-course-classes")
     @PreAuthorize("hasRole('STUDENT')")
     public ApiResponse<List<CourseClassResponse>> getOpenCourseClasses() {
-        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan dang mo thanh cong",
+        return new ApiResponse<>(1000, "Tải danh sách lớp học phần đang mở thành công",
                 registrationService.getOpenCourseClasses());
     }
 
     @GetMapping("/my-classes")
     @PreAuthorize("hasRole('STUDENT')")
     public ApiResponse<List<GradeResponse>> getMyRegisteredClasses() {
-        return new ApiResponse<>(1000, "Tai danh sach lop hoc phan da dang ky thanh cong",
+        return new ApiResponse<>(1000, "Tải danh sách lớp học phần đã đăng ký thành công",
                 registrationService.getCurrentStudentRegistrations());
     }
 
@@ -141,14 +141,14 @@ public class RegistrationController {
     @PreAuthorize("hasRole('STUDENT')")
     public ApiResponse<String> enroll(@RequestParam Long courseClassId) {
         registrationService.registerCourseClass(courseClassId);
-        return new ApiResponse<>(1000, "Dang ky lop hoc phan thanh cong", "OK");
+        return new ApiResponse<>(1000, "Đăng ký lớp học phần thành công", "OK");
     }
 
     @DeleteMapping("/unenroll")
     @PreAuthorize("hasRole('STUDENT')")
     public ApiResponse<String> unenroll(@RequestParam Long courseClassId) {
         registrationService.cancelRegistration(courseClassId);
-        return new ApiResponse<>(1000, "Huy dang ky lop hoc phan thanh cong", "OK");
+        return new ApiResponse<>(1000, "Hủy đăng ký lớp học phần thành công", "OK");
     }
 
     private CourseClass getCourseClass(Long id) {
