@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axiosClient from '../api/axiosClient';
+import { downloadExcel, uploadExcel } from '../api/excelClient';
 import { useNotification } from '../context/NotificationContext';
 import { getErrorMessage } from '../utils/messages';
 
 export default function GradePage() {
-    const { notify } = useNotification();
+    const { notify, confirm } = useNotification();
+    const importFileRef = useRef(null);
     const userRole = localStorage.getItem('roles') || '';
     const username = localStorage.getItem('username') || '';
     const loggedInStudentId = localStorage.getItem('studentId') || '';
@@ -278,6 +280,70 @@ export default function GradePage() {
 
     const adminRows = getAdminAggregatedRows();
 
+    const handleExportGrades = async () => {
+        try {
+            await downloadExcel('/grades/export/excel', 'bang-diem.xlsx');
+            notify.success('Đã xuất bảng điểm ra Excel!');
+        } catch (err) {
+            notify.error(getErrorMessage(err, 'Không thể xuất Excel.'));
+        }
+    };
+
+    const handleDownloadGradeTemplate = async () => {
+        try {
+            await downloadExcel('/grades/export/template', 'mau-nhap-diem.xlsx');
+            notify.success('Đã tải file mẫu nhập điểm!');
+        } catch (err) {
+            notify.error(getErrorMessage(err, 'Không thể tải file mẫu.'));
+        }
+    };
+
+    const handleImportGrades = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = '';
+
+        const ok = await confirm({
+            title: 'Nhập Excel điểm số',
+            message: `Bạn có chắc muốn cập nhật điểm từ file "${file.name}"?`,
+            confirmText: 'Nhập file',
+            variant: 'primary',
+        });
+        if (!ok) return;
+
+        try {
+            const result = await uploadExcel('/grades/import/excel', file);
+            if (result.errorCount > 0) {
+                notify.warning(`Nhập xong: ${result.successCount} thành công, ${result.errorCount} lỗi.`);
+                console.warn('Import errors:', result.errors);
+            } else {
+                notify.success(`Cập nhật thành công ${result.successCount} bản ghi điểm!`);
+            }
+            loadSystemInitialData();
+        } catch (err) {
+            notify.error(getErrorMessage(err, 'Nhập Excel thất bại!'));
+        }
+    };
+
+    const renderGradeExcelActions = (showImport) => (
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button type="button" onClick={handleExportGrades} className="btn btn--outline btn--sm">
+                Xuất Excel
+            </button>
+            {showImport && (
+                <>
+                    <button type="button" onClick={handleDownloadGradeTemplate} className="btn btn--outline btn--sm">
+                        Tải mẫu nhập
+                    </button>
+                    <button type="button" onClick={() => importFileRef.current?.click()} className="btn btn--primary btn--sm">
+                        Nhập Excel
+                    </button>
+                    <input ref={importFileRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportGrades} />
+                </>
+            )}
+        </div>
+    );
+
     // ==================== 🎓 GIAO DIỆN 1: SINH VIÊN (STUDENT VIEW) ====================
     if (isStudent) {
         const studentGrades = allGrades;
@@ -285,10 +351,13 @@ export default function GradePage() {
         const groupedGrades = groupGradesBySemester(studentGrades);
 
         return (
-            <div style={{ padding: 'var(--spacing-sm)', color: 'var(--text-main)', textAlign: 'left' }}>
-                <div style={{ marginBottom: '20px' }}>
-                    <h2 style={{ margin: 0, color: 'var(--text-cyan)' }}>📋 XEM ĐIỂM HỌC TẬP CÁ NHÂN</h2>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>Mã học viên: {username}. Xem toàn bộ chi tiết điểm học phần và GPA phân rã theo từng học kỳ.</p>
+            <div style={{ textAlign: 'left' }}>
+                <div className="page-header flex-between">
+                    <div>
+                        <h2 className="page-header__title">Bảng điểm cá nhân</h2>
+                        <p className="page-header__desc">Mã học viên: {username}. Xem chi tiết điểm và GPA theo học kỳ.</p>
+                    </div>
+                    {renderGradeExcelActions(false)}
                 </div>
 
                 {loading ? (
@@ -387,27 +456,30 @@ export default function GradePage() {
     // ==================== 👨‍🏫 GIÁO VIÊN & QUẢN TRỊ VIÊN (ADMIN & TEACHER) ====================
     return (
         <div style={{ textAlign: 'left' }}>
-            <div className="page-header">
-                <h2 className="page-header__title">
-                    {isTeacher ? 'Bảng nhập điểm thành phần' : 'Bảng điểm tổng hợp'}
-                </h2>
-                <p className="page-header__desc">
-                    {isTeacher ? 'Nhập và cập nhật điểm cho các lớp đang giảng dạy.' : 'Theo dõi điểm số tích lũy của sinh viên toàn trường.'}
-                </p>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
-                {displayGrades.length > 0 && isTeacher && (
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        {!isBulkEdit ? (
-                            <button type="button" onClick={() => setIsBulkEdit(true)} className="btn btn--primary">Sửa điểm</button>
-                        ) : (
-                            <>
-                                <button type="button" onClick={() => { setIsBulkEdit(false); recalculateFiltersAndData(); }} className="btn btn--secondary">Hủy</button>
-                                <button type="button" onClick={handleBulkSave} className="btn btn--success">Lưu điểm</button>
-                            </>
-                        )}
-                    </div>
-                )}
+            <div className="page-header flex-between">
+                <div>
+                    <h2 className="page-header__title">
+                        {isTeacher ? 'Bảng nhập điểm thành phần' : 'Bảng điểm tổng hợp'}
+                    </h2>
+                    <p className="page-header__desc">
+                        {isTeacher ? 'Nhập và cập nhật điểm cho các lớp đang giảng dạy.' : 'Theo dõi điểm số tích lũy của sinh viên toàn trường.'}
+                    </p>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {isTeacher && renderGradeExcelActions(true)}
+                    {displayGrades.length > 0 && isTeacher && (
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            {!isBulkEdit ? (
+                                <button type="button" onClick={() => setIsBulkEdit(true)} className="btn btn--primary btn--sm">Sửa điểm</button>
+                            ) : (
+                                <>
+                                    <button type="button" onClick={() => { setIsBulkEdit(false); recalculateFiltersAndData(); }} className="btn btn--secondary btn--sm">Hủy</button>
+                                    <button type="button" onClick={handleBulkSave} className="btn btn--success btn--sm">Lưu điểm</button>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div style={{ display: 'flex', gap: '15px', marginBottom: '25px', backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', flexWrap: 'wrap' }}>

@@ -11,6 +11,7 @@ import java.util.Optional;
 @Repository
 public interface StudentRepository extends JpaRepository<Student, String> { // 🔥 Khóa String
     boolean existsByStudentCode(String studentCode);
+    Optional<Student> findByStudentCode(String studentCode);
     boolean existsByStudentClassId(Long classId);
 
     @Query("SELECT s FROM Student s JOIN FETCH s.user u JOIN FETCH s.studentClass c WHERE s.isActive = true")

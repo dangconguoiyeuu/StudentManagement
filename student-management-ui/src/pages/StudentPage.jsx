@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axiosClient from '../api/axiosClient';
+import { downloadExcel, uploadExcel } from '../api/excelClient';
 import { useNotification } from '../context/NotificationContext';
 import { getErrorMessage } from '../utils/messages';
 
 function StudentPage() {
     const { notify, confirm } = useNotification();
+    const importFileRef = useRef(null);
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -171,6 +173,51 @@ function StudentPage() {
         setSelectedClass('');
     };
 
+    const handleExportStudents = async () => {
+        try {
+            await downloadExcel('/students/export/excel?includeInactive=true', 'danh-sach-sinh-vien.xlsx');
+            notify.success('Đã xuất danh sách sinh viên ra Excel!');
+        } catch (err) {
+            notify.error(getErrorMessage(err, 'Không thể xuất Excel.'));
+        }
+    };
+
+    const handleDownloadStudentTemplate = async () => {
+        try {
+            await downloadExcel('/students/export/template', 'mau-nhap-sinh-vien.xlsx');
+            notify.success('Đã tải file mẫu nhập sinh viên!');
+        } catch (err) {
+            notify.error(getErrorMessage(err, 'Không thể tải file mẫu.'));
+        }
+    };
+
+    const handleImportStudents = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = '';
+
+        const ok = await confirm({
+            title: 'Nhập Excel sinh viên',
+            message: `Bạn có chắc muốn nhập dữ liệu từ file "${file.name}"?\nCác mã sinh viên trùng sẽ bị bỏ qua.`,
+            confirmText: 'Nhập file',
+            variant: 'primary',
+        });
+        if (!ok) return;
+
+        try {
+            const result = await uploadExcel('/students/import/excel', file);
+            if (result.errorCount > 0) {
+                notify.warning(`Nhập xong: ${result.successCount} thành công, ${result.errorCount} lỗi.`);
+                console.warn('Import errors:', result.errors);
+            } else {
+                notify.success(`Nhập thành công ${result.successCount} sinh viên!`);
+            }
+            fetchStudents();
+        } catch (err) {
+            notify.error(getErrorMessage(err, 'Nhập Excel thất bại!'));
+        }
+    };
+
     const handleClassChange = (classId) => {
         setSelectedClass(classId);
         if (classId) {
@@ -261,7 +308,17 @@ function StudentPage() {
                     </p>
                 </div>
                 {isAdmin && (
-                    <div style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        <button type="button" onClick={handleExportStudents} className="btn btn--outline btn--sm">
+                            Xuất Excel
+                        </button>
+                        <button type="button" onClick={handleDownloadStudentTemplate} className="btn btn--outline btn--sm">
+                            Tải mẫu nhập
+                        </button>
+                        <button type="button" onClick={() => importFileRef.current?.click()} className="btn btn--primary btn--sm">
+                            Nhập Excel
+                        </button>
+                        <input ref={importFileRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportStudents} />
                         <button type="button" onClick={handleAddNewCohort} className="btn btn--primary btn--sm">
                             + Thêm khóa mới
                         </button>
@@ -269,6 +326,11 @@ function StudentPage() {
                             + Thêm sinh viên
                         </button>
                     </div>
+                )}
+                {isTeacher && !isAdmin && (
+                    <button type="button" onClick={handleExportStudents} className="btn btn--outline btn--sm">
+                        Xuất Excel
+                    </button>
                 )}
             </div>
 

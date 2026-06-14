@@ -34,6 +34,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/auth/login", "/auth/change-password").permitAll()
 
+                .requestMatchers(HttpMethod.GET, "/students/export/excel").hasAnyRole("ADMIN", "TEACHER")
+                .requestMatchers(HttpMethod.GET, "/students/export/template").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/students/import/**").hasRole("ADMIN")
+
                 .requestMatchers(HttpMethod.POST, "/students/**", "/teachers/**", "/classes/**",
                         "/departments/**", "/subjects/**", "/course-classes/**", "/users/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/students/**", "/teachers/**", "/classes/**",
@@ -46,6 +50,9 @@ public class SecurityConfig {
                         "/departments/**", "/subjects/**", "/course-classes/**").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
 
                 .requestMatchers(HttpMethod.DELETE, "/grades/student/*/course-class/*").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/grades/export/excel").hasAnyRole("ADMIN", "TEACHER", "STUDENT")
+                .requestMatchers(HttpMethod.GET, "/grades/export/template").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.POST, "/grades/import/**").hasRole("TEACHER")
                 .requestMatchers(HttpMethod.POST, "/grades/**").hasRole("TEACHER")
                 .requestMatchers(HttpMethod.PUT, "/grades/**").hasRole("TEACHER")
                 .requestMatchers(HttpMethod.DELETE, "/grades/**").hasRole("TEACHER")

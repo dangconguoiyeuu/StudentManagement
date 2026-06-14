@@ -12,4 +12,6 @@ public interface ClassRepository extends JpaRepository<Class, Long> {
     boolean existsByDepartmentId(Long departmentId);
     @org.springframework.data.jpa.repository.Query("SELECT c FROM Class c JOIN FETCH c.department")
     List<Class> findAllClassesWithJoinFetch();
+
+    java.util.Optional<Class> findByName(String name);
 }

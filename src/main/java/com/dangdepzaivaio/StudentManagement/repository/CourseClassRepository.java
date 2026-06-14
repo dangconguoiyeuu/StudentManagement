@@ -13,6 +13,7 @@ import java.util.Optional;
 @Repository
 public interface CourseClassRepository extends JpaRepository<CourseClass, Long> {
     boolean existsByCode(String code);
+    Optional<CourseClass> findByCode(String code);
     boolean existsBySubjectId(Long subjectId);
 
     @Query("SELECT cc FROM CourseClass cc " +

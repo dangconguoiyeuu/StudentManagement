@@ -3,11 +3,16 @@ package com.dangdepzaivaio.StudentManagement.controller;
 import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
 import com.dangdepzaivaio.StudentManagement.dto.request.StudentUpdateRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.ExcelImportResult;
 import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
+import com.dangdepzaivaio.StudentManagement.service.StudentExcelService;
 import com.dangdepzaivaio.StudentManagement.service.StudentService;
+import com.dangdepzaivaio.StudentManagement.util.ExcelHttpUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
@@ -16,6 +21,7 @@ import java.util.List;
 public class StudentController {
 
     private final StudentService studentService;
+    private final StudentExcelService studentExcelService;
 
     @PostMapping
     public ApiResponse<StudentResponse> createStudent(@RequestBody @Valid StudentCreationRequest request) {
@@ -47,5 +53,24 @@ public class StudentController {
     public ApiResponse<String> enableStudent(@PathVariable String studentId) { // 🔥 String
         studentService.enableStudent(studentId);
         return new ApiResponse<>(1000, "Mở khóa hồ sơ sinh viên thành công!", "Hồ sơ và tài khoản đã được tái kích hoạt.");
+    }
+
+    @GetMapping("/export/excel")
+    public ResponseEntity<byte[]> exportStudentsExcel(
+            @RequestParam(required = false, defaultValue = "false") boolean includeInactive) {
+        byte[] content = studentExcelService.exportStudents(includeInactive);
+        return ExcelHttpUtil.toDownloadResponse(content, "danh-sach-sinh-vien.xlsx");
+    }
+
+    @GetMapping("/export/template")
+    public ResponseEntity<byte[]> downloadStudentImportTemplate() {
+        byte[] content = studentExcelService.exportImportTemplate();
+        return ExcelHttpUtil.toDownloadResponse(content, "mau-nhap-sinh-vien.xlsx");
+    }
+
+    @PostMapping("/import/excel")
+    public ApiResponse<ExcelImportResult> importStudentsExcel(@RequestParam("file") MultipartFile file) {
+        ExcelImportResult result = studentExcelService.importStudents(file);
+        return new ApiResponse<>(1000, "Nhap Excel sinh vien hoan tat!", result);
     }
 }

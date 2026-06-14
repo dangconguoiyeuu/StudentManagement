@@ -2,13 +2,18 @@ package com.dangdepzaivaio.StudentManagement.controller;
 
 import com.dangdepzaivaio.StudentManagement.dto.request.GradeRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.ExcelImportResult;
 import com.dangdepzaivaio.StudentManagement.dto.response.GradeResponse;
 import com.dangdepzaivaio.StudentManagement.dto.response.StudentAcademicSummaryResponse;
+import com.dangdepzaivaio.StudentManagement.service.GradeExcelService;
 import com.dangdepzaivaio.StudentManagement.service.GradeService;
+import com.dangdepzaivaio.StudentManagement.util.ExcelHttpUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
@@ -17,6 +22,7 @@ import java.util.List;
 public class GradeController {
 
     private final GradeService gradeService;
+    private final GradeExcelService gradeExcelService;
 
     @PostMapping
     public ApiResponse<GradeResponse> inputGrade(@RequestBody @Valid GradeRequest request) {
@@ -62,5 +68,23 @@ public class GradeController {
 
         gradeService.adminCancelCredit(studentId, courseClassId);
         return new ApiResponse<>(1000, "Rút tín chỉ thành công!", "Đã xóa hoàn toàn tín chỉ khỏi hồ sơ sinh viên.");
+    }
+
+    @GetMapping("/export/excel")
+    public ResponseEntity<byte[]> exportGradesExcel() {
+        byte[] content = gradeExcelService.exportGrades();
+        return ExcelHttpUtil.toDownloadResponse(content, "bang-diem.xlsx");
+    }
+
+    @GetMapping("/export/template")
+    public ResponseEntity<byte[]> downloadGradeImportTemplate() {
+        byte[] content = gradeExcelService.exportImportTemplate();
+        return ExcelHttpUtil.toDownloadResponse(content, "mau-nhap-diem.xlsx");
+    }
+
+    @PostMapping("/import/excel")
+    public ApiResponse<ExcelImportResult> importGradesExcel(@RequestParam("file") MultipartFile file) {
+        ExcelImportResult result = gradeExcelService.importGrades(file);
+        return new ApiResponse<>(1000, "Nhap Excel diem so hoan tat!", result);
     }
 }
