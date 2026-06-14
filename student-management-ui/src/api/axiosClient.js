@@ -30,8 +30,8 @@ function buildApiError(error) {
             code: 0,
             status: 0,
             message: isTimeout
-                ? 'Máy chủ không phản hồi. Hãy chắc backend đang chạy tại http://localhost:8081 rồi thử lại.'
-                : 'Không thể kết nối máy chủ. Vui lòng kiểm tra backend (port 8081) hoặc thử lại sau.',
+                ? 'Hệ thống đang khởi động lại (có thể mất khoảng 30 - 50 giây cho lần truy cập đầu tiên). Vui lòng đợi một lát!'
+                : 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra đường truyền hoặc thử lại sau.',
         };
     }
 
