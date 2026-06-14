@@ -1,29 +1,38 @@
 spring:
   application:
     name: StudentManagement
+
+  # 🔥 THÊM MỚI: Bật nạp chậm để rút ngắn thời gian boot từ 2 phút xuống 20 giây
+  main:
+    lazy-initialization: true
+
   datasource:
-    url: jdbc:mysql://localhost:3306/student_management?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: root
-    password: dcnyuu
+    # 🔥 ĐÃ SỬA: Dùng cú pháp biến. Ở local sẽ chạy localhost, lên Render ông điền biến DB_URL là xong
+    url: ${DB_URL:jdbc:mysql://localhost:3306/student_management?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    username: ${DB_USER:root}
+    password: ${DB_PASS:dcnyuu}
     driver-class-name: com.mysql.cj.jdbc.Driver
+
   jpa:
+    open-in-view: false # 🔥 THÊM MỚI: Tắt cái này cho nhẹ log
     hibernate:
-      ddl-auto: update
-    show-sql: false # 🔥 ĐÃ SỬA: Chuyển từ true thành false để tắt log SQL mặc định
+      ddl-auto: none # 🔥 ĐÃ SỬA: Đổi thành 'none' để không bị treo quét Database lúc khởi động
+    show-sql: false
     properties:
       hibernate:
-        show_sql: false # 🔥 THÊM MỚI: Khóa triệt để tính năng in log truy vấn
-        format_sql: false # 🔥 ĐÃ SỬA: Chuyển từ true thành false để ngưng định dạng câu lệnh SQL
+        show_sql: false
+        format_sql: false
         dialect: org.hibernate.dialect.MySQLDialect
         jdbc:
           batch_size: 20
+
 server:
-  port: 8081
+  # 🔥 ĐÃ SỬA: Bắt buộc để Render tự cấp quyền chọn Cổng. Chạy local vẫn là 8081.
+  port: ${PORT:8081}
 
 jwt:
   signer-key: "TranMinhDangDepZaiVaioSieuCapVipPro2005"
 
-# 🔥 THÊM MỚI: Cấu hình dập tắt mức độ log của Hibernate chuẩn cú pháp YAML
 logging:
   level:
     org:
