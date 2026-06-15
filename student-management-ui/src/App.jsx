@@ -4,19 +4,28 @@ import StudentPage from './pages/StudentPage';
 import TeacherPage from './pages/TeacherPage';
 import GradePage from './pages/GradePage';
 import RegistrationPage from './pages/RegistrationPage';
-import TrainingPage from './pages/TrainingPage';
+import DepartmentPage from './pages/DepartmentPage';
+import SubjectPage from './pages/SubjectPage';
+import CourseClassPage from './pages/CourseClassPage';
+import AdministrativeClassPage from './pages/AdministrativeClassPage';
 import DashboardPage from './pages/DashboardPage';
 import SchedulePage from './pages/SchedulePage';
 import { useNotification } from './context/NotificationContext';
 
 const NAV_ITEMS = [
-    { id: 'dashboard', icon: '📊', label: 'Tổng quan', roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
-    { id: 'students', icon: '👥', label: 'Quản lý sinh viên', roles: ['ADMIN', 'TEACHER'] },
-    { id: 'teachers', icon: '💼', label: 'Quản lý giảng viên', roles: ['ADMIN'] },
-    { id: 'grades', icon: '🎯', label: 'Quản lý điểm số', roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
-    { id: 'registration', icon: '⏰', label: 'Đăng ký tín chỉ', roles: ['ADMIN', 'STUDENT', 'TEACHER'] },
-    { id: 'schedule', icon: '📅', label: 'Lịch học / dạy', roles: ['TEACHER', 'STUDENT'], labelFn: (r) => r.includes('TEACHER') ? 'Lịch dạy' : 'Lịch học' },
-    { id: 'training', icon: '🏛️', label: 'Quản lý đào tạo', roles: ['ADMIN'] },
+    { id: 'dashboard', label: 'Tổng quan', icon: '📊', roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+    { id: 'students', label: 'Quản lý sinh viên', icon: '👥', roles: ['ADMIN'] },
+    { id: 'teachers', label: 'Quản lý giảng viên', icon: '💼', roles: ['ADMIN'] },
+
+    // 🔥 CẤU HÌNH 4 PHÂN HỆ MỚI TRÊN SIDEBAR MENU
+    { id: 'departments', label: 'Quản lý khoa', icon: '🏛️', roles: ['ADMIN'] },
+    { id: 'subjects', label: 'Quản lý môn học', icon: '📘', roles: ['ADMIN'] },
+    { id: 'course-classes', label: 'Lớp học phần', icon: '📅', roles: ['ADMIN'] },
+    { id: 'admin-classes', label: 'Lớp hành chính', icon: '🏫', roles: ['ADMIN'] },
+
+    { id: 'registration', label: 'Đăng ký tín chỉ', icon: '📝', roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
+    { id: 'schedule', label: 'Thời khóa biểu', icon: '🗓️', roles: ['TEACHER', 'STUDENT'] },
+    { id: 'grades', label: 'Quản lý điểm số', icon: '💯', roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
 ];
 
 function AppContent() {
@@ -101,7 +110,7 @@ function AppContent() {
 
     const roleLabel = role.includes('ADMIN') ? 'Quản trị viên'
         : role.includes('TEACHER') ? 'Giảng viên'
-        : role.includes('STUDENT') ? 'Sinh viên' : role;
+            : role.includes('STUDENT') ? 'Sinh viên' : role;
 
     return (
         <div className="app-shell">
@@ -150,7 +159,12 @@ function AppContent() {
                     {activeTab === 'grades' && <GradePage />}
                     {activeTab === 'registration' && <RegistrationPage />}
                     {activeTab === 'schedule' && <SchedulePage />}
-                    {activeTab === 'training' && <TrainingPage />}
+
+                    {/* 🔥 ĐÃ THAY THẾ TRANG TRAINING CŨ BẰNG 4 TRANG MỚI TẠI ĐÂY */}
+                    {activeTab === 'departments' && <DepartmentPage />}
+                    {activeTab === 'subjects' && <SubjectPage />}
+                    {activeTab === 'course-classes' && <CourseClassPage />}
+                    {activeTab === 'admin-classes' && <AdministrativeClassPage />}
                 </main>
             </div>
         </div>

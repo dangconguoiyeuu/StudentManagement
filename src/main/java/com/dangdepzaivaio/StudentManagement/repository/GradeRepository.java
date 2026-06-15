@@ -24,6 +24,18 @@ public interface GradeRepository extends JpaRepository<Grade, Long> {
             "WHERE g.student.id = :studentId")
     List<Grade> findByStudentId(@Param("studentId") String studentId);
 
+    // 🔥 ĐÂY LÀ HÀM MỚI ĐƯỢC THÊM VÀO ĐỂ FIX LỖI
+    @Query("SELECT g FROM Grade g " +
+            "JOIN FETCH g.courseClass cc " +
+            "JOIN FETCH cc.subject " +
+            "LEFT JOIN FETCH cc.teacher t " +
+            "LEFT JOIN FETCH t.user " +
+            "JOIN FETCH g.student s " +
+            "JOIN FETCH s.user " +
+            "JOIN FETCH s.studentClass " +
+            "WHERE g.student.id IN :studentIds")
+    List<Grade> findAllByStudentIdIn(@Param("studentIds") List<String> studentIds);
+
     @Query("SELECT g FROM Grade g " +
             "JOIN FETCH g.student s " +
             "JOIN FETCH s.user " +

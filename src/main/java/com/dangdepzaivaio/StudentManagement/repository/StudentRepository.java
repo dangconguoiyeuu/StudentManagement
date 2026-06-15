@@ -9,17 +9,34 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface StudentRepository extends JpaRepository<Student, String> { // 🔥 Khóa String
+public interface StudentRepository extends JpaRepository<Student, String> {
     boolean existsByStudentCode(String studentCode);
     Optional<Student> findByStudentCode(String studentCode);
     boolean existsByStudentClassId(Long classId);
 
-    @Query("SELECT s FROM Student s JOIN FETCH s.user u JOIN FETCH s.studentClass c WHERE s.isActive = true")
+    // 🔥 SỬA TẠI ĐÂY: Đổi s.active thành s.isActive để đúng với thuộc tính trong Entity của bạn
+    @Query("SELECT s FROM Student s " +
+            "JOIN FETCH s.user u " +
+            "JOIN FETCH s.studentClass c " +
+            "LEFT JOIN FETCH c.department d " +
+            "LEFT JOIN FETCH c.advisorTeacher t " +
+            "WHERE s.isActive = true")
     List<Student> findAllActiveStudentsWithJoinFetch();
 
-    @Query("SELECT s FROM Student s JOIN FETCH s.user u JOIN FETCH s.studentClass c")
+    @Query("SELECT s FROM Student s " +
+            "JOIN FETCH s.user u " +
+            "JOIN FETCH s.studentClass c " +
+            "LEFT JOIN FETCH c.department d " +
+            "LEFT JOIN FETCH c.advisorTeacher t")
     List<Student> findAllStudentsWithJoinFetch();
 
-    @Query("SELECT s FROM Student s JOIN FETCH s.user JOIN FETCH s.studentClass WHERE s.id = :id")
-    Optional<Student> findByIdWithJoinFetch(@Param("id") String id); // 🔥 Đổi sang tham số String id
+    @Query("SELECT s FROM Student s " +
+            "JOIN FETCH s.user u " +
+            "JOIN FETCH s.studentClass c " +
+            "LEFT JOIN FETCH c.department d " +
+            "LEFT JOIN FETCH c.advisorTeacher t " +
+            "WHERE s.id = :id")
+    Optional<Student> findByIdWithJoinFetch(@Param("id") String id);
+
+    List<Student> findByStudentClassId(Long classId);
 }

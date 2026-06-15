@@ -14,6 +14,7 @@ import com.dangdepzaivaio.StudentManagement.repository.DepartmentRepository;
 import com.dangdepzaivaio.StudentManagement.repository.RoleRepository;
 import com.dangdepzaivaio.StudentManagement.repository.TeacherRepository;
 import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import com.dangdepzaivaio.StudentManagement.repository.ClassRepository;
 import com.dangdepzaivaio.StudentManagement.service.TeacherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +35,34 @@ public class TeacherServiceImpl implements TeacherService {
     private final RoleRepository roleRepository;
     private final TeacherMapper teacherMapper;
     private final PasswordEncoder passwordEncoder;
+    private final ClassRepository classRepository;
+
+    // 🔥 ĐÃ SỬA: Đảm bảo return đúng 13 tham số tương thích với cấu trúc Record mới của bạn
+    private TeacherResponse enrichAdvisorClasses(TeacherResponse response, String teacherId) {
+        String advisorClassesStr = classRepository.findByAdvisorTeacherId(teacherId).stream()
+                .map(com.dangdepzaivaio.StudentManagement.entity.Class::getName)
+                .collect(Collectors.joining(", "));
+
+        if (advisorClassesStr.isBlank()) {
+            advisorClassesStr = "Không có";
+        }
+
+        return new TeacherResponse(
+                response.id(),
+                response.teacherCode(),
+                response.firstName(),
+                response.lastName(),
+                response.dateOfBirth(),
+                response.gender(),
+                response.phoneNumber(),
+                response.active(),
+                response.username(),
+                response.email(),
+                response.departmentName(),
+                advisorClassesStr,         // Tham số thứ 12: advisorClasses
+                advisorClassesStr          // 🔥 Tham số thứ 13: advisorClassName (Giải quyết lỗi compile)
+        );
+    }
 
     @Override
     @Transactional
@@ -59,32 +89,29 @@ public class TeacherServiceImpl implements TeacherService {
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
         user.setRoles(Set.of(teacherRole));
 
-        // 🔥 SỬA DÒNG NÀY: Hứng lấy đối tượng Managed trả về từ hàm save()
         User managedUser = userRepository.save(user);
 
         Teacher teacher = teacherMapper.toEntity(request);
-
-        // 🔥 SỬA DÒNG NÀY: Gắn đối tượng managedUser (đã an toàn) vào thay vì biến user gốc
         teacher.setUser(managedUser);
-
         teacher.setDepartment(dept);
         teacher.setActive(true);
 
-        return teacherMapper.toResponse(teacherRepository.save(teacher));
+        return enrichAdvisorClasses(teacherMapper.toResponse(teacherRepository.save(teacher)), teacher.getId());
     }
 
     @Override
     public List<TeacherResponse> getAllTeachers() {
         return teacherRepository.findAllTeachersWithJoinFetch().stream()
                 .map(teacherMapper::toResponse)
+                .map(res -> enrichAdvisorClasses(res, res.id()))
                 .toList();
     }
 
     @Override
     public TeacherResponse getTeacherById(String id) {
-        return teacherRepository.findById(id)
-                .map(teacherMapper::toResponse)
+        Teacher teacher = teacherRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.TEACHER_NOT_FOUND));
+        return enrichAdvisorClasses(teacherMapper.toResponse(teacher), teacher.getId());
     }
 
     @Override
@@ -99,7 +126,7 @@ public class TeacherServiceImpl implements TeacherService {
         teacher.setGender(request.gender());
         teacher.setPhoneNumber(request.phoneNumber());
 
-        return teacherMapper.toResponse(teacherRepository.save(teacher));
+        return enrichAdvisorClasses(teacherMapper.toResponse(teacherRepository.save(teacher)), teacher.getId());
     }
 
     @Override

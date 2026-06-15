@@ -14,10 +14,11 @@ export default function DashboardPage() {
         totalSubjects: 0,
         totalClasses: 0, openClasses: 0
     });
-    const [allPeriods, setAllPeriods] = useState([]); // Lưu toàn bộ lịch sử đợt mở cổng
+    const [allPeriods, setAllPeriods] = useState([]);
 
-    // --- STATES CHO TEACHER & STUDENT (GIỮ NGUYÊN ĐỒNG BỘ) ---
+    // --- STATES CHO TEACHER & STUDENT ---
     const [teacherClasses, setTeacherClasses] = useState([]);
+    const [teacherAdvisorInfo, setTeacherAdvisorInfo] = useState('Đang kiểm tra...');
     const [myClasses, setMyClasses] = useState([]);
     const [studentInfo, setStudentInfo] = useState(null);
 
@@ -28,7 +29,7 @@ export default function DashboardPage() {
             try {
                 setLoading(true);
 
-                // 🛠️ LUỒNG BIẾN ĐỔI CHUYÊN SÂU 1: PHÂN HỆ ADMIN
+                // 🛠️ LUỒNG 1: PHÂN HỆ ADMIN
                 if (role.includes('ADMIN')) {
                     const [resStudents, resTeachers, resSubjects, resClasses, resPeriods] = await Promise.all([
                         axiosClient.get('/students?includeInactive=true'),
@@ -38,7 +39,6 @@ export default function DashboardPage() {
                         axiosClient.get('/registration/periods').catch(() => [])
                     ]);
 
-                    // Thuật toán bóc tách trạng thái tài khoản từ mảng dữ liệu thật
                     const sActive = resStudents ? resStudents.filter(s => s.active).length : 0;
                     const sLocked = resStudents ? resStudents.filter(s => !s.active).length : 0;
                     const tActive = resTeachers ? resTeachers.filter(t => t.active).length : 0;
@@ -57,15 +57,24 @@ export default function DashboardPage() {
                     }
                 }
 
-                // 🛠️ LUỒNG BIẾN ĐỔI 2: PHÂN HỆ TEACHER
+                // 🛠️ LUỒNG 2: PHÂN HỆ TEACHER
                 if (role.includes('TEACHER')) {
                     if (teacherId) {
-                        const classes = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
+                        const [classes, allTeachers] = await Promise.all([
+                            axiosClient.get(`/registration/teacher/${teacherId}/classes`),
+                            axiosClient.get('/teachers').catch(() => [])
+                        ]);
                         setTeacherClasses(classes || []);
+
+                        // Quét lấy thông tin lớp hành chính đang làm cố vấn của chính giáo viên này
+                        if (allTeachers && allTeachers.length > 0) {
+                            const currentTeacher = allTeachers.find(t => t.id === teacherId);
+                            setTeacherAdvisorInfo(currentTeacher?.advisorClasses || 'Không có');
+                        }
                     }
                 }
 
-                // 🛠️ LUỒNG BIẾN ĐỔI 3: PHÂN HỆ STUDENT
+                // 🛠️ LUỒNG 3: PHÂN HỆ STUDENT
                 if (role.includes('STUDENT')) {
                     const [resMyClasses, resAllStudents] = await Promise.all([
                         axiosClient.get('/registration/my-classes'),
@@ -109,9 +118,7 @@ export default function DashboardPage() {
                     <p className="page-header__desc">Giám sát dữ liệu vận hành và trạng thái đào tạo.</p>
                 </div>
 
-                {/* Khối Card số liệu chi tiết sâu (Deep Metrics Grid) */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '15px' }}>
-                    {/* Card Sinh viên */}
                     <div style={deepCardStyle}>
                         <div style={{fontSize: '24px'}}>👥</div>
                         <div style={{flex: 1}}>
@@ -123,7 +130,6 @@ export default function DashboardPage() {
                             </div>
                         </div>
                     </div>
-                    {/* Card Giảng viên */}
                     <div style={deepCardStyle}>
                         <div style={{fontSize: '24px'}}>💼</div>
                         <div style={{flex: 1}}>
@@ -135,7 +141,6 @@ export default function DashboardPage() {
                             </div>
                         </div>
                     </div>
-                    {/* Card Đào tạo */}
                     <div style={deepCardStyle}>
                         <div style={{fontSize: '24px'}}>📘</div>
                         <div style={{flex: 1}}>
@@ -146,7 +151,6 @@ export default function DashboardPage() {
                             </div>
                         </div>
                     </div>
-                    {/* Card Điều phối đăng ký */}
                     <div style={deepCardStyle}>
                         <div style={{fontSize: '24px'}}>⏰</div>
                         <div style={{flex: 1}}>
@@ -159,10 +163,7 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                {/* KHỐI 2 BẢNG CHI TIẾT: LỊCH SỬ KHUNG GIỜ VÀ SYSTEM HEALTH */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.2fr', gap: '20px', flexWrap: 'wrap' }}>
-
-                    {/* Bảng trái: Lịch sử toàn bộ các đợt mở cổng */}
                     <div style={panelStyle}>
                         <h4 style={{ margin: '0 0 12px 0', color: 'var(--text-cyan)' }}>📋 LỊCH SỬ VÀ TIẾN ĐỘ CÁC ĐỢT MỞ ĐĂNG KÝ TÍN CHỈ</h4>
                         <div style={{ overflowX: 'auto' }}>
@@ -193,9 +194,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
 
-                    {/* Bảng phải: Giám sát Hệ thống / Audit Logs giả lập */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                        {/* Hộp System Performance */}
                         <div style={panelStyle}>
                             <h4 style={{ margin: '0 0 10px 0', color: 'var(--color-warning)' }}>🖥️ MONITOR SYSTEM HEALTH</h4>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px' }}>
@@ -206,18 +205,15 @@ export default function DashboardPage() {
                             </div>
                         </div>
 
-                        {/* Hộp Nhật ký hành động nhanh */}
                         <div style={panelStyle}>
                             <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-cyan)' }}>📑 SYSTEM AUDIT LOGS (NHẬT KÝ THỜI GIAN THỰC)</h4>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', maxHeight: '140px', overflowY: 'auto', color: 'var(--text-muted)' }}>
                                 <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>⏱️ [Just Now] Admin vừa thực hiện quy trình kiểm tra đồng bộ mảng dữ liệu.</div>
                                 <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>🔑 [5 mins ago] Tài khoản mã số gán khóa học vừa nạp cấu hình thành công.</div>
                                 <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>🗄️ [10 mins ago] JPA Hibernate đồng bộ hóa cột dữ liệu trường `cohort` thành công.</div>
-                                <div style={{borderBottom:'1px solid #333', paddingBottom:'4px'}}>🔒 [30 mins ago] Cấu hình Filter Security bảo mật tầng URL định tuyến mở cổng thành công.</div>
                             </div>
                         </div>
                     </div>
-
                 </div>
             </div>
         );
@@ -231,23 +227,30 @@ export default function DashboardPage() {
                     <h2 style={{ margin: '0 0 5px 0', color: 'var(--text-cyan)' }}>💼 CỔNG THÔNG TIN TỔNG QUAN GIẢNG VIÊN</h2>
                     <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>Xin chào Thầy/Cô <b>{username}</b>. Dưới đây là tóm tắt danh sách lớp đảm nhiệm trong học kỳ.</p>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2.5fr', gap: '20px', flexWrap: 'wrap' }}>
-                    <div style={{ ...cardStyle, justifyContent: 'center', textAlign: 'center', padding: '30px' }}>
-                        <div>
-                            <div style={cardTitleStyle}>HỌC PHẦN ĐANG ĐẢM NHIỆM</div>
-                            <div style={{...cardValueStyle, fontSize:'36px', color:'var(--text-cyan)', marginTop:'8px'}}>{teacherClasses.length} Lớp</div>
+
+                {/* 🔥 HIỂN THỊ THÊM VAI TRÒ CỐ VẤN LỚP HÀNH CHÍNH SONG SONG VỚI LỚP HỌC PHẦN */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    <div style={panelStyle}>
+                        <div style={cardTitleStyle}>HỌC PHẦN ĐANG GIẢNG DẠY</div>
+                        <div style={{...cardValueStyle, fontSize:'32px', color:'var(--text-cyan)', marginTop:'8px'}}>{teacherClasses.length} Lớp học phần</div>
+                    </div>
+                    <div style={{ ...panelStyle, borderLeft: '5px solid var(--color-warning)' }}>
+                        <div style={cardTitleStyle}>VAI TRÒ CỐ VẤN HỌC TẬP (LỚP HÀNH CHÍNH)</div>
+                        <div style={{...cardValueStyle, fontSize:'32px', color:'var(--color-warning)', marginTop:'8px'}}>
+                            Lớp: {teacherAdvisorInfo}
                         </div>
                     </div>
-                    <div style={panelStyle}>
-                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--color-warning)', borderBottom: '1px solid var(--color-border)', paddingBottom: '6px' }}>📅 THỜI KHÓA BIỂU GIẢNG DẠY CỦA THẦY/CÔ</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
-                            {teacherClasses.map((c, i) => (
-                                <div key={i} style={itemStyle}>
-                                    📖 <b>Lớp học phần: {c.code}</b> — Môn: {c.subjectName} | ⏰ Lịch lên lớp: <span style={{color:'var(--color-warning)', fontWeight:'bold'}}>{c.schedule || 'Chưa xếp lịch'}</span>
-                                </div>
-                            ))}
-                            {teacherClasses.length === 0 && <p style={{color:'var(--text-muted)', margin:0}}>Học kỳ này Thầy/Cô chưa có lịch phân công giảng dạy.</p>}
-                        </div>
+                </div>
+
+                <div style={panelStyle}>
+                    <h4 style={{ margin: '0 0 12px 0', color: 'var(--text-cyan)', borderBottom: '1px solid var(--color-border)', paddingBottom: '6px' }}>📅 THỜI KHÓA BIỂU GIẢNG DẠY CỦA THẦY/CÔ</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                        {teacherClasses.map((c, i) => (
+                            <div key={i} style={itemStyle}>
+                                📖 <b>Lớp học phần: {c.code}</b> — Môn: {c.subjectName} | ⏰ Lịch lên lớp: <span style={{color:'var(--color-warning)', fontWeight:'bold'}}>{c.schedule || 'Chưa xếp lịch'}</span>
+                            </div>
+                        ))}
+                        {teacherClasses.length === 0 && <p style={{color:'var(--text-muted)', margin:0}}>Học kỳ này Thầy/Cô chưa có lịch phân công giảng dạy.</p>}
                     </div>
                 </div>
             </div>
@@ -264,18 +267,34 @@ export default function DashboardPage() {
                     <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>Quản lý thông tin lý lịch cá nhân và sơ đồ lịch trình lên lớp tuần cá nhân.</p>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', flexWrap: 'wrap' }}>
+                {/* 🔥 BỐ CỤC ĐẠI TU: HIỂN THỊ RÕ THÔNG TIN SINH VIÊN VÀ THÔNG TIN CỐ VẤN ĐA CHIỀU */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', flexWrap: 'wrap' }}>
                     <div style={panelStyle}>
-                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--text-cyan)', borderBottom:'1px solid var(--color-border)', paddingBottom:'6px' }}>👤 HỒ SƠ LÝ LỊCH CÁ NHÂN SV</h4>
+                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--text-cyan)', borderBottom:'1px solid var(--color-border)', paddingBottom:'6px' }}>👤 HỒ SƠ LÝ LỊCH VÀ LỚP HỌC VÊN</h4>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
                             <div>• Mã số sinh viên: <b style={{color:'var(--color-warning)'}}>{studentInfo?.studentCode || username}</b></div>
                             <div>• Họ và tên học viên: <b>{studentInfo ? `${studentInfo.lastName} ${studentInfo.firstName}` : 'Học viên'}</b></div>
-                            <div>• Lớp hành chính gốc: <span style={{color:'var(--text-cyan)', fontWeight:'bold'}}>{studentInfo?.className || 'Chưa xếp lớp'}</span></div>
+                            <div>• Lớp hành chính học: <span style={{color:'var(--text-cyan)', fontWeight:'bold'}}>{studentInfo?.className || 'Chưa xếp lớp'}</span></div>
                             <div>• Niên khóa đào tạo: <b style={{color:'var(--color-success)'}}>{studentInfo?.cohort || 'Khóa 1'}</b></div>
                             <div>• Hộp thư nhà trường: <span style={{color:'var(--text-muted)'}}>{studentInfo?.email || 'Chưa cấp'}</span></div>
                         </div>
                     </div>
 
+                    {/* 🔥 CARD MỚI: HIỂN THỊ ĐẦY ĐỦ THÔNG TIN LIÊN HỆ CỦA CỐ VẤN HỌC TẬP */}
+                    <div style={{ ...panelStyle, borderLeft: '4px solid var(--text-cyan)' }}>
+                        <h4 style={{ margin: '0 0 12px 0', color: 'var(--text-cyan)', borderBottom:'1px solid var(--color-border)', paddingBottom:'6px' }}>👨‍🏫 THÔNG TIN CỐ VẤN HỌC TẬP (CVHT)</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
+                            <div>• Cố vấn lớp bạn: <b style={{color:'white'}}>{studentInfo?.advisorTeacherName || 'Chưa phân công'}</b></div>
+                            <div>• Email liên hệ: <span style={{color:'var(--text-cyan)', textDecoration:'underline', cursor:'pointer'}} onClick={() => window.location.href=`mailto:${studentInfo?.advisorEmail}`}>{studentInfo?.advisorEmail || 'Chưa cập nhật'}</span></div>
+                            <div>• Số điện thoại: <b style={{color:'var(--color-success)'}}>{studentInfo?.advisorPhone || 'Chưa cập nhật'}</b></div>
+                            <div style={{fontSize:'12px', color:'var(--text-muted)', marginTop:'10px', fontStyle:'italic'}}>
+                                💡 Học viên liên hệ trực tiếp với Thầy/Cô CVHT bằng Email hoặc SĐT trên khi cần duyệt đơn đăng ký học phần khẩn cấp.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
                     <div style={panelStyle}>
                         <h4 style={{ margin: '0 0 12px 0', color: 'var(--color-warning)', borderBottom:'1px solid var(--color-border)', paddingBottom:'6px' }}>📈 SƠ ĐỒ ĐĂNG KÝ HỌC PHẦN HỌC KỲ</h4>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -288,9 +307,6 @@ export default function DashboardPage() {
                                     <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--color-success)' }}>{totalCredits}</div>
                                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop:'2px' }}>TỔNG TÍN CHỈ</div>
                                 </div>
-                            </div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                                💡 <b>Lưu ý cấu trúc:</b> Sinh viên chủ động rà soát Thời khóa biểu bên dưới để tránh trùng lặp khung giờ ca học đan xen động!
                             </div>
                         </div>
                     </div>
@@ -316,10 +332,9 @@ export default function DashboardPage() {
     return null;
 }
 
-// --- CẤU HÌNH INLINE CSS DESIGN CHUẨN ĐẸP ---
+// --- CẤU HÌNH INLINE CSS ---
 const containerStyle = { display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'left' };
 const panelStyle = { backgroundColor: 'var(--color-surface)', padding: '15px 20px', borderRadius: '6px', border: '1px solid var(--color-border)' };
-const cardStyle = { display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' };
 const deepCardStyle = { display: 'flex', gap: '15px', backgroundColor: 'var(--color-surface)', padding: '18px 15px', borderRadius: '6px', border: '1px solid var(--color-border)' };
 const cardTitleStyle = { fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', letterSpacing: '0.3px' };
 const cardValueStyle = { fontSize: '20px', fontWeight: 'bold', color: 'white', marginTop: '2px', marginBottom: '6px' };
@@ -327,8 +342,6 @@ const subMetricStyle = { display: 'flex', gap: '10px', fontSize: '11px', fontWei
 const itemStyle = { padding: '8px 12px', backgroundColor: 'var(--color-bg)', borderRadius: '4px', borderLeft: '3px solid var(--color-primary)' };
 const metricBoxStyle = { backgroundColor: 'var(--color-bg)', padding: '12px', borderRadius: '6px', textAlign: 'center', minWidth: '95px', border: '1px solid var(--color-border)' };
 const logItemStyle = { padding: '6px', backgroundColor: 'var(--color-bg)', borderRadius: '4px', color: 'var(--text-main)' };
-
-// Style bảng bổ sung chuyên nghiệp
 const dashboardTableStyle = { width: '100%', borderCollapse: 'collapse', marginTop: '5px' };
 const thStyle = { borderBottom: '2px solid var(--text-cyan)', color: 'var(--text-cyan)', textAlign: 'left', padding: '8px', fontSize: '13px' };
 const trStyle = { borderBottom: '1px solid var(--color-border)', padding: '8px' };

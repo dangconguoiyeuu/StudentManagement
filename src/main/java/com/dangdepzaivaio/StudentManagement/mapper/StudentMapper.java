@@ -18,9 +18,13 @@ public interface StudentMapper {
 
     @Mapping(target = "username", source = "user.username")
     @Mapping(target = "email", source = "user.email")
-    @Mapping(target = "classId", source = "studentClass.id") // 🔥 ÉP MAP: Lấy ID của Class đưa vào DTO
+    @Mapping(target = "classId", source = "studentClass.id")
     @Mapping(target = "className", source = "studentClass.name")
     @Mapping(target = "active", source = "active")
-    @Mapping(target = "departmentName", source = "studentClass.department.name")
+    // 🔥 SỬA: Sử dụng biểu thức kiểm tra null an toàn cho quan hệ lồng nhau tránh lỗi 500
+    @Mapping(target = "departmentName", expression = "java(student.getStudentClass() != null && student.getStudentClass().getDepartment() != null ? student.getStudentClass().getDepartment().getName() : null)")
+    @Mapping(target = "advisorTeacherName", expression = "java(student.getStudentClass() != null && student.getStudentClass().getAdvisorTeacher() != null ? student.getStudentClass().getAdvisorTeacher().getLastName() + \" \" + student.getStudentClass().getAdvisorTeacher().getFirstName() : \"Chưa phân công\")")
+    @Mapping(target = "advisorEmail", expression = "java(student.getStudentClass() != null && student.getStudentClass().getAdvisorTeacher() != null && student.getStudentClass().getAdvisorTeacher().getUser() != null ? student.getStudentClass().getAdvisorTeacher().getUser().getEmail() : \"Chưa cập nhật\")")
+    @Mapping(target = "advisorPhone", expression = "java(student.getStudentClass() != null && student.getStudentClass().getAdvisorTeacher() != null ? student.getStudentClass().getAdvisorTeacher().getPhoneNumber() : \"Chưa cập nhật\")")
     StudentResponse toResponse(Student student);
 }

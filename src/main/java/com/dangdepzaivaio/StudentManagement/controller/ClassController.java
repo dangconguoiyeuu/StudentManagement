@@ -4,6 +4,7 @@ import com.dangdepzaivaio.StudentManagement.dto.request.ClassRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.ApiResponse;
 import com.dangdepzaivaio.StudentManagement.dto.response.ClassResponse;
 import com.dangdepzaivaio.StudentManagement.service.ClassService;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -37,6 +38,10 @@ public class ClassController {
     @GetMapping("/{id}")
     public ApiResponse<ClassResponse> getById(@PathVariable Long id) {
         return new ApiResponse<>(1000, "Lấy thông tin lớp học thành công!", classService.getClassById(id));
+    }
+    @GetMapping("/{id}/students")
+    public ApiResponse<List<StudentResponse>> getStudentsByClass(@PathVariable Long id) {
+        return new ApiResponse<>(1000, "Lấy danh sách sinh viên lớp thành công!", classService.getStudentsByClassId(id));
     }
 
 }

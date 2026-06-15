@@ -78,21 +78,54 @@ public class RegistrationServiceImpl {
         gradeRepository.delete(grade);
     }
 
-    // ================= MỚI THÊM: HÀM XỬ LÝ DUYỆT ĐƠN =================
     @Transactional
     public void toggleApproveStatus(Long courseClassId, String studentId) {
-        // Tìm đơn đăng ký của sinh viên
         Grade grade = gradeRepository.findByStudentIdAndCourseClassId(studentId, courseClassId)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_ENROLLED));
 
         if ("APPROVED".equalsIgnoreCase(grade.getStatus())) {
-            // NẾU GIÁO VIÊN BẤM HỦY DUYỆT -> XÓA LUÔN ĐƠN KHỎI DATABASE
             gradeRepository.delete(grade);
         } else {
-            // NẾU GIÁO VIÊN BẤM DUYỆT -> LƯU TRẠNG THÁI APPROVED
             grade.setStatus("APPROVED");
             gradeRepository.save(grade);
         }
+    }
+
+    @Transactional
+    public void toggleApproveStatusByAdvisor(String teacherId, String studentId) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
+
+        if (student.getStudentClass() == null ||
+                student.getStudentClass().getAdvisorTeacher() == null ||
+                !teacherId.equals(student.getStudentClass().getAdvisorTeacher().getId())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        List<Grade> studentRegistrations = gradeRepository.findByStudentId(studentId);
+        for (Grade grade : studentRegistrations) {
+            if ("PENDING".equalsIgnoreCase(grade.getStatus())) {
+                grade.setStatus("APPROVED");
+                gradeRepository.save(grade);
+            } else if ("APPROVED".equalsIgnoreCase(grade.getStatus())) {
+                grade.setStatus("PENDING");
+                gradeRepository.save(grade);
+            }
+        }
+    }
+
+    // 🔥 THÊM HÀM NÀY ĐỂ DUYỆT ĐƠN TRỰC TIẾP TỪ GIAO DIỆN MỚI
+    @Transactional
+    public void toggleApproveStatusByRegistrationId(Long registrationId) {
+        Grade grade = gradeRepository.findById(registrationId)
+                .orElseThrow(() -> new AppException(ErrorCode.REGISTRATION_NOT_FOUND));
+
+        if ("PENDING".equalsIgnoreCase(grade.getStatus())) {
+            grade.setStatus("APPROVED");
+        } else {
+            grade.setStatus("PENDING");
+        }
+        gradeRepository.save(grade);
     }
 
     public List<CourseClassResponse> getOpenCourseClasses() {

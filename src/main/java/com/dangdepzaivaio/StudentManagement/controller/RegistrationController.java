@@ -8,6 +8,8 @@ import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
 import com.dangdepzaivaio.StudentManagement.entity.CourseClass;
 import com.dangdepzaivaio.StudentManagement.entity.RegistrationPeriod;
 import com.dangdepzaivaio.StudentManagement.entity.User;
+import com.dangdepzaivaio.StudentManagement.entity.Student;
+import com.dangdepzaivaio.StudentManagement.entity.Grade;
 import com.dangdepzaivaio.StudentManagement.exception.AppException;
 import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
 import com.dangdepzaivaio.StudentManagement.mapper.CourseClassMapper;
@@ -16,6 +18,8 @@ import com.dangdepzaivaio.StudentManagement.repository.CourseClassRepository;
 import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
 import com.dangdepzaivaio.StudentManagement.repository.RegistrationPeriodRepository;
 import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import com.dangdepzaivaio.StudentManagement.repository.ClassRepository;
+import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
 import com.dangdepzaivaio.StudentManagement.service.impl.RegistrationServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,7 +27,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/registration")
@@ -35,6 +42,8 @@ public class RegistrationController {
     private final CourseClassRepository courseClassRepository;
     private final GradeRepository gradeRepository;
     private final UserRepository userRepository;
+    private final ClassRepository classRepository;
+    private final StudentRepository studentRepository;
     private final CourseClassMapper courseClassMapper;
     private final StudentMapper studentMapper;
 
@@ -46,7 +55,6 @@ public class RegistrationController {
     }
 
     @GetMapping("/periods")
-    // 🔥 ĐÃ SỬA: Cho phép cả Học sinh và Giáo viên gọi API này để xem lịch đóng/mở cổng công khai
     @PreAuthorize("hasAnyRole('ADMIN', 'STUDENT', 'TEACHER')")
     public ApiResponse<List<RegistrationPeriod>> getPeriods() {
         return new ApiResponse<>(1000, "Lấy danh sách cổng đăng ký thành công", periodRepository.findAll());
@@ -191,19 +199,76 @@ public class RegistrationController {
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
     }
 
-    // ================== THÊM MỚI API DUYỆT ĐƠN ==================
-    @PutMapping("/classes/{classId}/students/{studentId}/toggle-approve")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
-    public ApiResponse<String> toggleApproveStudent(
-            @PathVariable Long classId,
-            @PathVariable String studentId) { // Nhận chuẩn chuỗi "HS_01" từ Frontend
+    // ====================================================================================
+    // 🔥 CÁC API DÀNH RIÊNG CHO CHỨC NĂNG CỦA CỐ VẤN HỌC TẬP (ĐÃ SỬA THEO YÊU CẦU CỦA BẠN)
+    // ====================================================================================
 
-        // 1. Kiểm tra xem giảng viên đang thao tác có đúng là người dạy lớp này không
-        assertTeacherAssignedIfNeeded(classId);
+    @GetMapping("/teacher/advisor-class")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ApiResponse<Map<String, Object>> getMyAdvisorClass() {
+        User user = currentUser();
 
-        // 2. Gọi Service để xử lý logic lưu trạng thái duyệt vào Database
-        registrationService.toggleApproveStatus(classId, studentId);
+        com.dangdepzaivaio.StudentManagement.entity.Class studentClass = classRepository.findByAdvisorTeacherId(user.getId())
+                .stream().findFirst()
+                .orElseThrow(() -> new AppException(ErrorCode.CLASS_NOT_FOUND));
 
-        return new ApiResponse<>(1000, "Cập nhật trạng thái duyệt đơn thành công", "OK");
+        List<StudentResponse> studentsList = studentRepository.findByStudentClassId(studentClass.getId()).stream()
+                .map(studentMapper::toResponse)
+                .toList();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("className", studentClass.getName());
+        response.put("students", studentsList);
+
+        return new ApiResponse<>(1000, "Tải thông tin lớp cố vấn thành công", response);
+    }
+
+    @GetMapping("/teacher/advisor/pending-students")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ApiResponse<List<Map<String, Object>>> getPendingStudentsForAdvisor() {
+        User user = currentUser();
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        // 🟢 FIX THÔNG MINH: Tìm kiếm danh sách an toàn, tránh sử dụng .orElseThrow() gây crash lỗi 500/404 khi không tìm thấy lớp chủ nhiệm
+        java.util.Optional<com.dangdepzaivaio.StudentManagement.entity.Class> advisorClassOpt =
+                classRepository.findByAdvisorTeacherId(user.getId()).stream().findFirst();
+
+        // Nếu giảng viên thuần túy đi dạy, không làm cố vấn lớp nào -> Trả về danh sách rỗng [] kèm mã 1000 (Thành công) luôn, không báo lỗi hoang mang
+        if (advisorClassOpt.isEmpty()) {
+            return new ApiResponse<>(1000, "Tài khoản giảng viên không được phân công làm Cố vấn học tập cho lớp nào.", result);
+        }
+
+        // Nếu giảng viên có lớp chủ nhiệm cố vấn, bóc tách thực thể và quét dữ liệu như thường lệ
+        com.dangdepzaivaio.StudentManagement.entity.Class advisorClass = advisorClassOpt.get();
+        List<Student> studentsInClass = studentRepository.findByStudentClassId(advisorClass.getId());
+
+        // Phòng ngừa lỗi mảng trống nếu lớp hành chính mới tạo chưa kịp gán học sinh vào học
+        if (studentsInClass.isEmpty()) {
+            return new ApiResponse<>(1000, "Lớp hành chính chủ nhiệm hiện tại chưa có sinh viên.", result);
+        }
+
+        List<String> studentIds = studentsInClass.stream().map(Student::getId).toList();
+        List<Grade> registrations = gradeRepository.findAllByStudentIdIn(studentIds);
+
+        for (Grade g : registrations) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("registrationId", g.getId());
+            map.put("studentId", g.getStudent().getId());
+            map.put("studentCode", g.getStudent().getStudentCode());
+            map.put("studentName", g.getStudent().getLastName() + " " + g.getStudent().getFirstName());
+            map.put("courseClassName", g.getCourseClass().getSubject().getName());
+            map.put("courseClassCode", g.getCourseClass().getCode());
+            map.put("status", g.getStatus());
+            result.add(map);
+        }
+
+        return new ApiResponse<>(1000, "Tải danh sách đăng ký lớp cố vấn thành công", result);
+    }
+
+    @PutMapping("/teacher/advisor/approve/{registrationId}")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ApiResponse<String> toggleApproveRegistration(@PathVariable Long registrationId) {
+        registrationService.toggleApproveStatusByRegistrationId(registrationId);
+        return new ApiResponse<>(1000, "Cập nhật trạng thái duyệt tín chỉ thành công", "OK");
     }
 }

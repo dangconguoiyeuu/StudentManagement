@@ -7,25 +7,20 @@ export default function RegistrationPage() {
     const { notify, confirm } = useNotification();
     const role = localStorage.getItem('roles') || '';
     const teacherId = localStorage.getItem('teacherId') || '';
-    const loggedInStudentId = localStorage.getItem('studentId') || '';
 
     const [selectedClassIds, setSelectedClassIds] = useState([]);
-
     const [tick, setTick] = useState(Date.now());
     const [periodForm, setPeriodForm] = useState({ semester: 'HK1-2026', startTime: '', endTime: '' });
     const [allPeriods, setAllPeriods] = useState([]);
     const [selectedPeriod, setSelectedPeriod] = useState(null);
     const [courseClasses, setCourseClasses] = useState([]);
 
-    // State tìm kiếm và hủy môn cho Sinh viên (Admin dùng)
     const [searchStudentId, setSearchStudentId] = useState('');
     const [searchedClasses, setSearchedClasses] = useState(null);
     const [isSearchingStudent, setIsSearchingStudent] = useState(false);
 
-    // --- STATE PHÂN HỆ TEACHER ---
-    const [teacherClasses, setTeacherClasses] = useState([]);
-    const [selectedClassId, setSelectedClassId] = useState(null);
-    const [classStudents, setClassStudents] = useState([]);
+    // --- STATE MỚI CHO PHÂN HỆ TEACHER ---
+    const [advisorRegistrations, setAdvisorRegistrations] = useState([]);
 
     // --- STATE PHÂN HỆ STUDENT ---
     const [availableClasses, setAvailableClasses] = useState([]);
@@ -68,7 +63,7 @@ export default function RegistrationPage() {
         if (role.includes('ADMIN')) loadAdminPeriodsAndClasses();
         if (role.includes('TEACHER')) {
             fetchActivePeriodStatus();
-            loadTeacherSchedule();
+            loadTeacherAdvisorRegistrations(); // 🔥 Đổi thành hàm gọi API mới
         }
         if (role.includes('STUDENT')) loadStudentRegistrationFlow();
     };
@@ -84,19 +79,14 @@ export default function RegistrationPage() {
     };
 
     // ==================== 🛠️ NGHIỆP VỤ ADMIN ====================
+    // (Giữ nguyên toàn bộ logic Admin của bạn ở đây...)
     const loadAdminPeriodsAndClasses = async () => {
         try {
             const periodsData = await axiosClient.get('/registration/periods');
             if (periodsData && periodsData.length > 0) {
                 const sortedPeriods = [...periodsData].sort((a, b) => b.id - a.id);
                 setAllPeriods(sortedPeriods);
-
-                if (selectedPeriod) {
-                    const updated = sortedPeriods.find(p => p.id === selectedPeriod.id);
-                    setSelectedPeriod(updated || sortedPeriods[0]);
-                } else {
-                    setSelectedPeriod(sortedPeriods[0]);
-                }
+                setSelectedPeriod(selectedPeriod ? sortedPeriods.find(p => p.id === selectedPeriod.id) || sortedPeriods[0] : sortedPeriods[0]);
             }
             const classesData = await axiosClient.get('/course-classes');
             setCourseClasses(classesData);
@@ -114,12 +104,7 @@ export default function RegistrationPage() {
     };
 
     const handleClosePeriod = async (id) => {
-        const ok = await confirm({
-            title: 'Hủy kích hoạt đợt đăng ký',
-            message: 'Bạn có chắc chắn muốn hủy kích hoạt khung giờ đăng ký tín chỉ này?\nCổng đăng ký sẽ bị đóng ngay lập tức.',
-            confirmText: 'Hủy kích hoạt',
-            variant: 'danger',
-        });
+        const ok = await confirm({ title: 'Hủy kích hoạt đợt đăng ký', message: 'Bạn có chắc chắn?', confirmText: 'Hủy kích hoạt', variant: 'danger' });
         if (!ok) return;
         try {
             await axiosClient.put(`/registration/periods/${id}/close`);
@@ -137,13 +122,11 @@ export default function RegistrationPage() {
         } catch (err) { notify.error(getErrorMessage(err, 'Không thể thay đổi trạng thái mở lớp')); }
     };
 
-    // TÌM KIẾM HỒ SƠ SINH VIÊN (ADMIN)
     const handleSearchStudent = async (e) => {
         if(e) e.preventDefault();
         if (!searchStudentId.trim()) return;
         setIsSearchingStudent(true);
         try {
-            // 🔥 THÊM ĐUÔI PHÁ CACHE TRÌNH DUYỆT (?_t=...)
             const res = await axiosClient.get(`/grades/student/${searchStudentId.trim()}?_t=${Date.now()}`);
             setSearchedClasses(res);
         } catch (err) {
@@ -155,22 +138,15 @@ export default function RegistrationPage() {
     };
 
     const handleAdminDeleteRegistration = async (courseClassId, subjectName) => {
-        const ok = await confirm({
-            title: 'Rút môn học khẩn cấp',
-            message: `Bạn (Admin) có chắc chắn muốn xóa môn [${subjectName}] khỏi hồ sơ sinh viên này?\nThao tác này không thể hoàn tác.`,
-            confirmText: 'Xóa tín chỉ',
-            variant: 'danger',
-        });
+        const ok = await confirm({ title: 'Rút môn học khẩn cấp', message: `Bạn có chắc chắn muốn xóa môn này?`, confirmText: 'Xóa tín chỉ', variant: 'danger' });
         if (!ok) return;
-
         try {
             await axiosClient.delete(`/grades/student/${searchStudentId.trim()}/course-class/${courseClassId}`);
             notify.success(`Đã rút thành công môn ${subjectName}!`);
             setSearchedClasses(prev => prev.filter(item => item.courseClassId !== courseClassId));
-        } catch (err) {
-            notify.error(getErrorMessage(err, 'Lỗi khi Admin rút môn học của sinh viên.'));
-        }
+        } catch (err) { notify.error(getErrorMessage(err, 'Lỗi khi Admin rút môn học của sinh viên.')); }
     };
+
     const checkScheduleConflicts = (selectedItems, existingItems) => {
         const slotsMap = {};
         const allItemsToCheck = [...existingItems, ...selectedItems];
@@ -206,40 +182,31 @@ export default function RegistrationPage() {
         return null;
     };
 
-    // ==================== 💼 NGHIỆP VỤ TEACHER ====================
-    const loadTeacherSchedule = async () => {
+    // ==================== 💼 NGHIỆP VỤ TEACHER (LÀM MỚI 100% CỐ VẤN TÍN CHỈ) ====================
+    const loadTeacherAdvisorRegistrations = async () => {
         if (!teacherId) return;
         try {
-            const data = await axiosClient.get(`/registration/teacher/${teacherId}/classes`);
-            setTeacherClasses(data);
-        } catch (err) { notify.error('Không thể tải lịch giảng dạy'); }
+            const data = await axiosClient.get('/registration/teacher/advisor/pending-students');
+            setAdvisorRegistrations(data || []);
+        } catch (err) { notify.error('Không thể tải danh sách đăng ký tín chỉ của lớp cố vấn.'); }
     };
 
-    const viewClassStudents = async (classId) => {
-        setSelectedClassId(classId);
-        try {
-            const data = await axiosClient.get(`/registration/classes/${classId}/students`);
-            setClassStudents(data);
-        } catch (err) { notify.error('Không thể tải danh sách sinh viên lớp học phần'); }
-    };
-
-    const handleToggleApproveStudent = async (studentId, currentStatus) => {
-        const isApproved = currentStatus === 'APPROVED';
+    const handleToggleApproveAdvisor = async (regId, isApproved) => {
         if (isApproved) {
             const ok = await confirm({
                 title: 'Hủy duyệt đơn',
-                message: 'Bạn có chắc chắn muốn hủy duyệt đơn đăng ký này?\nĐơn sẽ bị xóa khỏi danh sách lớp.',
+                message: 'Bạn có chắc chắn muốn hủy duyệt môn này?',
                 confirmText: 'Hủy duyệt',
                 variant: 'danger',
             });
             if (!ok) return;
         }
         try {
-            await axiosClient.put(`/registration/classes/${selectedClassId}/students/${studentId}/toggle-approve`);
-            notify.success(isApproved ? 'Đã hủy duyệt đơn thành công!' : 'Đã phê duyệt đơn đăng ký thành công!');
-            viewClassStudents(selectedClassId);
+            await axiosClient.put(`/registration/teacher/advisor/approve/${regId}`);
+            notify.success(isApproved ? 'Đã hủy duyệt môn thành công!' : 'Đã duyệt môn đăng ký thành công!');
+            loadTeacherAdvisorRegistrations(); // Tải lại danh sách realtime
         } catch (err) {
-            notify.error(getErrorMessage(err, 'Lỗi khi duyệt đơn. Vui lòng kiểm tra lại.'));
+            notify.error(getErrorMessage(err, 'Lỗi khi duyệt đơn.'));
         }
     };
 
@@ -249,9 +216,7 @@ export default function RegistrationPage() {
             const openClasses = await axiosClient.get('/registration/open-course-classes');
             const filteredOpenClasses = openClasses.filter(c => c.semester === semester);
             setAvailableClasses(filteredOpenClasses);
-        } catch (err) {
-            console.error("Lỗi khi tải danh sách môn học mở:", err);
-        }
+        } catch (err) { console.error("Lỗi khi tải danh sách môn học mở:", err); }
     };
 
     const loadStudentRegistrationFlow = async () => {
@@ -281,7 +246,6 @@ export default function RegistrationPage() {
                 setAvailableClasses([]);
             }
 
-            // 🔥 THÊM ĐUÔI PHÁ CACHE KHI SINH VIÊN TẢI DANH SÁCH MÔN ĐÃ ĐĂNG KÝ
             const myClasses = await axiosClient.get(`/registration/my-classes?_t=${Date.now()}`);
             const validClasses = myClasses.filter(c => c.status !== 'REJECTED');
             setMyRegisteredClasses(validClasses);
@@ -295,7 +259,6 @@ export default function RegistrationPage() {
         }
 
         const itemsToEnroll = availableClasses.filter(c => selectedClassIds.includes(c.id));
-
         const validExistingClasses = myRegisteredClasses.filter(reg => {
             const isCurrentSem = activePeriodInfo && reg.semester === activePeriodInfo.semester;
             const isApproved = reg.status === 'APPROVED';
@@ -303,10 +266,7 @@ export default function RegistrationPage() {
         });
 
         const conflictError = checkScheduleConflicts(itemsToEnroll, validExistingClasses);
-        if (conflictError) {
-            notify.error(conflictError);
-            return;
-        }
+        if (conflictError) { notify.error(conflictError); return; }
 
         try {
             for (const id of selectedClassIds) {
@@ -320,20 +280,13 @@ export default function RegistrationPage() {
     };
 
     const handleUnenroll = async (courseClassId) => {
-        const ok = await confirm({
-            title: 'Hủy đăng ký môn học',
-            message: 'Bạn có chắc chắn muốn rút/hủy đơn đăng ký môn học này?',
-            confirmText: 'Hủy đăng ký',
-            variant: 'danger',
-        });
+        const ok = await confirm({ title: 'Hủy đăng ký môn học', message: 'Bạn có chắc muốn rút đơn đăng ký môn học này?', confirmText: 'Hủy', variant: 'danger' });
         if (!ok) return;
         try {
             await axiosClient.delete(`/registration/unenroll?courseClassId=${courseClassId}`);
             notify.success('Đã hủy môn học thành công!');
             setMyRegisteredClasses(prev => prev.filter(item => item.courseClassId !== courseClassId));
-        } catch (err) {
-            notify.error(getErrorMessage(err, 'Không thể hủy môn học này lúc này!'));
-        }
+        } catch (err) { notify.error(getErrorMessage(err, 'Không thể hủy môn học này lúc này!')); }
     };
 
     const formatDate = (dateStr) => {
@@ -377,16 +330,9 @@ export default function RegistrationPage() {
                                     const now = new Date();
                                     const start = new Date(p.startTime);
                                     const end = new Date(p.endTime);
-                                    if (now < start) {
-                                        statusText = '⏳ Chờ mốc giờ';
-                                        statusColor = 'var(--color-warning)';
-                                    } else if (now > end) {
-                                        statusText = '⏰ Đã hết hạn';
-                                        statusColor = 'var(--color-danger)';
-                                    } else {
-                                        statusText = '● Đang hoạt động';
-                                        statusColor = 'var(--color-success)';
-                                    }
+                                    if (now < start) { statusText = '⏳ Chờ mốc giờ'; statusColor = 'var(--color-warning)'; }
+                                    else if (now > end) { statusText = '⏰ Đã hết hạn'; statusColor = 'var(--color-danger)'; }
+                                    else { statusText = '● Đang hoạt động'; statusColor = 'var(--color-success)'; }
                                 }
 
                                 return (
@@ -437,18 +383,13 @@ export default function RegistrationPage() {
 
                     <div style={{ display: 'flex', gap: 'var(--spacing-xl)', flexWrap: 'wrap' }}>
                         <form onSubmit={handleCreatePeriod} style={{ width: '310px', display: 'flex', flexDirection: 'column', gap: '12px', padding: '15px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-border)', height: 'fit-content' }}>
-                            <style>{`
-                                .calendar-click-overlay { position: relative; }
-                                .calendar-click-overlay::-webkit-calendar-picker-indicator { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-                            `}</style>
-
+                            <style>{`.calendar-click-overlay { position: relative; } .calendar-click-overlay::-webkit-calendar-picker-indicator { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }`}</style>
                             <h4 style={{color: 'var(--text-cyan)', margin: 0}}>🔒 MỞ ĐĂNG KÝ TÍN CHỈ MỚI</h4>
                             <input type="text" placeholder="Học kỳ (VD: HK1-2026)" value={periodForm.semester} onChange={e => setPeriodForm({...periodForm, semester: e.target.value})} required style={inputStyle} />
                             <label style={{fontSize:'13px', fontWeight: 'bold'}}>Thời gian bắt đầu:</label>
                             <input type="datetime-local" value={periodForm.startTime} onChange={e => setPeriodForm({...periodForm, startTime: e.target.value})} required className="calendar-click-overlay" style={inputStyle} />
                             <label style={{fontSize:'13px', fontWeight: 'bold'}}>Thời gian kết thúc:</label>
                             <input type="datetime-local" value={periodForm.endTime} onChange={e => setPeriodForm({...periodForm, endTime: e.target.value})} required className="calendar-click-overlay" style={inputStyle} />
-
                             <button type="submit" style={{ padding: '12px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', marginTop: '5px' }}>
                                 Kích Hoạt Đợt Mở Mới
                             </button>
@@ -473,19 +414,12 @@ export default function RegistrationPage() {
                                             <td>{cls.teacherName || 'Chưa phân công'}</td>
                                             <td style={{color:'var(--color-warning)', fontSize:'13px', fontWeight:'bold'}}>{cls.schedule || 'Chưa xếp'}</td>
                                             <td style={{textAlign: 'center'}}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={cls.openForRegistration}
-                                                    onChange={() => handleToggleClassRegistration(cls.id)}
-                                                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                                                />
+                                                <input type="checkbox" checked={cls.openForRegistration} onChange={() => handleToggleClassRegistration(cls.id)} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
                                             </td>
                                         </tr>
                                     ))}
                                 {courseClasses.filter(c => c.semester === selectedPeriod?.semester).length === 0 && (
-                                    <tr>
-                                        <td colSpan="6" style={{textAlign:'center', padding:'20px', color:'var(--text-muted)'}}>Học kỳ này chưa được Admin mở lớp học phần nào ở trang Quản lý đào tạo.</td>
-                                    </tr>
+                                    <tr><td colSpan="6" style={{textAlign:'center', padding:'20px', color:'var(--text-muted)'}}>Học kỳ này chưa được Admin mở lớp học phần nào.</td></tr>
                                 )}
                                 </tbody>
                             </table>
@@ -494,25 +428,10 @@ export default function RegistrationPage() {
 
                     {/* QUẢN TRỊ ĐƠN RÚT MÔN CỦA PHÒNG ĐÀO TẠO */}
                     <div style={{ marginTop: '10px', padding: '20px', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px solid var(--color-danger)' }}>
-                        <h3 style={{ color: 'var(--color-danger)', marginTop: 0, marginBottom: '15px' }}>
-                            🛠️ GIẢI QUYẾT ĐƠN RÚT MÔN CỦA SINH VIÊN (DÀNH CHO PHÒNG ĐÀO TẠO)
-                        </h3>
-                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '15px' }}>
-                            Nhập Mã Sinh Viên (Ví dụ: HS_01) để xem toàn bộ lịch sử đăng ký của sinh viên đó. Admin có quyền hủy (xóa) trực tiếp tín chỉ nếu sinh viên nộp đơn xin rút môn.
-                        </p>
-
+                        <h3 style={{ color: 'var(--color-danger)', marginTop: 0, marginBottom: '15px' }}>🛠️ GIẢI QUYẾT ĐƠN RÚT MÔN CỦA SINH VIÊN (DÀNH CHO PHÒNG ĐÀO TẠO)</h3>
                         <form onSubmit={handleSearchStudent} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                            <input
-                                type="text"
-                                placeholder="Nhập Mã Sinh Viên..."
-                                value={searchStudentId}
-                                onChange={e => setSearchStudentId(e.target.value)}
-                                style={{ ...inputStyle, width: '300px' }}
-                                required
-                            />
-                            <button type="submit" style={{ padding: '8px 24px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                                {isSearchingStudent ? 'Đang tìm...' : '🔍 Tìm Hồ Sơ'}
-                            </button>
+                            <input type="text" placeholder="Nhập Mã Sinh Viên..." value={searchStudentId} onChange={e => setSearchStudentId(e.target.value)} style={{ ...inputStyle, width: '300px' }} required />
+                            <button type="submit" style={{ padding: '8px 24px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>{isSearchingStudent ? 'Đang tìm...' : '🔍 Tìm Hồ Sơ'}</button>
                         </form>
 
                         {searchedClasses !== null && (
@@ -520,38 +439,25 @@ export default function RegistrationPage() {
                                 <table style={tableStyle}>
                                     <thead>
                                     <tr style={thStyle}>
-                                        <th style={{ textAlign: 'center', width: '120px' }}>Trạng thái</th>
-                                        <th>Mã Lớp HP</th>
-                                        <th>Tên Môn Học</th>
-                                        <th>Số Tín Chỉ</th>
-                                        <th style={{ textAlign: 'center' }}>Thao Tác Quản Trị</th>
+                                        <th style={{ textAlign: 'center', width: '120px' }}>Trạng thái</th><th>Mã Lớp HP</th><th>Tên Môn Học</th><th>Số Tín Chỉ</th><th style={{ textAlign: 'center' }}>Thao Tác Quản Trị</th>
                                     </tr>
                                     </thead>
                                     <tbody>
                                     {searchedClasses.map(reg => (
                                         <tr key={reg.id} style={trStyle}>
                                             <td style={{ textAlign: 'center' }}>
-                                                {reg.status === 'APPROVED'
-                                                    ? <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>✅ Đã duyệt</span>
-                                                    : <span style={{ color: 'var(--color-warning)', fontWeight: 'bold' }}>⏳ Chờ duyệt</span>
-                                                }
+                                                {reg.status === 'APPROVED' ? <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>✅ Đã duyệt</span> : <span style={{ color: 'var(--color-warning)', fontWeight: 'bold' }}>⏳ Chờ duyệt</span>}
                                             </td>
                                             <td style={{ fontWeight: 'bold', color: 'var(--text-cyan)' }}>{reg.courseClassCode}</td>
                                             <td>{reg.subjectName}</td>
                                             <td>{reg.credits} tín</td>
                                             <td style={{ textAlign: 'center' }}>
-                                                <button
-                                                    onClick={() => handleAdminDeleteRegistration(reg.courseClassId, reg.subjectName)}
-                                                    style={{ padding: '8px 12px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
-                                                    title="Xóa vĩnh viễn môn học này khỏi hồ sơ sinh viên"
-                                                >
-                                                    🗑️ Hủy tín chỉ này
-                                                </button>
+                                                <button onClick={() => handleAdminDeleteRegistration(reg.courseClassId, reg.subjectName)} style={{ padding: '8px 12px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }} title="Xóa vĩnh viễn môn học này khỏi hồ sơ sinh viên">🗑️ Hủy tín chỉ này</button>
                                             </td>
                                         </tr>
                                     ))}
                                     {searchedClasses.length === 0 && (
-                                        <tr><td colSpan="5" style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)' }}>Sinh viên này chưa có lịch sử đăng ký môn học nào.</td></tr>
+                                        <tr><td colSpan="5" style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)' }}>Sinh viên này chưa có lịch sử đăng ký.</td></tr>
                                     )}
                                     </tbody>
                                 </table>
@@ -561,69 +467,68 @@ export default function RegistrationPage() {
                 </div>
             )}
 
-            {/* ==================== 💼 VIEW TEACHER ==================== */}
+            {/* ==================== 💼 VIEW TEACHER (SỬA LẠI KHÔNG CÓ DROPDOWN) ==================== */}
             {role.includes('TEACHER') && !role.includes('ADMIN') && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     {!isRegistrationTime ? (
-                        <>
-                            <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                                <h3 style={{ color: 'var(--color-success)', marginTop: 0 }}>👨‍🏫 PHÊ DUYỆT ĐĂNG KÝ TÍN CHỈ (ĐÃ CHỐT SỔ)</h3>
-                                <label style={{ display: 'block', fontSize: '13px', marginBottom: '8px', fontWeight: 'bold' }}>Cổng đăng ký đã đóng. Vui lòng chọn lớp để duyệt danh sách sinh viên chính thức:</label>
-                                <select
-                                    value={selectedClassId || ''}
-                                    onChange={(e) => viewClassStudents(e.target.value)}
-                                    style={{ width: '100%', padding: '10px', backgroundColor: 'var(--color-bg)', color: 'white', border: '1px solid var(--color-border)', borderRadius: '4px', outline: 'none' }}
-                                >
-                                    <option value="">-- Chọn lớp học phần --</option>
-                                    {teacherClasses.map(c => (
-                                        <option key={c.id} value={c.id}>{c.code} - {c.subjectName}</option>
-                                    ))}
-                                </select>
-                            </div>
+                        <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                            <h3 style={{ color: 'var(--color-success)', marginTop: 0 }}>👨‍🏫 PHÊ DUYỆT ĐĂNG KÝ TÍN CHỈ (CỐ VẤN HỌC TẬP)</h3>
+                            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '15px' }}>
+                                Hệ thống tự động truy xuất danh sách sinh viên trực thuộc quyền cố vấn của bạn đã gửi đăng ký tín chỉ đợt này.
+                            </p>
 
-                            {selectedClassId && (
-                                <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
-                                    <h4 style={{ marginTop: 0, color: 'white' }}>👥 Danh sách sinh viên đăng ký nộp đơn vào lớp</h4>
-                                    <table style={tableStyle}>
-                                        <thead>
-                                        <tr style={thStyle}>
-                                            <th>Sinh Viên Đăng Ký</th>
-                                            <th style={{ textAlign: 'center' }}>Thao Tác Duyệt Đơn</th>
+                            <table style={tableStyle}>
+                                <thead>
+                                <tr style={thStyle}>
+                                    <th>Mã Sinh Viên</th>
+                                    <th>Họ Và Tên</th>
+                                    <th>Mã Lớp HP</th>
+                                    <th>Môn Đăng Ký</th>
+                                    <th style={{ textAlign: 'center' }}>Trạng Thái</th>
+                                    <th style={{ textAlign: 'center' }}>Thao Tác Duyệt Đơn</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {advisorRegistrations.map((reg, i) => {
+                                    const isApproved = reg.status === 'APPROVED';
+                                    return (
+                                        <tr key={i} style={trStyle}>
+                                            <td style={{ fontWeight: 'bold', color: 'var(--color-warning)' }}>{reg.studentCode}</td>
+                                            <td>{reg.studentName}</td>
+                                            <td style={{ color: 'var(--text-cyan)' }}>{reg.courseClassCode}</td>
+                                            <td><b>{reg.courseClassName}</b></td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                {isApproved ? <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>✅ Đã duyệt</span> : <span style={{ color: 'var(--color-danger)', fontWeight: 'bold' }}>⏳ Chờ duyệt</span>}
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <button
+                                                    onClick={() => handleToggleApproveAdvisor(reg.registrationId, isApproved)}
+                                                    style={{
+                                                        padding: '6px 12px',
+                                                        backgroundColor: isApproved ? 'var(--color-danger)' : 'var(--color-primary)',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        borderRadius: '4px',
+                                                        cursor: 'pointer',
+                                                        fontWeight: 'bold'
+                                                    }}
+                                                >
+                                                    {isApproved ? 'Hủy duyệt' : 'Duyệt Đơn'}
+                                                </button>
+                                            </td>
                                         </tr>
-                                        </thead>
-                                        <tbody>
-                                        {classStudents.map((sv, i) => {
-                                            const isApproved = sv.status === 'APPROVED';
-                                            return (
-                                                <tr key={i} style={trStyle}>
-                                                    <td><b>{sv.firstName} {sv.lastName}</b> ({sv.studentCode})</td>
-                                                    <td style={{ textAlign: 'center' }}>
-                                                        <button
-                                                            onClick={() => handleToggleApproveStudent(sv.id || sv.enrollmentId, sv.status)}
-                                                            style={{
-                                                                padding: '6px 12px',
-                                                                backgroundColor: isApproved ? 'var(--color-success)' : 'var(--color-primary)',
-                                                                color: 'white',
-                                                                border: 'none',
-                                                                borderRadius: '4px',
-                                                                cursor: 'pointer',
-                                                                fontWeight: 'bold'
-                                                            }}
-                                                        >
-                                                            {isApproved ? '✅ Đã duyệt' : 'Duyệt Đơn'}
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                        {classStudents.length === 0 && (
-                                            <tr><td colSpan="2" style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)' }}>Chưa có sinh viên đăng ký lớp này đợt hiện tại.</td></tr>
-                                        )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </>
+                                    );
+                                })}
+                                {advisorRegistrations.length === 0 && (
+                                    <tr>
+                                        <td colSpan="6" style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)' }}>
+                                            Tài khoản của bạn chưa được phân công làm Cố vấn học tập, hoặc hiện tại chưa có sinh viên nào gửi đơn đăng ký tín chỉ.
+                                        </td>
+                                    </tr>
+                                )}
+                                </tbody>
+                            </table>
+                        </div>
                     ) : (
                         <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--color-surface)', borderRadius: '6px', border: '1px dashed var(--color-border)' }}>
                             <div style={{ fontSize: '32px', marginBottom: '10px' }}>⏳</div>
@@ -656,14 +561,7 @@ export default function RegistrationPage() {
                                     {availableClasses.map(c => (
                                         <tr key={c.id} style={trStyle}>
                                             <td style={{ textAlign: 'center' }}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedClassIds.includes(c.id)}
-                                                    onChange={() => {
-                                                        setSelectedClassIds(prev => prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]);
-                                                    }}
-                                                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                                                />
+                                                <input type="checkbox" checked={selectedClassIds.includes(c.id)} onChange={() => { setSelectedClassIds(prev => prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]); }} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
                                             </td>
                                             <td style={{ fontWeight: 'bold', color: 'var(--text-cyan)' }}>{c.code}</td>
                                             <td>{c.subjectName}</td>
@@ -681,10 +579,7 @@ export default function RegistrationPage() {
 
                             {availableClasses.length > 0 && (
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '15px' }}>
-                                    <button
-                                        onClick={handleBulkEnroll}
-                                        style={{ padding: '10px 24px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                                    >
+                                    <button onClick={handleBulkEnroll} style={{ padding: '10px 24px', backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
                                         Đăng Ký
                                     </button>
                                 </div>
@@ -729,13 +624,7 @@ export default function RegistrationPage() {
                                                         <span style={{ color: 'var(--color-warning)', fontWeight: 'bold', fontSize: '13px' }}>⏳ Chờ duyệt</span>
 
                                                         {isRegistrationTime && (
-                                                            <button
-                                                                onClick={() => handleUnenroll(reg.courseClassId)}
-                                                                style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
-                                                                title="Rút đơn đăng ký môn này"
-                                                            >
-                                                                ✖ Hủy
-                                                            </button>
+                                                            <button onClick={() => handleUnenroll(reg.courseClassId)} style={{ padding: '4px 8px', backgroundColor: 'var(--color-danger)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }} title="Rút đơn đăng ký môn này">✖ Hủy</button>
                                                         )}
                                                     </div>
                                                 )}

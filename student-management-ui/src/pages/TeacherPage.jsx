@@ -10,7 +10,6 @@ function TeacherPage() {
     const [showModal, setShowModal] = useState(false);
     const [modalError, setModalError] = useState('');
 
-    // Khởi tạo chế độ sửa
     const [isEditMode, setIsEditMode] = useState(false);
     const [editingTeacherId, setEditingTeacherId] = useState('');
 
@@ -41,7 +40,7 @@ function TeacherPage() {
             setTeachers(data);
         } catch (err) {
             console.error(err);
-        } finally { // 🔥 ĐÃ SỬA: Thay thế từ khóa lỗi 'fill' thành 'finally' chuẩn cú pháp
+        } finally {
             setLoading(false);
         }
     };
@@ -90,7 +89,7 @@ function TeacherPage() {
         setDateOfBirth(t.dateOfBirth || '');
         setGender(t.gender || 'Nam');
         setPhoneNumber(t.phoneNumber || '');
-        setDepartmentId(''); // Khóa chỉnh sửa khoa khi đang sửa thông tin cá nhân để bảo vệ toàn vẹn dữ liệu
+        setDepartmentId('');
         setShowModal(true);
     };
 
@@ -129,7 +128,6 @@ function TeacherPage() {
         setIsEditMode(false); setEditingTeacherId('');
     };
 
-    // BỘ LỌC TÌM KIẾM MÃ GIẢNG VIÊN REALTIME
     const filteredTeachers = teachers.filter(t =>
         t.teacherCode.toLowerCase().includes(searchQuery.trim().toLowerCase())
     );
@@ -148,7 +146,6 @@ function TeacherPage() {
                 </button>
             </div>
 
-            {/* THANH TÌM KIẾM MÃ GIẢNG VIÊN */}
             <div style={{ backgroundColor: 'var(--color-surface)', padding: '15px', borderRadius: '6px', border: '1px solid var(--color-border)', marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '13px', marginBottom: '6px', fontWeight: 'bold', color: 'var(--text-cyan)' }}>🔍 Tìm kiếm nhanh theo Mã giảng viên:</label>
                 <input
@@ -166,6 +163,8 @@ function TeacherPage() {
                     <th style={{ padding: 'var(--spacing-md)' }}>Mã Giảng Viên</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Họ Và Tên</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Khoa Chuyên Môn</th>
+                    {/* 🔥 THÊM CỘT HIỂN THỊ LỚP CHỦ NHIỆM / CỐ VẤN */}
+                    <th style={{ padding: 'var(--spacing-md)' }}>Lớp Đang Cố Vấn</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Giới Tính</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Email Giảng Dạy</th>
                     <th style={{ padding: 'var(--spacing-md)' }}>Trạng thái hệ thống</th>
@@ -178,6 +177,12 @@ function TeacherPage() {
                         <td style={{ padding: 'var(--spacing-md)', fontWeight: 'bold', color: 'var(--color-warning)' }}>{t.teacherCode}</td>
                         <td style={{ padding: 'var(--spacing-md)' }}>{t.lastName} {t.firstName}</td>
                         <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)' }}>{t.departmentName}</td>
+
+                        {/* 🔥 THÊM Ô HIỂN THỊ CHUỖI LỚP CỐ VẤN */}
+                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-cyan)', fontWeight: 'bold' }}>
+                            {t.advisorClasses || 'Không có'}
+                        </td>
+
                         <td style={{ padding: 'var(--spacing-md)' }}>{t.gender}</td>
                         <td style={{ padding: 'var(--spacing-md)', color: 'var(--text-muted)' }}>{t.email}</td>
                         <td style={{ padding: 'var(--spacing-md)' }}>
@@ -195,13 +200,13 @@ function TeacherPage() {
                 ))}
                 {filteredTeachers.length === 0 && (
                     <tr>
-                        <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>Không có dữ liệu giảng viên tương thích với từ khóa tìm kiếm.</td>
+                        {/* 🔥 TĂNG COLSPAN LÊN 8 VÌ ĐÃ THÊM CỘT LỚP CỐ VẤN */}
+                        <td colSpan="8" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>Không có dữ liệu giảng viên tương thích với từ khóa tìm kiếm.</td>
                     </tr>
                 )}
                 </tbody>
             </table>
 
-            {/* MODAL CẤP TÀI KHOẢN / SỬA HỒ SƠ */}
             {showModal && (
                 <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999 }}>
                     <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--spacing-xl)', borderRadius: '8px', width: '550px' }}>
@@ -211,7 +216,6 @@ function TeacherPage() {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
                                 <div><label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Mã Giảng Viên:</label><input type="text" placeholder="GV2026_01" value={teacherCode} onChange={(e) => setTeacherCode(e.target.value)} required disabled={isEditMode} style={inputStyle} /></div>
 
-                                {/* Dropdown menu bốc từ khoa chuyên môn thật dưới DB */}
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px' }}>Khoa Chuyên Môn:</label>
                                     <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} required disabled={isEditMode} style={inputStyle}>

@@ -2,6 +2,8 @@ package com.dangdepzaivaio.StudentManagement.service;
 
 import com.dangdepzaivaio.StudentManagement.dto.request.ClassRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.ClassResponse;
+import com.dangdepzaivaio.StudentManagement.dto.response.StudentResponse;
+
 import java.util.List;
 
 public interface ClassService {
@@ -10,4 +12,5 @@ public interface ClassService {
     ClassResponse updateClass(Long id, ClassRequest request);
     void deleteClass(Long id);
     ClassResponse getClassById(Long id);
+    List<StudentResponse> getStudentsByClassId(Long classId);
 }

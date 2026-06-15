@@ -11,13 +11,17 @@ import org.mapstruct.MappingTarget;
 public interface ClassMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "department", ignore = true)
+    @Mapping(target = "advisorTeacher", ignore = true) // 🔥 Bỏ qua để map thủ công trong service
     Class toEntity(ClassRequest request);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "department", ignore = true)
+    @Mapping(target = "advisorTeacher", ignore = true)
     void updateEntityFromRequest(ClassRequest request, @MappingTarget Class studentClass);
 
     @Mapping(target = "departmentCode", source = "department.code")
     @Mapping(target = "departmentName", source = "department.name")
+    @Mapping(target = "advisorTeacherId", source = "advisorTeacher.id")
+    @Mapping(target = "advisorTeacherName", expression = "java(studentClass.getAdvisorTeacher() != null ? studentClass.getAdvisorTeacher().getLastName() + \" \" + studentClass.getAdvisorTeacher().getFirstName() : null)")
     ClassResponse toResponse(Class studentClass);
 }

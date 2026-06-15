@@ -59,14 +59,12 @@ public class StudentServiceImpl implements StudentService {
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
         user.setRoles(Set.of(studentRole));
 
-        // 🔥 BẢN VÁ: Hứng lấy Managed Object từ UserRepository trả về để chống lỗi crash liên kết dữ liệu
         User managedUser = userRepository.save(user);
 
         Student student = studentMapper.toEntity(request);
         student.setUser(managedUser);
         student.setStudentClass(studentClass);
 
-        // 🔥 THÊM MỚI: Lưu thông tin niên khóa học thực tế trực tiếp vào Database SQL
         student.setCohort(request.cohort());
         student.setActive(true);
 
@@ -74,6 +72,7 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<StudentResponse> getAllStudents(boolean includeInactive) {
         List<Student> students = includeInactive
                 ? studentRepository.findAllStudentsWithJoinFetch()
@@ -83,8 +82,10 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
+    @Transactional(readOnly = true) // 🔥 SỬA: Thêm Transactional readOnly
     public StudentResponse getStudentById(String id) {
-        return studentRepository.findById(id)
+        // 🔥 SỬA: Đổi sang hàm findByIdWithJoinFetch để giải quyết triệt để lỗi Lazy
+        return studentRepository.findByIdWithJoinFetch(id)
                 .map(studentMapper::toResponse)
                 .orElseThrow(() -> new AppException(ErrorCode.STUDENT_NOT_FOUND));
     }
@@ -107,7 +108,6 @@ public class StudentServiceImpl implements StudentService {
         student.setGender(request.gender());
         student.setPhoneNumber(request.phoneNumber());
 
-        // 🔥 THÊM MỚI: Cập nhật sửa đổi Khóa học thực tế trong Database
         if (request.cohort() != null) {
             student.setCohort(request.cohort());
         }

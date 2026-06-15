@@ -13,6 +13,8 @@ import com.dangdepzaivaio.StudentManagement.repository.GradeRepository;
 import com.dangdepzaivaio.StudentManagement.repository.SubjectRepository;
 import com.dangdepzaivaio.StudentManagement.repository.TeacherRepository;
 import com.dangdepzaivaio.StudentManagement.service.CourseClassService;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,13 +38,15 @@ public class CourseClassServiceImpl implements CourseClassService {
             throw new AppException(ErrorCode.COURSE_CLASS_EXISTED);
         }
 
+        // 🔥 KÍCH HOẠT: Kiểm tra trùng lịch trước khi lưu dữ liệu mới
+        validateScheduleConflict(null, request.teacherId(), request.schedule());
+
         Subject subject = subjectRepository.findById(request.subjectId())
                 .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
 
         CourseClass courseClass = courseClassMapper.toEntity(request);
         courseClass.setSubject(subject);
         applyTeacherAndDefaults(courseClass, request);
-
         return toResponseWithCount(courseClassRepository.save(courseClass));
     }
 
@@ -70,13 +74,15 @@ public class CourseClassServiceImpl implements CourseClassService {
             throw new AppException(ErrorCode.COURSE_CLASS_EXISTED);
         }
 
+        // 🔥 KÍCH HOẠT: Kiểm tra trùng lịch trước khi cập nhật dữ liệu
+        validateScheduleConflict(id, request.teacherId(), request.schedule());
+
         Subject subject = subjectRepository.findById(request.subjectId())
                 .orElseThrow(() -> new AppException(ErrorCode.SUBJECT_NOT_FOUND));
 
         courseClassMapper.updateEntityFromRequest(request, courseClass);
         courseClass.setSubject(subject);
         applyTeacherAndDefaults(courseClass, request);
-
         return toResponseWithCount(courseClassRepository.save(courseClass));
     }
 
@@ -114,5 +120,58 @@ public class CourseClassServiceImpl implements CourseClassService {
     private CourseClassResponse toResponseWithCount(CourseClass courseClass) {
         courseClass.setRegisteredStudents(gradeRepository.countByCourseClassId(courseClass.getId()));
         return courseClassMapper.toResponse(courseClass);
+    }
+    private void validateScheduleConflict(Long currentClassId, String teacherId, String schedule) {
+        if (schedule == null || schedule.isBlank()) return;
+
+        // Lấy toàn bộ danh sách lớp học phần hiện có trên hệ thống
+        List<CourseClass> allClasses = courseClassRepository.findAll();
+
+        // Tách chuỗi thời gian gửi lên thành mảng các buổi riêng biệt
+        String[] newSlots = schedule.split("\\s*\\|\\s*");
+
+        for (CourseClass existingClass : allClasses) {
+            // Nếu đang chỉnh sửa (Update), bỏ qua không đối chiếu với chính nó
+            if (currentClassId != null && existingClass.getId().equals(currentClassId)) {
+                continue;
+            }
+            if (existingClass.getSchedule() == null || existingClass.getSchedule().isBlank()) {
+                continue;
+            }
+
+            // Tách chuỗi thời gian của lớp dưới DB
+            String[] existingSlots = existingClass.getSchedule().split("\\s*\\|\\s*");
+
+            for (String newSlot : newSlots) {
+                for (String existingSlot : existingSlots) {
+                    // Chuỗi mẫu: "Thứ 2 Sáng (Tiết 1-4) - Phòng 402" -> Tách theo dấu gạch ngang " - "
+                    String[] newParts = newSlot.split("\\s*-\\s*");
+                    String[] existParts = existingSlot.split("\\s*-\\s*");
+
+                    if (newParts.length < 2 || existParts.length < 2) continue;
+
+                    String newTime = newParts[0].trim().toLowerCase(); // "thứ 2 sáng (tiết 1-4)"
+                    String newRoom = newParts[1].trim().toLowerCase(); // "phòng 402"
+
+                    String existTime = existParts[0].trim().toLowerCase();
+                    String existRoom = existParts[1].trim().toLowerCase();
+
+                    // Nếu trùng khít thời gian (Thứ + Ca học)
+                    if (newTime.equals(existTime)) {
+                        // Kiểm tra 1: Trùng Phòng học
+                        if (newRoom.equals(existRoom)) {
+                            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                    "Xung đột lịch: Phòng học [" + newParts[1] + "] đã bị chiếm dụng bởi lớp [" + existingClass.getCode() + "] tại thời điểm " + newParts[0]);
+                        }
+                        // Kiểm tra 2: Trùng Giảng viên
+                        if (teacherId != null && existingClass.getTeacher() != null
+                                && teacherId.equals(existingClass.getTeacher().getId())) {
+                            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                                    "Xung đột lịch: Giảng viên đã có lịch dạy lớp [" + existingClass.getCode() + "] tại thời điểm " + newParts[0]);
+                        }
+                    }
+                }
+            }
+        }
     }
 }

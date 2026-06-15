@@ -13,5 +13,7 @@ public record TeacherResponse(
         boolean active,
         String username,
         String email,
-        String departmentName
+        String departmentName,
+        String advisorClasses,
+        String advisorClassName
 ) {}
