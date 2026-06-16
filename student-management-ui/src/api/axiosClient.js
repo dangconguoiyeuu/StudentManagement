@@ -11,8 +11,11 @@ const axiosClient = axios.create({
 
 axiosClient.interceptors.request.use(
     (config) => {
-        const isAuthRequest = config.url?.startsWith('/auth/');
-        if (!isAuthRequest) {
+        // 🔥 ĐIỀU CHỈNH 1: Đảm bảo API /auth/ping và /auth/logout vẫn được gửi kèm Token.
+        // Chỉ chặn gửi Token đối với 2 đường dẫn đăng nhập và đổi mật khẩu.
+        const isLoginOrChangePass = config.url === '/auth/login' || config.url === '/auth/change-password';
+
+        if (!isLoginOrChangePass) {
             const token = localStorage.getItem('token');
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
@@ -54,7 +57,7 @@ function getHttpFallbackMessage(status) {
     }
 }
 
-// 🔥 CHỈ GIỮ LẠI ĐÚNG 1 ĐOẠN RESPONSE INTERCEPTOR NÀY Ở CUỐI FILE
+// CHỈ GIỮ LẠI ĐÚNG 1 ĐOẠN RESPONSE INTERCEPTOR NÀY Ở CUỐI FILE
 axiosClient.interceptors.response.use(
     (response) => {
         if (response.data && response.data.code === 1000) {
@@ -64,11 +67,22 @@ axiosClient.interceptors.response.use(
         return response.data;
     },
     (error) => {
-        if (error.response?.data?.code === 1042) {
+        const errCode = error.response?.data?.code;
+        const status = error.response?.status;
+
+        // 🔥 ĐIỀU CHỈNH 2: Xử lý triệt để các mã lỗi liên quan đến phiên đăng nhập
+        if (errCode === 1042 || errCode === 1043) {
+            // Bắt sự kiện Máy A bị đá (1042) hoặc Máy B cố tình đăng nhập (1043)
             window.dispatchEvent(
-                new CustomEvent('force-logout', { detail: error.response.data.message })
+                new CustomEvent('force-logout', { detail: error.response?.data?.message })
             );
+        } else if (status === 401 || errCode === 1004) {
+            // Xóa sạch bộ nhớ và đưa về trang Login ngay khi Token hết hạn / hỏng
+            // Chặn đứng hoàn toàn lỗi Spam Ping 401 ở dưới background
+            localStorage.clear();
+            window.location.href = '/login';
         }
+
         return Promise.reject(buildApiError(error));
     }
 );
