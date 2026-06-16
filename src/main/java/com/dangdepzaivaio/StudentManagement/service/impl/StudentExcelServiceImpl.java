@@ -4,15 +4,19 @@ import com.dangdepzaivaio.StudentManagement.dto.request.StudentCreationRequest;
 import com.dangdepzaivaio.StudentManagement.dto.response.ExcelImportResult;
 import com.dangdepzaivaio.StudentManagement.entity.Class;
 import com.dangdepzaivaio.StudentManagement.entity.Student;
+import com.dangdepzaivaio.StudentManagement.entity.User;
 import com.dangdepzaivaio.StudentManagement.exception.AppException;
 import com.dangdepzaivaio.StudentManagement.exception.ErrorCode;
 import com.dangdepzaivaio.StudentManagement.repository.ClassRepository;
 import com.dangdepzaivaio.StudentManagement.repository.StudentRepository;
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
 import com.dangdepzaivaio.StudentManagement.service.StudentExcelService;
 import com.dangdepzaivaio.StudentManagement.service.StudentService;
 import com.dangdepzaivaio.StudentManagement.util.ExcelWorkbookUtil;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -38,12 +42,29 @@ public class StudentExcelServiceImpl implements StudentExcelService {
     private final StudentRepository studentRepository;
     private final ClassRepository classRepository;
     private final StudentService studentService;
+    private final UserRepository userRepository;
 
     @Override
     public byte[] exportStudents(boolean includeInactive) {
-        List<Student> students = includeInactive
-                ? studentRepository.findAllStudentsWithJoinFetch()
-                : studentRepository.findAllActiveStudentsWithJoinFetch();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isTeacher = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_TEACHER"));
+
+        List<Student> students;
+        if (isTeacher) {
+            String email = auth.getName();
+            User user = userRepository.findByEmailIgnoreCase(email).orElse(null);
+            Class advisorClass = user != null ? classRepository.findByAdvisorTeacherId(user.getId()).stream().findFirst().orElse(null) : null;
+
+            if (advisorClass != null) {
+                students = studentRepository.findByStudentClassId(advisorClass.getId());
+            } else {
+                students = new ArrayList<>();
+            }
+        } else {
+            students = includeInactive
+                    ? studentRepository.findAllStudentsWithJoinFetch()
+                    : studentRepository.findAllActiveStudentsWithJoinFetch();
+        }
 
         try (Workbook workbook = ExcelWorkbookUtil.createWorkbook()) {
             Sheet sheet = workbook.createSheet("Danh sách sinh viên");

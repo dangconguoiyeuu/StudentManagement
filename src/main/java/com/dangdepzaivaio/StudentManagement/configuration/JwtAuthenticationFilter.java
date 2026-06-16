@@ -49,6 +49,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     User user = userRepository.findByEmailIgnoreCase(username).orElse(null);
                     if (user != null && (user.getSessionId() == null || !user.getSessionId().equals(tokenSessionId))) {
+
+                        String origin = request.getHeader("Origin");
+                        if (origin != null) {
+                            response.setHeader("Access-Control-Allow-Origin", origin);
+                            response.setHeader("Access-Control-Allow-Credentials", "true");
+                        }
+
                         // Chặn và trả về mã lỗi 1042
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                         response.setContentType("application/json;charset=UTF-8");

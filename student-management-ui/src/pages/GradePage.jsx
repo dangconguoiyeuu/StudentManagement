@@ -467,6 +467,7 @@ export default function GradePage() {
                 </div>
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                     {isTeacher && renderGradeExcelActions(true)}
+                    {isAdmin && renderGradeExcelActions(false)}
                     {displayGrades.length > 0 && isTeacher && (
                         <div style={{ display: 'flex', gap: '10px' }}>
                             {!isBulkEdit ? (
