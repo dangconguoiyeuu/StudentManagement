@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
@@ -48,7 +49,16 @@ public class AuthenticationService {
             throw new AppException(ErrorCode.WRONG_PASSWORD);
         }
 
-        String token = generateToken(user);
+        // 🔥 FIX LỖI 1043 (ĐĂNG NHẬP 2 THIẾT BỊ):
+        // Thay vì ném lỗi chặn người dùng đăng nhập, ta chỉ cần tạo Session ID mới ghi đè lên DB.
+        // Hệ quả: Thiết bị mới đăng nhập bình thường. Thiết bị cũ/Tab cũ mang Token chứa Session cũ
+        // sẽ tự động bị JwtAuthenticationFilter đá văng (lỗi 1042) ở lần gọi API tiếp theo.
+        String newSessionId = UUID.randomUUID().toString();
+        user.setSessionId(newSessionId);
+        userRepository.save(user);
+
+        String token = generateToken(user, newSessionId);
+
         Set<String> roles = user.getRoles().stream()
                 .map(com.dangdepzaivaio.StudentManagement.entity.Role::getName)
                 .collect(Collectors.toSet());
@@ -68,7 +78,7 @@ public class AuthenticationService {
                 .token(token)
                 .authenticated(true)
                 .userId(user.getId())
-                .username(user.getEmail()) // Trả về email làm thông tin hiển thị sau đăng nhập
+                .username(user.getEmail())
                 .roles(roles)
                 .isFirstLogin(user.isFirstLogin())
                 .studentId(studentId)
@@ -76,19 +86,20 @@ public class AuthenticationService {
                 .build();
     }
 
-    private String generateToken(User user) {
+    private String generateToken(User user, String sessionId) {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS256);
         String rolesScope = user.getRoles().stream()
                 .map(com.dangdepzaivaio.StudentManagement.entity.Role::getName)
                 .collect(Collectors.joining(" "));
 
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
-                .subject(user.getEmail()) // 🔥 THAY ĐỔI: Lưu Email vào subject của JWT thay vì username
+                .subject(user.getEmail())
                 .issuer("dangdepzaivaio.com")
                 .issueTime(new Date())
                 .expirationTime(new Date(Instant.now().plus(2, ChronoUnit.HOURS).toEpochMilli()))
                 .claim("userId", user.getId())
                 .claim("scope", rolesScope)
+                .claim("sessionId", sessionId)
                 .build();
 
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());
@@ -101,7 +112,6 @@ public class AuthenticationService {
         }
     }
 
-    // 🔥 SỬA CHỮA: Cập nhật dùng findByEmail để khớp với luồng giao diện React
     public void changePasswordFirstLogin(String username, String newPassword) {
         String email = username.trim().toLowerCase();
         User user = userRepository.findByEmailIgnoreCase(email)
@@ -114,5 +124,13 @@ public class AuthenticationService {
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setFirstLogin(false);
         userRepository.save(user);
+    }
+
+    public void logout(String email) {
+        User user = userRepository.findByEmailIgnoreCase(email).orElse(null);
+        if (user != null) {
+            user.setSessionId(null);
+            userRepository.save(user);
+        }
     }
 }

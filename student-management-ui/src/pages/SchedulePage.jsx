@@ -27,7 +27,6 @@ export default function SchedulePage() {
 
             if (isStudent) {
                 const myClasses = await axiosClient.get(`/registration/my-classes?_t=${Date.now()}`);
-                // 🔥 SỬA 1: Bỏ localStorage, lọc lịch dựa vào trạng thái APPROVED từ Backend trả về
                 validClasses = myClasses.filter(reg => reg.status === 'APPROVED');
             } else if (isTeacher && teacherId) {
                 validClasses = await axiosClient.get(`/registration/teacher/${teacherId}/classes?_t=${Date.now()}`)
@@ -50,30 +49,43 @@ export default function SchedulePage() {
         };
 
         classes.forEach(cls => {
-            const fullSchedule = (cls.schedule || '').toLowerCase();
-            if (!fullSchedule) return;
+            const rawSchedule = cls.schedule || '';
+            if (!rawSchedule) return;
 
-            // 🔥 SỬA 2: Tách chuỗi theo dấu "|" để rải đều các ca học ra các ô tương ứng
-            const sessions = fullSchedule.split('|');
+            const sessions = rawSchedule.split('|');
 
             sessions.forEach(sessionStr => {
-                // Bóc tách Thứ cho ca này
+                const lowerStr = sessionStr.toLowerCase();
+
+                // 1. Bóc tách Thứ
                 let dayKey = '';
-                if (sessionStr.includes('chủ nhật') || sessionStr.includes('cn')) dayKey = 'CN';
+                if (lowerStr.includes('chủ nhật') || lowerStr.includes('cn')) dayKey = 'CN';
                 else {
-                    const dayMatch = sessionStr.match(/thứ\s*(\d+)/) || sessionStr.match(/t(\d+)/);
+                    const dayMatch = lowerStr.match(/thứ\s*(\d+)/) || lowerStr.match(/t(\d+)/);
                     if (dayMatch) dayKey = dayMatch[1];
                 }
 
-                // Bóc tách Buổi cho ca này
+                // 2. Bóc tách Ca (Sáng/Chiều/Tối)
                 let shiftKey = '';
-                if (sessionStr.includes('sáng') || sessionStr.match(/tiết\s*[1-4]/)) shiftKey = 'Sáng';
-                else if (sessionStr.includes('chiều') || sessionStr.match(/tiết\s*[5-8]/)) shiftKey = 'Chiều';
-                else if (sessionStr.includes('tối') || sessionStr.match(/tiết\s*(9|10|11|12)/)) shiftKey = 'Tối';
+                if (lowerStr.includes('sáng') || lowerStr.match(/tiết\s*[1-4]/)) shiftKey = 'Sáng';
+                else if (lowerStr.includes('chiều') || lowerStr.match(/tiết\s*[5-8]/)) shiftKey = 'Chiều';
+                else if (lowerStr.includes('tối') || lowerStr.match(/tiết\s*(9|10|11|12)/)) shiftKey = 'Tối';
 
-                // Ném vào ô tương ứng trên lưới
+                // 3. Bóc tách Tiết học
+                const timeMatch = sessionStr.match(/\(Tiết\s*(.+?)\)/i);
+                const timeStr = timeMatch ? `Tiết ${timeMatch[1]}` : shiftKey;
+
+                // 4. Bóc tách Phòng học
+                const roomMatch = sessionStr.match(/Phòng\s*(.+)/i);
+                const roomStr = roomMatch ? roomMatch[1].trim() : 'Chưa xếp';
+
+                // Ném vào ô tương ứng trên lưới kèm theo dữ liệu đã bóc tách
                 if (dayKey && shiftKey && newGrid[shiftKey][dayKey]) {
-                    newGrid[shiftKey][dayKey].push(cls);
+                    newGrid[shiftKey][dayKey].push({
+                        ...cls,
+                        extractedTime: timeStr,
+                        extractedRoom: roomStr
+                    });
                 }
             });
         });
@@ -133,17 +145,26 @@ export default function SchedulePage() {
                                             {classesInSlot.length > 0 ? (
                                                 classesInSlot.map((cls, index) => (
                                                     <div key={index} style={classCardStyle}>
-                                                        <div style={{ fontWeight: 'bold', color: 'var(--text-cyan)', marginBottom: '4px' }}>
+                                                        {/* Tên môn */}
+                                                        <div style={{ fontWeight: 'bold', color: 'var(--text-cyan)', fontSize: '13px', lineHeight: '1.4' }}>
                                                             {cls.subjectName}
                                                         </div>
-                                                        <div style={{ fontSize: '12px', marginBottom: '2px' }}>
-                                                            <span style={{ color: 'var(--text-muted)' }}>Mã HP:</span> {cls.code || cls.courseClassCode}
+                                                        {/* Tiết học */}
+                                                        <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-warning)' }}>
+                                                            {cls.extractedTime}
                                                         </div>
-                                                        {isStudent && (
-                                                            <div style={{ fontSize: '12px', marginBottom: '2px' }}>
-                                                                <span style={{ color: 'var(--text-muted)' }}>GV:</span> {cls.teacherName || 'Chưa xếp'}
-                                                            </div>
-                                                        )}
+                                                        {/* GV */}
+                                                        <div style={{ fontSize: '12px' }}>
+                                                            <span style={{ color: 'var(--text-muted)' }}>GV:</span> {cls.teacherName || 'Chưa xếp'}
+                                                        </div>
+                                                        {/* Mã môn */}
+                                                        <div style={{ fontSize: '12px' }}>
+                                                            <span style={{ color: 'var(--text-muted)' }}>Mã:</span> {cls.code || cls.courseClassCode}
+                                                        </div>
+                                                        {/* Phòng */}
+                                                        <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-success)' }}>
+                                                            Phòng: {cls.extractedRoom}
+                                                        </div>
                                                     </div>
                                                 ))
                                             ) : (
@@ -190,10 +211,15 @@ const tdStyle = {
 
 const classCardStyle = {
     backgroundColor: 'var(--color-bg)',
-    borderLeft: '4px solid var(--color-success)',
-    padding: '10px',
-    borderRadius: '4px',
+    borderTop: '4px solid var(--color-success)', // Chuyển viền đánh dấu lên trên đỉnh để hợp với thiết kế căn giữa
+    padding: '10px 8px',
+    borderRadius: '6px',
     marginBottom: '8px',
     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    wordWrap: 'break-word'
+    wordBreak: 'break-word',   // Tự động bẻ chữ nếu quá dài
+    whiteSpace: 'normal',      // Ép tự động xuống dòng
+    textAlign: 'center',       // Căn giữa toàn bộ chữ
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '3px'                 // Khoảng cách giữa các dòng
 };

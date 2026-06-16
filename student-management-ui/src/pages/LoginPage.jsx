@@ -41,6 +41,12 @@ function LoginPage() {
                 password,
             });
 
+            if (!data) {
+                setError('Lỗi phản hồi từ máy chủ (Dữ liệu rỗng). Vui lòng thử lại!');
+                setLoading(false);
+                return;
+            }
+
             if (data.firstLogin === true || data.isFirstLogin === true) {
                 setIsFirstLoginMode(true);
                 setTempAuthData(data);
@@ -49,6 +55,12 @@ function LoginPage() {
                 processSuccessfulLogin(data);
             }
         } catch (err) {
+            // 🔥 TH2: Bắt khoảnh khắc Máy B cố tình đăng nhập đè -> Chặn ngay lập tức
+            if (err.code === 1043) {
+                alert(err.message || 'Tài khoản đang đăng nhập ở thiết bị khác! Cả 2 thiết bị sẽ bị khóa phiên. Vui lòng đăng nhập lại.');
+                setLoading(false);
+                return;
+            }
             setError(getErrorMessage(err, 'Không thể đăng nhập. Vui lòng thử lại.'));
         } finally {
             setLoading(false);
@@ -72,6 +84,8 @@ function LoginPage() {
         localStorage.setItem('userId', data.userId);
         if (data.studentId) localStorage.setItem('studentId', data.studentId);
         if (data.teacherId) localStorage.setItem('teacherId', data.teacherId);
+
+        localStorage.setItem('login_session_id', Date.now().toString());
 
         notify.success('Đăng nhập thành công! Chào mừng bạn trở lại.');
         window.location.href = '/';

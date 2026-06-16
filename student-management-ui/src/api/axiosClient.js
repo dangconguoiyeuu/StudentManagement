@@ -45,29 +45,32 @@ function buildApiError(error) {
 
 function getHttpFallbackMessage(status) {
     switch (status) {
-        case 400:
-            return 'Dữ liệu gửi lên không hợp lệ.';
-        case 401:
-            return 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.';
-        case 403:
-            return 'Bạn không có quyền thực hiện thao tác này.';
-        case 404:
-            return 'Không tìm thấy tài nguyên yêu cầu.';
-        case 500:
-            return 'Lỗi máy chủ nội bộ. Vui lòng thử lại sau.';
-        default:
-            return 'Lỗi kết nối hệ thống!';
+        case 400: return 'Dữ liệu gửi lên không hợp lệ.';
+        case 401: return 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.';
+        case 403: return 'Bạn không có quyền thực hiện thao tác này.';
+        case 404: return 'Không tìm thấy tài nguyên yêu cầu.';
+        case 500: return 'Lỗi máy chủ nội bộ. Vui lòng thử lại sau.';
+        default: return 'Lỗi kết nối hệ thống!';
     }
 }
 
+// 🔥 CHỈ GIỮ LẠI ĐÚNG 1 ĐOẠN RESPONSE INTERCEPTOR NÀY Ở CUỐI FILE
 axiosClient.interceptors.response.use(
     (response) => {
         if (response.data && response.data.code === 1000) {
-            return response.data.result;
+            // An toàn hơn: nếu API không có result thì trả về data gốc
+            return response.data.result !== undefined ? response.data.result : response.data;
         }
         return response.data;
     },
-    (error) => Promise.reject(buildApiError(error))
+    (error) => {
+        if (error.response?.data?.code === 1042) {
+            window.dispatchEvent(
+                new CustomEvent('force-logout', { detail: error.response.data.message })
+            );
+        }
+        return Promise.reject(buildApiError(error));
+    }
 );
 
 export default axiosClient;

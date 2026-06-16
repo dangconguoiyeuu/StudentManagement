@@ -7,9 +7,11 @@ import com.dangdepzaivaio.StudentManagement.service.impl.AuthenticationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import java.security.Principal;
 import java.util.Map;
 
 @RestController
@@ -31,5 +33,18 @@ public class AuthenticationController {
         String newPassword = request.get("newPassword");
         authenticationService.changePasswordFirstLogin(username, newPassword);
         return new ApiResponse<>(1000, "Đổi mật khẩu lần đầu thành công!", "Mật khẩu mới đã được áp dụng.");
+    }
+
+    @GetMapping("/ping")
+    public ApiResponse<String> ping() {
+        return new ApiResponse<>(1000, "OK", "pong");
+    }
+
+    @PostMapping("/logout")
+    public ApiResponse<String> logout(Principal principal) {
+        if (principal != null) {
+            authenticationService.logout(principal.getName());
+        }
+        return new ApiResponse<>(1000, "Đăng xuất thành công", "OK");
     }
 }

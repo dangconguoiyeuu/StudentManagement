@@ -12,7 +12,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
+import com.dangdepzaivaio.StudentManagement.repository.UserRepository;
+import com.dangdepzaivaio.StudentManagement.entity.User;
+import org.springframework.beans.factory.annotation.Autowired;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Date;
@@ -24,6 +26,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Value("${jwt.signer-key}")
     private String signerKey;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -39,9 +44,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // Xác thực chữ ký mã hóa và kiểm tra thời hạn token
                 if (signedJWT.verify(verifier) && new Date().before(signedJWT.getJWTClaimsSet().getExpirationTime())) {
                     String username = signedJWT.getJWTClaimsSet().getSubject();
-                    String scope = signedJWT.getJWTClaimsSet().getStringClaim("scope"); // Đọc chuỗi Roles từ Payload
+                    String scope = signedJWT.getJWTClaimsSet().getStringClaim("scope");
+                    String tokenSessionId = signedJWT.getJWTClaimsSet().getStringClaim("sessionId");
 
-                    // Chuyển đổi chuỗi role sang GrantedAuthority chuẩn Spring Security (Thêm tiền tố ROLE_)
+                    User user = userRepository.findByEmailIgnoreCase(username).orElse(null);
+                    if (user != null && (user.getSessionId() == null || !user.getSessionId().equals(tokenSessionId))) {
+                        // Chặn và trả về mã lỗi 1042
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{\"code\": 1042, \"message\": \"Tài khoản đang được đăng nhập ở thiết bị khác. Hệ thống đã đăng xuất. Nhấn OK để thoát.\"}");
+                        return; // Khóa luôn luồng request
+                    }
+
                     List<SimpleGrantedAuthority> authorities = Arrays.stream(scope.split(" "))
                             .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
                             .collect(Collectors.toList());
@@ -49,7 +63,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(username, null, authorities);
 
-                    // Thiết lập thông tin xác thực vào ngữ cảnh Security
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (Exception e) {

@@ -45,8 +45,8 @@ public enum ErrorCode {
     EXCEL_FILE_EMPTY(1037, "File Excel trống hoặc chưa được chọn", HttpStatus.BAD_REQUEST),
     EXCEL_FILE_INVALID(1038, "File không đúng định dạng. Chỉ chấp nhận .xlsx hoặc .xls", HttpStatus.BAD_REQUEST),
     EXCEL_NO_DATA(1039, "File Excel không có dữ liệu để xử lý", HttpStatus.BAD_REQUEST),
-
-    // 🔥 THÊM 2 MÃ LỖI NÀY VÀO TRƯỚC DẤU CHẤM PHẨY (;) CUỐI CÙNG
+    INVALID_SESSION(1042, "Tài khoản đang được đăng nhập ở thiết bị khác. Hệ thống đã đăng xuất. Nhấn OK để thoát.", HttpStatus.UNAUTHORIZED),
+    DUPLICATE_LOGIN_DETECTED(1043, "Tài khoản đang đăng nhập ở thiết bị khác! Hệ thống đã khóa phiên ở cả 2 thiết bị. Nhấn OK để làm mới.", HttpStatus.CONFLICT),
     UNAUTHORIZED(1040, "Bạn không có quyền thao tác (Không phải Cố vấn học tập của sinh viên này)", HttpStatus.FORBIDDEN),
     REGISTRATION_NOT_FOUND(1041, "Không tìm thấy đơn đăng ký tín chỉ của sinh viên", HttpStatus.NOT_FOUND);
 

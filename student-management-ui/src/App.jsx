@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axiosClient from './api/axiosClient'; // Đảm bảo import axiosClient để gọi API Ping
 import LoginPage from './pages/LoginPage';
 import StudentPage from './pages/StudentPage';
 import TeacherPage from './pages/TeacherPage';
@@ -16,13 +17,10 @@ const NAV_ITEMS = [
     { id: 'dashboard', label: 'Tổng quan', icon: '📊', roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
     { id: 'students', label: 'Quản lý sinh viên', icon: '👥', roles: ['ADMIN'] },
     { id: 'teachers', label: 'Quản lý giảng viên', icon: '💼', roles: ['ADMIN'] },
-
-    // 🔥 CẤU HÌNH 4 PHÂN HỆ MỚI TRÊN SIDEBAR MENU
     { id: 'departments', label: 'Quản lý khoa', icon: '🏛️', roles: ['ADMIN'] },
     { id: 'subjects', label: 'Quản lý môn học', icon: '📘', roles: ['ADMIN'] },
     { id: 'course-classes', label: 'Lớp học phần', icon: '📅', roles: ['ADMIN'] },
     { id: 'admin-classes', label: 'Lớp hành chính', icon: '🏫', roles: ['ADMIN'] },
-
     { id: 'registration', label: 'Đăng ký tín chỉ', icon: '📝', roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
     { id: 'schedule', label: 'Thời khóa biểu', icon: '🗓️', roles: ['TEACHER', 'STUDENT'] },
     { id: 'grades', label: 'Quản lý điểm số', icon: '💯', roles: ['ADMIN', 'TEACHER', 'STUDENT'] },
@@ -35,17 +33,15 @@ function AppContent() {
     const [role, setRole] = useState(localStorage.getItem('roles') || '');
     const [activeTab, setActiveTab] = useState('dashboard');
 
-    const executeLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('username');
-        localStorage.removeItem('roles');
-        localStorage.removeItem('userId');
-        localStorage.removeItem('studentId');
-        localStorage.removeItem('teacherId');
-        localStorage.removeItem('lastExitTime');
+    const executeLogout = async (callApi = true) => {
+        if (callApi && localStorage.getItem('token')) {
+            try { await axiosClient.post('/auth/logout'); } catch(e){}
+        }
+        localStorage.clear();
         setToken(null);
         setUsername(null);
         setRole('');
+        window.location.href = '/login';
     };
 
     useEffect(() => {
@@ -58,7 +54,7 @@ function AppContent() {
                 const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
                 if (timeAway > FIFTEEN_MINUTES) {
-                    executeLogout();
+                    executeLogout(true);
                     notify.warning('Phiên làm việc đã hết hạn do không hoạt động trong 15 phút. Vui lòng đăng nhập lại.');
                 } else {
                     localStorage.removeItem('lastExitTime');
@@ -76,13 +72,40 @@ function AppContent() {
             }
         };
 
-        document.addEventListener('visibilitychange', handleVisibilityChange);
         const handleBeforeUnload = () => localStorage.setItem('lastExitTime', Date.now().toString());
+
+        // 🔥 PING NGẦM KIỂM TRA SESSION (MỖI 5 GIÂY)
+        const pinger = setInterval(() => {
+            if (localStorage.getItem('token')) {
+                axiosClient.get('/auth/ping').catch(() => {});
+            }
+        }, 5000);
+
+        // 🔥 XỬ LÝ 2 TAB CÙNG 1 MÁY
+        const handleStorageChange = (e) => {
+            if (e.key === 'login_session_id') {
+                alert('Trình duyệt vừa đăng nhập một tài khoản khác. Trang sẽ tự động tải lại để đồng bộ.');
+                window.location.reload();
+            }
+        };
+
+        // 🔥 XỬ LÝ KHI MÁY BỊ KICK KHỎI HỆ THỐNG
+        const handleForceLogout = (e) => {
+            alert(e.detail || 'Tài khoản đang được đăng nhập ở nơi khác. Hệ thống đã đăng xuất. Nhấn OK để thoát.');
+            executeLogout(false);
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('force-logout', handleForceLogout);
 
         return () => {
+            clearInterval(pinger);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('force-logout', handleForceLogout);
         };
     }, [notify]);
 
@@ -95,7 +118,7 @@ function AppContent() {
             variant: 'danger',
         });
         if (ok) {
-            executeLogout();
+            executeLogout(true);
             notify.info('Đã đăng xuất thành công.');
         }
     };
@@ -159,8 +182,6 @@ function AppContent() {
                     {activeTab === 'grades' && <GradePage />}
                     {activeTab === 'registration' && <RegistrationPage />}
                     {activeTab === 'schedule' && <SchedulePage />}
-
-                    {/* 🔥 ĐÃ THAY THẾ TRANG TRAINING CŨ BẰNG 4 TRANG MỚI TẠI ĐÂY */}
                     {activeTab === 'departments' && <DepartmentPage />}
                     {activeTab === 'subjects' && <SubjectPage />}
                     {activeTab === 'course-classes' && <CourseClassPage />}
